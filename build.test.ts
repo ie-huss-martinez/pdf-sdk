@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -6,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { build, type Rolldown } from "vite";
 import { afterAll, describe, expect, it } from "vitest";
 import { PDFJS_DATA } from "./tools/pdfjs-data-plugin.js";
+import { QPDF_WASM_SHA256 } from "./tools/qpdf-wasm-plugin.js";
 import { externalPackages } from "./vite.config.js";
 
 /**
@@ -103,7 +105,10 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
   it("generate no code from strings, in any chunk, including the inlined worker", () => {
     const javascript = files.filter((file) => file.type === "chunk");
     expect(javascript.map((file) => file.fileName)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/^lazy\/inline-worker-/)]),
+      expect.arrayContaining([
+        expect.stringMatching(/^lazy\/render-worker-/),
+        expect.stringMatching(/^lazy\/processing-worker-/),
+      ]),
     );
     for (const file of javascript) {
       expect(file.code, file.fileName).not.toMatch(CODE_GENERATION);
@@ -119,7 +124,8 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
     expect(chunk("index.js").dynamicImports).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^lazy\/runtime-/),
-        expect.stringMatching(/^lazy\/inline-worker-/),
+        expect.stringMatching(/^lazy\/render-worker-/),
+        expect.stringMatching(/^lazy\/processing-worker-/),
       ]),
     );
   });
@@ -127,7 +133,7 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
   it("ship no worker source maps", () => {
     expect(files.filter((file) => /\.worker-[\w-]+\.js\.map$/.test(file.fileName))).toEqual([]);
     const worker = chunk(
-      files.find((file) => /^lazy\/inline-worker-[\w-]+\.js$/.test(file.fileName))?.fileName ?? "",
+      files.find((file) => /^lazy\/render-worker-[\w-]+\.js$/.test(file.fileName))?.fileName ?? "",
     );
     expect(worker.code).not.toMatch(/sourceMappingURL=pdfjs/);
   });
@@ -187,6 +193,38 @@ describe("the pdf.js assets (docs/adr/0002, docs/adr/0006)", () => {
       for (const imported of chunk(entry).imports) {
         expect(imported, entry).not.toMatch(/^lazy\//);
       }
+    }
+  });
+});
+
+describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
+  const workers = files.filter(
+    (file): file is Rolldown.OutputChunk =>
+      file.type === "chunk" && /^lazy\/(?:render|processing)-worker-/.test(file.fileName),
+  );
+  const processing = workers.find((file) => file.code.includes("hm-pdf-no-network:/qpdf.wasm"));
+
+  it("inlines qpdf.wasm once, and only the reviewed binary", () => {
+    expect(processing, "the processing worker chunk").toBeDefined();
+    const blobs = [...(processing?.code ?? "").matchAll(/[A-Za-z0-9+/=]{1000000,}/g)];
+    expect(blobs).toHaveLength(1);
+    const bytes = Buffer.from(blobs[0]?.[0] ?? "", "base64");
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(QPDF_WASM_SHA256);
+  });
+
+  it("leaves no other way to load qpdf.wasm in any chunk", () => {
+    for (const file of files.filter((file) => file.type === "chunk")) {
+      expect(file.code, file.fileName).not.toContain("data:application/wasm");
+      expect(file.code, file.fileName).not.toMatch(/new URL\(\\?["']\.?\/?(?:wasm\/)?qpdf\.wasm/);
+    }
+    expect(files.filter((file) => file.fileName.endsWith("qpdf.wasm"))).toEqual([]);
+  });
+
+  it("is minified, like every inlined worker, because applications can't minify it", () => {
+    for (const worker of workers) {
+      // Unminified Rolldown output indents with tabs; a minified worker has
+      // only the few lines of the blob wrapper around one long line.
+      expect(worker.code.split("\n").length, worker.fileName).toBeLessThan(100);
     }
   });
 });

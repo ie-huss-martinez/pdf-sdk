@@ -17,6 +17,9 @@ export function addRotation(rotation: PdfRotation, angle: number): PdfRotation;
 export function createPdfJsEngine(options?: PdfJsEngineOptions): PdfEngine;
 
 // @public
+export function createPdfProcessor(): PdfProcessor;
+
+// @public
 export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unknown, code?: Code): value is PdfError & {
     readonly code: Code;
 };

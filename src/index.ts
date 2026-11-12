@@ -11,6 +11,7 @@
 
 export type { PdfJsEngineOptions } from "./adapters/pdfjs/pdfjs-engine.js";
 export { createPdfJsEngine } from "./adapters/pdfjs/pdfjs-engine.js";
+export { createPdfProcessor } from "./adapters/qpdf/qpdf-processor.js";
 export type { PdfErrorCode } from "./core/errors/pdf-error.js";
 export { isPdfError, PdfError } from "./core/errors/pdf-error.js";
 export type {

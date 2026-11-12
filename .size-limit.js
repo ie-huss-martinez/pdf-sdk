@@ -44,12 +44,13 @@ export default [
     limit: "135 kB",
   },
   {
-    // pdf.js's worker, inlined as a string (docs/adr/0002). It measures
-    // 336 kB with pdf.js 6.5.438. Self-hosting applications never load it.
+    // pdf.js's worker, inlined as a minified string (docs/adr/0002). It
+    // measures 304 kB with pdf.js 6.5.438. Self-hosting applications never
+    // load it.
     name: "pdf.js worker, inlined (lazy)",
-    path: "dist/lazy/inline-worker-*.js",
+    path: "dist/lazy/render-worker-*.js",
     brotli: true,
-    limit: "360 kB",
+    limit: "330 kB",
   },
   {
     // The names of pdf.js's inlined data files, loaded the first time a
@@ -59,5 +60,15 @@ export default [
     path: "dist/lazy/_virtual_hm-pdfjs-data-*.js",
     brotli: true,
     limit: "4 kB",
+  },
+  {
+    // The processing worker, inlined as a string, loaded on the first build:
+    // qpdf's WebAssembly as base64, pdfstudio, pdf-lib and the pipeline
+    // (docs/adr/0001, docs/adr/0002). It measures 893 kB, of which qpdf's
+    // WebAssembly is about 690 kB.
+    name: "Processing worker with qpdf, inlined (lazy)",
+    path: "dist/lazy/processing-worker-*.js",
+    brotli: true,
+    limit: "980 kB",
   },
 ];

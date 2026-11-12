@@ -6,7 +6,7 @@ import preset from "@hussmartinez/sdk-config/dependency-cruiser";
  * Only the adapters and workers that wrap them may import them; everywhere
  * else in src/, the preset's rule against devDependencies applies as is.
  */
-const BUNDLED_ENGINES = ["pdfjs-dist"];
+const BUNDLED_ENGINES = ["pdfjs-dist", "pdfstudio", "@cantoo/pdf-lib"];
 const ENGINE_LAYERS = "(?:^|/)src/(?:adapters|workers)/";
 const engines = `(?:^|/)node_modules/(?:${BUNDLED_ENGINES.join("|")})/`;
 
@@ -26,10 +26,10 @@ const forbidden = preset.forbidden.flatMap((rule) => {
 });
 
 /**
- * The pdf.js data files are a virtual module that a Vite plugin generates
- * (tools/pdfjs-data-plugin.ts), so dependency-cruiser can't resolve it.
+ * pdf.js's data files and qpdf's WebAssembly are virtual modules that Vite
+ * plugins generate (tools/), so dependency-cruiser can't resolve them.
  */
-const VIRTUAL_MODULES = "^virtual:hm-pdfjs-data$";
+const VIRTUAL_MODULES = "^virtual:hm-(?:pdfjs-data|qpdf-wasm)$";
 const resolvable = forbidden.map((rule) =>
   rule.name === "not-to-unresolvable"
     ? {

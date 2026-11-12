@@ -287,7 +287,7 @@ class PdfJsEngine implements PdfEngine {
       const base = this.#assetsBase();
       worker = base
         ? new Worker(`${base}build/pdf.worker.min.mjs`, { type: "module", name: "hm-pdf-render" })
-        : (await import("./inline-worker.js")).createInlineWorker();
+        : (await import("./render-worker.js")).createInlineWorker();
     } catch (cause) {
       throw new PdfError("WORKER_START_FAILED", "The PDF render worker couldn't start.", {
         cause,

@@ -23,6 +23,8 @@ PDF.js needs a worker, and some documents need extra data: CMaps for CJK text wh
 
 In self-hosted mode, copy the directory as it is when you upgrade the package. pdf.js requires the worker to be the same version as the code that uses it.
 
+**The processor's worker is inlined in both modes, for now.** `createPdfProcessor()` runs qpdf and pdf-lib in a worker that's always inlined, with qpdf's WebAssembly inside it, so it needs `worker-src blob:` and `script-src 'wasm-unsafe-eval'` even when the viewer is self-hosted. It never fetches anything. Self-hosting it comes in a later release.
+
 ## Development
 
 The repository root is the published package, laid out as in the family's [standard layout](https://github.com/ie-huss-martinez/sdk-core/blob/main/STANDARDS.md#repository-layout): the source is in [`src`](src), and the examples and end-to-end tests will join the pnpm workspace as `examples/` and `e2e/`.

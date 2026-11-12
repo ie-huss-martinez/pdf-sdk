@@ -36,3 +36,31 @@ Licensed under the MIT License (see wasm/LICENSE_QCMS).
 CGATS001Compat-v2-micro ICC profile (iccs/, self-hosted copy only)
 Dedicated to the public domain under CC0 1.0 (see iccs/LICENSE).
 --------------------------------------------------------------------------------
+qpdf 12.3.2, compiled to WebAssembly (inlined into the processing worker)
+Copyright Jay Berkenbilt and the qpdf contributors.
+Licensed under the Apache License, Version 2.0.
+https://github.com/qpdf/qpdf
+--------------------------------------------------------------------------------
+zlib (part of the qpdf WebAssembly)
+Copyright Jean-loup Gailly and Mark Adler.
+Licensed under the zlib License.
+--------------------------------------------------------------------------------
+libjpeg (part of the qpdf WebAssembly)
+This software is based in part on the work of the Independent JPEG Group.
+Licensed under the IJG License.
+--------------------------------------------------------------------------------
+Emscripten runtime (the qpdf WebAssembly's JavaScript glue)
+Copyright the Emscripten authors.
+Licensed under the MIT License.
+--------------------------------------------------------------------------------
+pdfstudio 0.4.0 (the qpdf WebAssembly build and its JavaScript wrapper)
+Licensed under the Apache License, Version 2.0.
+https://github.com/fayazara/pdfstudio
+--------------------------------------------------------------------------------
+@cantoo/pdf-lib 2.11.1 (inlined into the processing worker)
+Copyright Andrew Dillon and the pdf-lib and Cantoo contributors.
+Licensed under the MIT License.
+https://github.com/cantoo-scribe/pdf-lib
+Its bundled dependencies: fflate (MIT), culori (MIT), html-entities (MIT),
+node-html-better-parser (MIT) and tslib (0BSD).
+--------------------------------------------------------------------------------

@@ -97,6 +97,7 @@
     "husky": "catalog:",
     "lint-staged": "catalog:",
     "pdfjs-dist": "catalog:",
+    "pdfstudio": "catalog:",
     "playwright": "catalog:",
     "publint": "catalog:",
     "react": "catalog:",
