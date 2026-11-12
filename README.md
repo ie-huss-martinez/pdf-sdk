@@ -6,6 +6,23 @@ This repository will publish **`@hussmartinez/pdf-sdk`**, which replaces the pri
 
 > Status: being bootstrapped. No packages are published yet.
 
+## Assets and Content Security Policy
+
+PDF.js needs a worker, and some documents need extra data: CMaps for CJK text whose fonts aren't embedded, standard fonts, and decoders for JBIG2 and JPX images, which are common in scanned documents. The SDK never fetches any of them from the network. Choose one of two modes ([ADR 0002](docs/adr/0002-workers-and-assets.md), [ADR 0006](docs/adr/0006-icc-colour-and-self-hosted-assets.md)):
+
+| | Inline (default) | Self-hosted |
+|---|---|---|
+| Setup | Nothing | Serve `node_modules/@hussmartinez/pdf-sdk/dist/assets/pdfjs/` from your origin, and pass its URL: `createPdfJsEngine({ assetsUrl: "/pdf-sdk/pdfjs/" })` |
+| Where files come from | Your bundle: each data file is its own lazy chunk, loaded only by documents that need it | Your origin, under `assetsUrl` |
+| CMYK and ICC-based colour | Approximate | Accurate, with pdf.js's colour management |
+| Content Security Policy | `worker-src blob:` and `script-src 'wasm-unsafe-eval'` | `worker-src 'self'`, `script-src 'self' 'wasm-unsafe-eval'` and `connect-src 'self'` |
+
+**Which to choose:**
+- **Inline** for the simplest setup. Most documents use RGB or grey and look the same in both modes.
+- **Self-hosted** if your Content Security Policy doesn't allow `blob:` workers, or if print colour must be accurate, for example for proofs and CMYK artwork.
+
+In self-hosted mode, copy the directory as it is when you upgrade the package. pdf.js requires the worker to be the same version as the code that uses it.
+
 ## Development
 
 The repository root is the published package, laid out as in the family's [standard layout](https://github.com/ie-huss-martinez/sdk-core/blob/main/STANDARDS.md#repository-layout): the source is in [`src`](src), and the examples and end-to-end tests will join the pnpm workspace as `examples/` and `e2e/`.

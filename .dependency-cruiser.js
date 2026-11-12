@@ -25,4 +25,18 @@ const forbidden = preset.forbidden.flatMap((rule) => {
   ];
 });
 
-export default { ...preset, forbidden };
+/**
+ * The pdf.js data files are a virtual module that a Vite plugin generates
+ * (tools/pdfjs-data-plugin.ts), so dependency-cruiser can't resolve it.
+ */
+const VIRTUAL_MODULES = "^virtual:hm-pdfjs-data$";
+const resolvable = forbidden.map((rule) =>
+  rule.name === "not-to-unresolvable"
+    ? {
+        ...rule,
+        to: { ...rule.to, pathNot: [rule.to.pathNot, VIRTUAL_MODULES].flat().filter(Boolean) },
+      }
+    : rule,
+);
+
+export default { ...preset, forbidden: resolvable };

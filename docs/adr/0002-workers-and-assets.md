@@ -1,6 +1,6 @@
 # 0002. Two workers, and PDF assets without the network
 
-- **Status:** Accepted
+- **Status:** Accepted; ICC colour and self-hosted data files superseded by [0006](0006-icc-colour-and-self-hosted-assets.md)
 - **Date:** 2026-11-12
 
 ## Context

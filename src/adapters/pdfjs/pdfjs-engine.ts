@@ -18,7 +18,7 @@ import {
   type PdfEngine,
   type PdfRenderOptions,
 } from "../../core/ports/pdf-engine.js";
-import { createRefusingDataFactory, NO_NETWORK_URL } from "./binary-data.js";
+import { createInlineDataFactory, NO_NETWORK_URL } from "./binary-data.js";
 import { fromPdfJsError } from "./errors.js";
 
 type PdfJs = typeof import("pdfjs-dist");
@@ -57,11 +57,14 @@ function toPageRect(viewport: PageViewport, box: readonly number[]): PdfRect {
  */
 export interface PdfJsEngineOptions {
   /**
-   * The URL of pdf.js's worker on your own origin, for Content Security
-   * Policies that don't allow `blob:` workers. By default the worker is
-   * inlined, which needs `worker-src blob:` (ADR 0002).
+   * Where your application serves the package's `dist/assets/pdfjs/`
+   * directory, on its own origin, such as `"/pdf-sdk/pdfjs/"`. pdf.js then
+   * loads its worker and its data files from there, rather than from the
+   * inlined copies. Use it for Content Security Policies without
+   * `worker-src blob:`, and for accurate ICC colour, which only this mode
+   * supports (docs/adr/0006). The directory has pdf.js's own layout.
    */
-  readonly workerUrl?: string | URL;
+  readonly assetsUrl?: string | URL;
   /**
    * The largest image pdf.js decodes, in pixels. Larger images are left
    * unpainted. Defaults to the `maxImagePixels` limit, 100 megapixels.
@@ -85,9 +88,13 @@ const CANCEL_TIMEOUT = 1_000;
  * Creates the SDK's {@link PdfEngine}, backed by pdf.js (ADR 0001, ADR 0002).
  *
  * Nothing loads until the first `open()`: then pdf.js's display layer is
- * imported, and its worker starts, from the inlined copy or `workerUrl`.
- * pdf.js runs without scripting or XFA, and never fetches fonts, CMaps or
- * decoders. Every document the engine opens shares one worker.
+ * imported, and its worker starts. Every document the engine opens shares one
+ * worker, and pdf.js runs without scripting or XFA (docs/adr/0001).
+ *
+ * By default everything is inlined: the worker, and the CMaps, standard
+ * fonts and image decoders that some documents need, each loaded only when a
+ * document needs it, with no network request. With `assetsUrl`, they load
+ * from your own origin instead (docs/adr/0002, docs/adr/0006).
  *
  * @example
  * ```ts
@@ -220,19 +227,33 @@ class PdfJsEngine implements PdfEngine {
     throwIfAborted(options.signal);
     const host = await this.#ensureHost(pdfjs);
 
+    const base = this.#assetsBase();
     const task = pdfjs.getDocument({
       data,
       worker: host.pdfWorker,
-      // Hardening (ADR 0001, ADR 0002): no XFA, no data fetched by pdf.js
-      // itself, and decoders that can't reach the network.
+      // Hardening (docs/adr/0001, docs/adr/0002): no XFA, and data files only
+      // from the bundle or the application's own origin, never elsewhere.
       enableXfa: false,
-      useWorkerFetch: false,
-      BinaryDataFactory: createRefusingDataFactory(this.#options._onDataRequest),
-      useWasm: true,
-      wasmUrl: NO_NETWORK_URL,
       maxImageSize: this.#options.maxImagePixels ?? pdfLimitDefinitions.maxImagePixels.default,
       stopAtErrors: false,
       verbosity: pdfjs.VerbosityLevel.ERRORS,
+      useWasm: true,
+      ...(base
+        ? {
+            // Self-hosted: pdf.js fetches from the application's origin, which
+            // also enables ICC colour (docs/adr/0006).
+            useWorkerFetch: true,
+            cMapUrl: `${base}cmaps/`,
+            standardFontDataUrl: `${base}standard_fonts/`,
+            wasmUrl: `${base}wasm/`,
+            iccUrl: `${base}iccs/`,
+          }
+        : {
+            // Inline: every file comes from the bundle, through the factory.
+            useWorkerFetch: false,
+            BinaryDataFactory: createInlineDataFactory(this.#options._onDataRequest),
+            wasmUrl: NO_NETWORK_URL,
+          }),
     });
     try {
       const proxy = await settle(host, task.promise, {
@@ -263,8 +284,9 @@ class PdfJsEngine implements PdfEngine {
     if (this.#host && !this.#host.failure) return this.#host;
     let worker: Worker;
     try {
-      worker = this.#options.workerUrl
-        ? new Worker(this.#options.workerUrl, { type: "module", name: "hm-pdf-render" })
+      const base = this.#assetsBase();
+      worker = base
+        ? new Worker(`${base}build/pdf.worker.min.mjs`, { type: "module", name: "hm-pdf-render" })
         : (await import("./inline-worker.js")).createInlineWorker();
     } catch (cause) {
       throw new PdfError("WORKER_START_FAILED", "The PDF render worker couldn't start.", {
@@ -273,6 +295,14 @@ class PdfJsEngine implements PdfEngine {
     }
     this.#host = new WorkerHost(worker, pdfjs.PDFWorker.create({ port: worker }));
     return this.#host;
+  }
+
+  /** `assetsUrl` as an absolute URL ending in a slash, if it's set. */
+  #assetsBase(): string | undefined {
+    const { assetsUrl } = this.#options;
+    if (assetsUrl === undefined) return undefined;
+    const base = new URL(String(assetsUrl), globalThis.location?.href).href;
+    return base.endsWith("/") ? base : `${base}/`;
   }
 
   /** Stops a cancelled open, and terminates the worker if pdf.js doesn't stop in time. */

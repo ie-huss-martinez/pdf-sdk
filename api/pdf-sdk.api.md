@@ -156,10 +156,10 @@ export interface PdfImageCompression {
 
 // @public
 export interface PdfJsEngineOptions {
+    readonly assetsUrl?: string | URL;
     readonly maxImagePixels?: number;
     // @internal
     readonly _onDataRequest?: (kind: "cMapUrl" | "standardFontDataUrl" | "wasmUrl", filename: string) => void;
-    readonly workerUrl?: string | URL;
 }
 
 // @public

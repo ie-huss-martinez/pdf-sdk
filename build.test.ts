@@ -1,8 +1,11 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { readdirSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build, type Rolldown } from "vite";
 import { afterAll, describe, expect, it } from "vitest";
+import { PDFJS_DATA } from "./tools/pdfjs-data-plugin.js";
 import { externalPackages } from "./vite.config.js";
 
 /**
@@ -127,6 +130,64 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
       files.find((file) => /^lazy\/inline-worker-[\w-]+\.js$/.test(file.fileName))?.fileName ?? "",
     );
     expect(worker.code).not.toMatch(/sourceMappingURL=pdfjs/);
+  });
+});
+
+describe("the pdf.js assets (docs/adr/0002, docs/adr/0006)", () => {
+  const pdfJs = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
+  const shipped = files
+    .filter((file) => file.fileName.startsWith("assets/pdfjs/"))
+    .map((file) => file.fileName.slice("assets/pdfjs/".length));
+
+  it("ship a self-hosted copy in pdf.js's own layout", () => {
+    expect(shipped).toEqual(
+      expect.arrayContaining([
+        "build/pdf.worker.min.mjs",
+        "cmaps/UniJIS-UCS2-H.bcmap",
+        "cmaps/LICENSE",
+        "standard_fonts/FoxitSerif.pfb",
+        "standard_fonts/LICENSE_FOXIT",
+        "wasm/jbig2.wasm",
+        "wasm/openjpeg.wasm",
+        "wasm/qcms_bg.wasm",
+        "iccs/CGATS001Compat-v2-micro.icc",
+      ]),
+    );
+    expect(
+      shipped.filter((name) => name.startsWith("cmaps/") && name.endsWith(".bcmap")),
+    ).toHaveLength(
+      readdirSync(join(pdfJs, "cmaps")).filter((name) => name.endsWith(".bcmap")).length,
+    );
+  });
+
+  it("ship the worker exactly as pdf.js built it", async () => {
+    const worker = files.find((file) => file.fileName === "assets/pdfjs/build/pdf.worker.min.mjs");
+    const expected = await readFile(join(pdfJs, "build/pdf.worker.min.mjs"));
+    expect(worker?.type === "asset" && Buffer.from(worker.source).equals(expected)).toBe(true);
+  });
+
+  it("leave out GPL fonts, JavaScript decoder fallbacks and the scripting sandbox", () => {
+    for (const name of shipped) {
+      expect(name).not.toMatch(/Liberation|nowasm_fallback|quickjs|sandbox/);
+    }
+  });
+
+  it("inline each data file in its own lazy chunk, never loaded by an entry", () => {
+    const expected = Object.values(PDFJS_DATA).flatMap(({ directory, files: pattern }) =>
+      readdirSync(join(pdfJs, directory)).filter((name) => pattern.test(name)),
+    );
+    const data = files.filter(
+      (file) =>
+        file.type === "chunk" && /^lazy\/.+\.(?:bcmap|pfb|wasm)-[\w-]+\.js$/.test(file.fileName),
+    );
+    expect(data.map((file) => file.fileName.replace(/^lazy\/|-[\w-]+\.js$/g, "")).sort()).toEqual(
+      expected.sort(),
+    );
+    for (const entry of ["index.js", "react.js", "element.js"]) {
+      for (const imported of chunk(entry).imports) {
+        expect(imported, entry).not.toMatch(/^lazy\//);
+      }
+    }
   });
 });
 

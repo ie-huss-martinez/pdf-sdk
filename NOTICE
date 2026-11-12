@@ -3,11 +3,36 @@ Copyright 2026 Huss Martinez
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
-It bundles the following third-party software, under the licences named.
+It bundles the following third-party software and data, under the licences
+named. The licence texts that ship with each are also included in
+dist/assets/pdfjs/, next to the files they cover.
 
 --------------------------------------------------------------------------------
-PDF.js (pdfjs-dist)
+PDF.js (pdfjs-dist), including its WebAssembly builds of the decoders below
 Copyright Mozilla Foundation
 Licensed under the Apache License, Version 2.0.
 https://github.com/mozilla/pdf.js
+--------------------------------------------------------------------------------
+Adobe CMap resources (dist/assets/pdfjs/cmaps, and the inlined copies)
+Copyright 1990-2009 Adobe Systems Incorporated. All rights reserved.
+Licensed under the BSD 3-Clause License (see cmaps/LICENSE).
+--------------------------------------------------------------------------------
+Foxit standard fonts (dist/assets/pdfjs/standard_fonts, and the inlined copies)
+Copyright 2014 PDFium Authors. All rights reserved.
+Licensed under the BSD 3-Clause License (see standard_fonts/LICENSE_FOXIT).
+--------------------------------------------------------------------------------
+JBIG2 decoder from PDFium (wasm/jbig2.wasm)
+Copyright 2014 PDFium Authors. All rights reserved.
+Licensed under the BSD 3-Clause License (see wasm/LICENSE_JBIG2).
+--------------------------------------------------------------------------------
+OpenJPEG (wasm/openjpeg.wasm)
+Copyright the OpenJPEG authors.
+Licensed under the BSD 2-Clause License (see wasm/LICENSE_OPENJPEG).
+--------------------------------------------------------------------------------
+qcms (wasm/qcms_bg.wasm, self-hosted copy only)
+Copyright 2009-2024 Mozilla Corporation, Copyright 1998-2007 Marti Maria.
+Licensed under the MIT License (see wasm/LICENSE_QCMS).
+--------------------------------------------------------------------------------
+CGATS001Compat-v2-micro ICC profile (iccs/, self-hosted copy only)
+Dedicated to the public domain under CC0 1.0 (see iccs/LICENSE).
 --------------------------------------------------------------------------------
