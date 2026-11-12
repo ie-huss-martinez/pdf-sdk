@@ -1,10 +1,25 @@
-import { degrees, PDFDocument, StandardFonts } from "@cantoo/pdf-lib";
+import { degrees, PDFDocument, PDFString, StandardFonts } from "@cantoo/pdf-lib";
 
 /**
  * Test documents, generated in code: never real documents (CONTRIBUTING.md).
  */
 
-/** Two pages: US Letter with text and a form, and A4 landscape with /Rotate 90. */
+/** Links a hostile document might have; only the first three are safe (ADR 0012). */
+export const LINKS = [
+  "https://example.com/report",
+  "http://example.org/",
+  "mailto:team@example.com",
+  "javascript:alert(document.cookie)",
+  "ftp://example.com/file",
+  "tel:+15551234567",
+  "relative/path.html",
+];
+export const SAFE_LINKS = LINKS.slice(0, 3);
+
+/**
+ * Two pages: US Letter with text, a form and every link in {@link LINKS},
+ * and A4 landscape with /Rotate 90.
+ */
 export async function reportPdf(): Promise<Uint8Array> {
   const document = await PDFDocument.create();
   const font = await document.embedFont(StandardFonts.Helvetica);
@@ -13,6 +28,17 @@ export async function reportPdf(): Promise<Uint8Array> {
   const form = document.getForm();
   form.createTextField("name").addToPage(first, { x: 72, y: 600, width: 240, height: 24 });
   form.createCheckBox("agree").addToPage(first, { x: 72, y: 560, width: 18, height: 18 });
+  LINKS.forEach((url, index) => {
+    const y = 500 - index * 30;
+    const link = document.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [72, y, 300, y + 20],
+      Border: [0, 0, 0],
+      A: { Type: "Action", S: "URI", URI: PDFString.of(url) },
+    });
+    first.node.addAnnot(document.context.register(link));
+  });
   const second = document.addPage([842, 595]);
   second.setRotation(degrees(90));
   return document.save();

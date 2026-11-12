@@ -1,4 +1,10 @@
-import type { PdfBytes, PdfFormField, PdfPageInfo, PdfTextContent } from "../model/document.js";
+import type {
+  PdfBytes,
+  PdfFormField,
+  PdfLink,
+  PdfPageInfo,
+  PdfTextContent,
+} from "../model/document.js";
 import type { PdfRotation } from "../model/geometry.js";
 import type { PdfCallOptions, PdfTransferOptions } from "./options.js";
 
@@ -66,6 +72,13 @@ export interface PdfDocumentHandle {
    * @throws `RangeError` for an index outside the document.
    */
   getFormFields(pageIndex: number, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+  /**
+   * Reads the links on a page to web pages and email addresses, filtered
+   * with `safeLinkUrl` (ADR 0012).
+   *
+   * @throws `RangeError` for an index outside the document.
+   */
+  getLinks(pageIndex: number, options?: PdfCallOptions): Promise<readonly PdfLink[]>;
   /** Releases the document. Pending calls reject, and later calls throw. */
   destroy(): Promise<void>;
 }

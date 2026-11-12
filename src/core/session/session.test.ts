@@ -33,6 +33,7 @@ function countingEngine() {
         renderPage: document.renderPage.bind(document),
         getTextContent: document.getTextContent.bind(document),
         getFormFields: document.getFormFields.bind(document),
+        getLinks: document.getLinks.bind(document),
         async destroy() {
           counts.destroyed += 1;
           await document.destroy();

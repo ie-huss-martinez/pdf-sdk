@@ -24,6 +24,12 @@ export interface PdfEngineHarness {
     readonly pages: readonly PdfPageInfo[];
     /** Text that appears on the first page. */
     readonly firstPageText: string;
+    /**
+     * The URLs of the first page's links that the engine must report. The
+     * document must also have links it must leave out: `javascript:`, `ftp:`,
+     * `tel:` and relative ones.
+     */
+    readonly firstPageLinks: readonly string[];
     /** The first page's fields, by name. */
     readonly firstPageFields: Readonly<
       Record<string, { readonly type: "text" | "checkbox"; readonly value: PdfFieldValue }>
@@ -94,6 +100,22 @@ export function describePdfEngineContract(name: string, harness: PdfEngineHarnes
       await engine.destroy();
     });
 
+    it("reads a page's web and email links, and leaves out every other kind (ADR 0012)", async () => {
+      const { engine, document } = await open();
+      const links = await document.getLinks(0);
+      expect(links.map((link) => link.url).sort()).toEqual(
+        [...harness.expected.firstPageLinks].sort(),
+      );
+      for (const { rect } of links) {
+        for (const value of [rect.x, rect.y, rect.width, rect.height]) {
+          expect(value).toBeGreaterThanOrEqual(0);
+          expect(value).toBeLessThanOrEqual(1);
+        }
+        expect(rect.width).toBeGreaterThan(0);
+      }
+      await engine.destroy();
+    });
+
     it.each([-1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER])(
       "rejects page index %s with a RangeError",
       async (index) => {
@@ -101,6 +123,7 @@ export function describePdfEngineContract(name: string, harness: PdfEngineHarnes
         await expect(document.getPage(index)).rejects.toThrow(RangeError);
         await expect(document.getTextContent(index)).rejects.toThrow(RangeError);
         await expect(document.getFormFields(index)).rejects.toThrow(RangeError);
+        await expect(document.getLinks(index)).rejects.toThrow(RangeError);
         await engine.destroy();
       },
     );

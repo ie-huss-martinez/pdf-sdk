@@ -1,5 +1,6 @@
 import type { PdfEngineHarness } from "../contracts/pdf-engine.contract.js";
 import type { PdfProcessorHarness } from "../contracts/pdf-processor.contract.js";
+import { LINKS, SAFE_LINKS } from "../fixtures/pdfs.js";
 import { createFakeEngine } from "./fake-engine.js";
 import { decodeFakePdf, encodeFakePdf } from "./fake-pdf.js";
 import { createFakeProcessor } from "./fake-processor.js";
@@ -13,7 +14,15 @@ export function fakeEngineHarness(canRender: boolean): PdfEngineHarness {
     async document() {
       return encodeFakePdf({
         pages: [
-          { width: 612, height: 792, text: "Quarterly report" },
+          {
+            width: 612,
+            height: 792,
+            text: "Quarterly report",
+            links: LINKS.map((url, index) => ({
+              rect: { x: 0.1, y: 0.2 + index * 0.05, width: 0.3, height: 0.03 },
+              url,
+            })),
+          },
           { width: 842, height: 595, rotation: 90 },
         ],
         fields: [
@@ -28,6 +37,7 @@ export function fakeEngineHarness(canRender: boolean): PdfEngineHarness {
         { width: 842, height: 595, rotation: 90 },
       ],
       firstPageText: "Quarterly report",
+      firstPageLinks: SAFE_LINKS,
       firstPageFields: {
         name: { type: "text", value: "" },
         agree: { type: "checkbox", value: false },

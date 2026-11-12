@@ -6,11 +6,13 @@ import { assertPageIndex, copyBytes } from "../../core/model/bytes.js";
 import type {
   PdfBytes,
   PdfFormField,
+  PdfLink,
   PdfPageInfo,
   PdfTextContent,
   PdfTextItem,
 } from "../../core/model/document.js";
 import { addRotation, type PdfRect, type PdfRotation } from "../../core/model/geometry.js";
+import { safeLinkUrl } from "../../core/model/links.js";
 import type { PdfCallOptions, PdfTransferOptions } from "../../core/ports/options.js";
 import {
   PDF_MAX_CANVAS_PIXELS,
@@ -457,6 +459,24 @@ class PdfJsDocument implements PdfDocumentHandle {
       });
     }
     return [...fields.values()];
+  }
+
+  async getLinks(pageIndex: number, options: PdfCallOptions = {}): Promise<readonly PdfLink[]> {
+    const page = await this.#page(pageIndex, options);
+    const annotations = (await settle(this.#host, page.getAnnotations({ intent: "display" }), {
+      signal: options.signal,
+      message: "The page's links couldn't be read.",
+    })) as Array<Record<string, unknown>>;
+    const viewport = page.getViewport({ scale: 1, rotation: 0 });
+    const links: PdfLink[] = [];
+    for (const annotation of annotations) {
+      if (annotation["subtype"] !== "Link" || typeof annotation["url"] !== "string") continue;
+      // pdf.js also allows ftp: and tel:, and turns some scripts into URLs;
+      // the SDK keeps only http, https and mailto (ADR 0012).
+      const url = safeLinkUrl(annotation["url"]);
+      if (url) links.push({ rect: toPageRect(viewport, annotation["rect"] as number[]), url });
+    }
+    return links;
   }
 
   async destroy(): Promise<void> {
