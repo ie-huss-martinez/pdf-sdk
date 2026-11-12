@@ -10,6 +10,7 @@ This repository will publish **`@hussmartinez/pdf-sdk`**, which replaces the pri
 
 ```tsx
 import { PdfEditor, type PdfEditorHandle } from "@hussmartinez/pdf-sdk/react";
+import "@hussmartinez/ui/styles.css";
 import "@hussmartinez/pdf-sdk/styles.css";
 
 const editor = useRef<PdfEditorHandle>(null);
@@ -21,7 +22,7 @@ const editor = useRef<PdfEditorHandle>(null);
 const bytes = await editor.current?.export();
 ```
 
-`PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own. Its styles use the design tokens of `@hussmartinez/ui`, which sets their values; every value is also a `--hm-pdf-*` property you can set yourself.
+`PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own. **Styles:** import `@hussmartinez/ui/styles.css` before `@hussmartinez/pdf-sdk/styles.css`, once, in your application. ui's stylesheet defines the design tokens that give the editor its designed look, light and dark themes and theming; the SDK's stylesheet doesn't bundle it. Without it the editor keeps its layout and stays usable, but loses its colours, spacing and shadows. Every value is also a `--hm-pdf-*` property you can set on any ancestor.
 
 `file` opens a document, and a different one replaces it; `null` closes it. Users can also open one with the editor's button or by dropping it on the editor. `onChange` reports each `open`, `edit` and `close`, and the ref's `PdfEditorHandle` exports, undoes, redoes and closes.
 
