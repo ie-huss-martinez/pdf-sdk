@@ -333,4 +333,42 @@ describe("a PDF session", () => {
     });
     expect(JSON.stringify(events)).not.toMatch(/secret-field|my password/);
   });
+
+  it("keeps view state: selection, the current page and navigation requests", async () => {
+    const { session: s, events } = session();
+    await s.open(pdf(3));
+    expect(s.getSnapshot()).toMatchObject({
+      selection: [],
+      currentPage: "p1",
+      navigation: undefined,
+    });
+
+    s.select(["p3", "nope", "p1"]);
+    expect(s.getSnapshot().selection).toEqual(["p1", "p3"]);
+    const before = s.getSnapshot();
+    s.select(["p1", "p3"]);
+    expect(s.getSnapshot()).toBe(before);
+
+    s.setCurrentPage("p2");
+    expect(s.getSnapshot().currentPage).toBe("p2");
+    s.goToPage("p3");
+    s.goToPage("p3");
+    expect(s.getSnapshot()).toMatchObject({
+      currentPage: "p3",
+      navigation: { page: "p3", sequence: 2 },
+    });
+    expect(() => s.goToPage("nope")).toThrow(TypeError);
+
+    // Deleting pages prunes the view state, and none of it is undoable or reported.
+    s.execute({ type: "pdf.deletePages", pages: ["p3"] });
+    expect(s.getSnapshot()).toMatchObject({
+      selection: ["p1"],
+      currentPage: "p1",
+      navigation: undefined,
+    });
+    expect(events.map((event) => event.type)).toEqual(["document_opened", "command"]);
+
+    await s.open(pdf(1));
+    expect(s.getSnapshot()).toMatchObject({ selection: [], currentPage: "p4" });
+  });
 });

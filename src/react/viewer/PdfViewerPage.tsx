@@ -3,6 +3,7 @@ import type { PdfLink, PdfPageInfo, PdfTextContent } from "../../core/model/docu
 import { linkDestination, safeLinkUrl } from "../../core/model/links.js";
 import type { PdfPlanPage } from "../../core/model/plan.js";
 import { usePdfMessages, usePdfSession } from "../hooks.js";
+import { usePageDrawing } from "../use-page-drawing.js";
 import { pageGeometry } from "./geometry.js";
 import type { RenderQueue } from "./render-queue.js";
 import type { PdfViewerClassNames } from "./types.js";
@@ -30,34 +31,21 @@ export function PdfViewerPage(props: PageProps): ReactNode {
   const session = usePdfSession();
   const messages = usePdfMessages();
   const element = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
   const textLayer = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
-  const [info, setInfo] = useState<PdfPageInfo>();
-  const [drawn, setDrawn] = useState(false);
-  const [failure, setFailure] = useState<unknown>();
   const [text, setText] = useState<PdfTextContent>();
   const [links, setLinks] = useState<readonly PdfLink[]>([]);
+  const { canvas, info, drawn, failure } = usePageDrawing({
+    session,
+    pageKey: page.key,
+    rotation: page.rotation,
+    near,
+    displayWidth,
+    queue,
+    onMeasured,
+  });
 
   useEffect(() => (element.current ? observe(element.current, setNear) : undefined), [observe]);
-
-  // The page's size and rotation, read when it first comes near, and again
-  // when the plan rotates it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new rotation must re-read the page
-  useEffect(() => {
-    if (!near) return;
-    const controller = new AbortController();
-    session.getPage(page.key, { signal: controller.signal }).then(
-      (read) => {
-        setInfo(read);
-        onMeasured(read);
-      },
-      (reason: unknown) => {
-        if (!controller.signal.aborted) setFailure(reason);
-      },
-    );
-    return () => controller.abort();
-  }, [near, session, page.key, page.rotation, onMeasured]);
 
   // The text and links, which don't depend on the zoom, read once.
   useEffect(() => {
@@ -76,44 +64,6 @@ export function PdfViewerPage(props: PageProps): ReactNode {
     );
     return () => controller.abort();
   }, [near, session, page.key, text]);
-
-  // Drawing, queued with the viewer's other pages, cancelled when the page
-  // leaves, and redrawn when the size or rotation changes.
-  useEffect(() => {
-    const target = canvas.current;
-    if (!near || !info || !target || displayWidth <= 0) return;
-    const turned = info.rotation === 90 || info.rotation === 270;
-    const scale = displayWidth / (turned ? info.height : info.width);
-    const render = queue.schedule(async (signal) => {
-      try {
-        await session.renderPage(page.key, target, {
-          scale,
-          pixelRatio: globalThis.devicePixelRatio || 1,
-          signal,
-        });
-        if (!signal.aborted) {
-          setDrawn(true);
-          setFailure(undefined);
-        }
-      } catch (reason) {
-        if (!signal.aborted) setFailure(reason);
-      }
-    });
-    return () => {
-      render.cancel();
-    };
-  }, [near, info, displayWidth, session, page.key, queue]);
-
-  // A page that scrolls away gives its pixels back.
-  useEffect(() => {
-    if (near) return;
-    const target = canvas.current;
-    if (target) {
-      target.width = 0;
-      target.height = 0;
-    }
-    setDrawn(false);
-  }, [near]);
 
   const size = info ?? { ...estimate, rotation: 0 };
   const geometry = pageGeometry(size, info?.rotation ?? 0, displayWidth);

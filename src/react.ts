@@ -14,6 +14,8 @@
 export { usePdfDocument, usePdfMessages, usePdfSession } from "./react/hooks.js";
 export type { PdfSessionProviderProps } from "./react/PdfSessionProvider.js";
 export { PdfSessionProvider } from "./react/PdfSessionProvider.js";
+export type { PdfThumbnailsPart, PdfThumbnailsProps } from "./react/thumbnails/PdfThumbnails.js";
+export { PdfThumbnails } from "./react/thumbnails/PdfThumbnails.js";
 export type { PdfViewerProps } from "./react/viewer/PdfViewer.js";
 export { PdfViewer } from "./react/viewer/PdfViewer.js";
 export type { PdfViewerClassNames, PdfViewerPart } from "./react/viewer/types.js";
