@@ -79,6 +79,10 @@ export default defineConfig(({ mode }) => {
               "pdfjs-dist/build/pdf.worker.min.mjs",
               "@cantoo/pdf-lib",
               "pdfstudio",
+              "react",
+              "react/jsx-dev-runtime",
+              "react-dom/client",
+              "react-dom/server",
             ],
           },
           test: {

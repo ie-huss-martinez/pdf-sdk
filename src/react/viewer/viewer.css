@@ -1,0 +1,107 @@
+/*
+ * PdfViewer (ADR 0003 in sdk-core, docs/adr/0003). Every value comes from a
+ * --hm-pdf-* component token, falling back to ui's semantic tokens. Layout,
+ * focus and the text and link layers stay with `unstyled`; colours and
+ * shadows don't.
+ */
+@layer hm.sdk {
+  .hm-pdf-viewer {
+    overflow: auto;
+    position: relative;
+  }
+
+  .hm-pdf-viewer:not([data-hm-unstyled]) {
+    background: var(--hm-pdf-viewer-bg, var(--hm-color-surface-sunken));
+    color: var(--hm-pdf-viewer-text, var(--hm-color-text));
+  }
+
+  .hm-pdf-viewer:focus-visible {
+    outline: var(--hm-focus-ring);
+    outline-offset: calc(-1 * var(--hm-focus-ring-width));
+  }
+
+  .hm-pdf-viewer-pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--hm-pdf-page-gap, var(--hm-gap-loose));
+    padding: var(--hm-pdf-viewer-inset, var(--hm-inset-normal));
+  }
+
+  .hm-pdf-page {
+    position: relative;
+    flex: none;
+    overflow: hidden;
+  }
+
+  .hm-pdf-viewer:not([data-hm-unstyled]) .hm-pdf-page {
+    background: var(--hm-pdf-page-bg, var(--hm-color-surface));
+    box-shadow: var(--hm-pdf-page-shadow, var(--hm-shadow-raised));
+  }
+
+  .hm-pdf-page-canvas {
+    display: block;
+  }
+
+  .hm-pdf-text-layer,
+  .hm-pdf-link-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
+  /* Invisible, but selectable and read by screen readers. */
+  .hm-pdf-text-layer span {
+    position: absolute;
+    color: transparent;
+    white-space: pre;
+    transform-origin: 0 0;
+    cursor: text;
+  }
+
+  .hm-pdf-viewer:not([data-hm-unstyled]) .hm-pdf-text-layer ::selection {
+    background: var(--hm-pdf-selection-bg, var(--hm-color-accent-subtle));
+  }
+
+  .hm-pdf-link {
+    position: absolute;
+  }
+
+  /* Read by screen readers, never shown: the page shows the link's text. */
+  .hm-pdf-link-label {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .hm-pdf-link:focus-visible {
+    outline: var(--hm-focus-ring);
+    outline-offset: var(--hm-focus-ring-offset);
+  }
+
+  .hm-pdf-page-error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--hm-pdf-viewer-inset, var(--hm-inset-normal));
+    text-align: center;
+  }
+
+  .hm-pdf-viewer:not([data-hm-unstyled]) .hm-pdf-page-error {
+    color: var(--hm-pdf-error-text, var(--hm-color-danger-text));
+  }
+
+  .hm-pdf-viewer-empty {
+    margin: 0;
+    padding: var(--hm-pdf-viewer-inset, var(--hm-inset-loose));
+  }
+
+  .hm-pdf-viewer:not([data-hm-unstyled]) .hm-pdf-viewer-empty {
+    color: var(--hm-pdf-viewer-muted, var(--hm-color-text-muted));
+  }
+}

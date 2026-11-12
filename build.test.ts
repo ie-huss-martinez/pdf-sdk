@@ -34,6 +34,20 @@ function chunk(fileName: string): Rolldown.OutputChunk {
   return found;
 }
 
+/** An entry's code with every chunk it imports statically, as an application loads it. */
+function loaded(entry: string): Rolldown.OutputChunk[] {
+  const seen = new Map<string, Rolldown.OutputChunk>();
+  const visit = (fileName: string) => {
+    // Externals, such as react, are listed as imports but aren't files here.
+    if (seen.has(fileName) || !files.some((file) => file.fileName === fileName)) return;
+    const found = chunk(fileName);
+    seen.set(fileName, found);
+    for (const imported of found.imports) visit(imported);
+  };
+  visit(entry);
+  return [...seen.values()];
+}
+
 describe("the built package", () => {
   it('starts the React entry with "use client" (ADR 0007)', () => {
     expect(chunk("react.js").code).toMatch(/^"use client";\n/);
@@ -53,7 +67,11 @@ describe("the built package", () => {
     expect(externalPackages).toEqual(
       expect.arrayContaining(["@hussmartinez/sdk-core", "react", "react-dom"]),
     );
-    expect(chunk("index.js").code).toContain('from "@hussmartinez/sdk-core"');
+    expect(
+      loaded("index.js")
+        .map((file) => file.code)
+        .join("\n"),
+    ).toContain('from "@hussmartinez/sdk-core"');
     for (const file of files) {
       if (file.type === "chunk") {
         // Bundled React or sdk-core would bring their own copies of these, and
@@ -117,11 +135,11 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
 
   it("load only with import(), never with the entries", () => {
     for (const entry of ["index.js", "react.js", "element.js"]) {
-      for (const imported of chunk(entry).imports) {
-        expect(imported, entry).not.toMatch(/^lazy\//);
+      for (const file of loaded(entry)) {
+        for (const imported of file.imports) expect(imported, entry).not.toMatch(/^lazy\//);
       }
     }
-    expect(chunk("index.js").dynamicImports).toEqual(
+    expect(loaded("index.js").flatMap((file) => file.dynamicImports)).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^lazy\/runtime-/),
         expect.stringMatching(/^lazy\/render-worker-/),

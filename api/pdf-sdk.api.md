@@ -28,6 +28,9 @@ export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unkn
 };
 
 // @public
+export function linkDestination(url: string): string | undefined;
+
+// @public
 export const PDF_MAX_CANVAS_PIXELS = 16777216;
 
 // @public
@@ -289,6 +292,11 @@ export const pdfMessages: {
     };
     readonly "warnings.maxSessionSize": "The open documents use {actual, fileSize}. Clearing the undo history frees memory.";
     readonly "warnings.maxImagePixels": "Some images are very large and may be slow to show.";
+    readonly "viewer.label": "Document";
+    readonly "viewer.empty": "No document is open.";
+    readonly "viewer.page": "Page {page} of {count}";
+    readonly "viewer.webLink": "Link to {destination}, opens in a new tab";
+    readonly "viewer.emailLink": "Email {destination}";
     readonly "errors.UNKNOWN": "Something went wrong. Please try again.";
     readonly "errors.ABORTED": "The operation was cancelled.";
     readonly "errors.TIMEOUT": "The operation took too long and was stopped.";

@@ -13,6 +13,7 @@ export const LINKS = [
   "ftp://example.com/file",
   "tel:+15551234567",
   "relative/path.html",
+  "https://bank.example@evil.example/",
 ];
 export const SAFE_LINKS = LINKS.slice(0, 3);
 
