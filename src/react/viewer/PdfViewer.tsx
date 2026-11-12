@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { PdfPageInfo } from "../../core/model/document.js";
-import { usePdfDocument, usePdfMessages } from "../hooks.js";
+import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
+import { useNearObserver } from "../use-near-observer.js";
 import { PdfViewerPage } from "./PdfViewerPage.js";
 import { RenderQueue } from "./render-queue.js";
 import type { PdfViewerClassNames } from "./types.js";
@@ -50,8 +51,8 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
   const [width, setWidth] = useState(0);
   const [estimate, setEstimate] = useState(LETTER);
   const [queue] = useState(() => new RenderQueue(concurrency));
-  const observers = useRef<IntersectionObserver>(undefined);
-  const callbacks = useRef(new Map<Element, (near: boolean) => void>());
+  const observe = useNearObserver(root);
+  const session = usePdfSession();
 
   useEffect(() => {
     const element = pages.current;
@@ -63,28 +64,45 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
     return () => observer.disconnect();
   }, []);
 
-  // One observer for every page: a page counts as near within one viewport
-  // height above or below, so it's drawn before it scrolls into view.
+  // The current page follows scrolling: the last page whose top has passed a
+  // third of the way down the viewer. Measured once per animation frame.
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) callbacks.current.get(entry.target)?.(entry.isIntersecting);
-      },
-      { root: root.current, rootMargin: "100% 0px" },
-    );
-    observers.current = observer;
-    for (const element of callbacks.current.keys()) observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const observe = useCallback((element: Element, onNear: (near: boolean) => void) => {
-    callbacks.current.set(element, onNear);
-    observers.current?.observe(element);
-    return () => {
-      callbacks.current.delete(element);
-      observers.current?.unobserve(element);
+    const element = root.current;
+    if (!element) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const line = element.scrollTop + element.clientHeight / 3;
+      let current: string | undefined;
+      for (const page of element.querySelectorAll<HTMLElement>("[data-hm-page-key]")) {
+        if (page.offsetTop > line) break;
+        current = page.dataset["hmPageKey"];
+      }
+      if (current) session.setCurrentPage(current);
     };
-  }, []);
+    const onScroll = () => {
+      frame ||= requestAnimationFrame(measure);
+    };
+    element.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      element.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [session]);
+
+  // A navigation request scrolls its page to the top, at once, which also
+  // suits reduced motion. Only a new request scrolls: every snapshot has a
+  // new navigation object, but the same sequence number.
+  const sequence = snapshot.navigation?.sequence;
+  const target = snapshot.navigation?.page;
+  useEffect(() => {
+    const element = root.current;
+    if (!element || sequence === undefined || target === undefined) return;
+    const page = element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(target)}"]`);
+    if (!page) return;
+    const inset = Number.parseFloat(getComputedStyle(pages.current as Element).paddingTop) || 0;
+    element.scrollTo({ top: page.offsetTop - inset, behavior: "auto" });
+  }, [sequence, target]);
 
   const onMeasured = useCallback((info: PdfPageInfo) => {
     setEstimate((current) =>

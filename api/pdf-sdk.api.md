@@ -297,6 +297,9 @@ export const pdfMessages: {
     readonly "viewer.page": "Page {page} of {count}";
     readonly "viewer.webLink": "Link to {destination}, opens in a new tab";
     readonly "viewer.emailLink": "Email {destination}";
+    readonly "thumbnails.label": "Pages";
+    readonly "thumbnails.page": "Page {page} of {count}";
+    readonly "thumbnails.number": "{page}";
     readonly "errors.UNKNOWN": "Something went wrong. Please try again.";
     readonly "errors.ABORTED": "The operation was cancelled.";
     readonly "errors.TIMEOUT": "The operation took too long and was stopped.";
@@ -440,11 +443,14 @@ export interface PdfSession {
     getPage(key: string, options?: PdfCallOptions): Promise<PdfPageInfo>;
     getSnapshot(): PdfSessionSnapshot;
     getTextContent(key: string, options?: PdfCallOptions): Promise<PdfTextContent>;
+    goToPage(key: string): void;
     insert(file: Blob | PdfBytes, options?: PdfInsertOptions): Promise<void>;
     open(file: Blob | PdfBytes, options?: PdfCallOptions): Promise<void>;
     // (undocumented)
     redo(): void;
     renderPage(key: string, canvas: HTMLCanvasElement, options: Omit<PdfRenderOptions, "rotation">): Promise<void>;
+    select(keys: readonly string[]): void;
+    setCurrentPage(key: string): void;
     subscribe(listener: () => void): () => void;
     // (undocumented)
     undo(): void;
@@ -492,9 +498,15 @@ export interface PdfSessionSnapshot {
     readonly canRedo: boolean;
     // (undocumented)
     readonly canUndo: boolean;
+    readonly currentPage: string | undefined;
     readonly error: PdfError | undefined;
     readonly historyTrimmed: boolean;
+    readonly navigation: {
+        readonly page: string;
+        readonly sequence: number;
+    } | undefined;
     readonly plan: PdfPlan;
+    readonly selection: readonly string[];
     readonly sessionBytes: number;
     readonly sources: readonly PdfSourceInfo[];
     // (undocumented)

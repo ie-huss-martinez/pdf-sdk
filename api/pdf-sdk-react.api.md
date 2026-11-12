@@ -28,6 +28,20 @@ export interface PdfSessionProviderProps {
 }
 
 // @public
+export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode;
+
+// @public
+export type PdfThumbnailsPart = "root" | "thumbnail" | "frame" | "canvas" | "number";
+
+// @public
+export interface PdfThumbnailsProps {
+    readonly className?: string;
+    readonly classNames?: Readonly<Partial<Record<PdfThumbnailsPart, string>>>;
+    readonly concurrency?: number;
+    readonly unstyled?: boolean;
+}
+
+// @public
 export function PdfViewer(props: PdfViewerProps): ReactNode;
 
 // @public

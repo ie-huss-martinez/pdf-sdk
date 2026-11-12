@@ -91,6 +91,18 @@ export interface PdfSessionSnapshot {
    * earliest edits can no longer be undone (ADR 0010).
    */
   readonly historyTrimmed: boolean;
+  /**
+   * The keys of the selected pages, in plan order. Tools act on them, such as
+   * rotating the selection. View state: not undoable, and never in events.
+   */
+  readonly selection: readonly string[];
+  /** The key of the page the user is looking at, if a document is open. */
+  readonly currentPage: string | undefined;
+  /**
+   * The latest request to bring a page into view, from `goToPage`. Viewers
+   * scroll to `page` each time `sequence` changes.
+   */
+  readonly navigation: { readonly page: string; readonly sequence: number } | undefined;
 }
 
 /**
@@ -218,6 +230,15 @@ export interface PdfSession {
    * without the processor. The result is a new buffer the caller owns.
    */
   export(options?: PdfExportOptions): Promise<Uint8Array>;
+  /**
+   * Selects pages, by key, replacing the selection. Keys the plan doesn't
+   * have are ignored.
+   */
+  select(keys: readonly string[]): void;
+  /** Records the page the user is looking at, as a viewer scrolls. */
+  setCurrentPage(key: string): void;
+  /** Makes a page current and asks viewers to bring it into view. */
+  goToPage(key: string): void;
   /** Closes the document and releases its sources. */
   close(): Promise<void>;
 }
@@ -254,6 +275,9 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   let error: PdfError | undefined;
   let warnings: PdfWarning[] = [];
   let busy = 0;
+  let selection: readonly string[] = [];
+  let currentPage: string | undefined;
+  let navigation: { page: string; sequence: number } | undefined;
   let nextKey = 0;
   let nextSource = 0;
   /** Cancels the load in progress when a newer open replaces it. */
@@ -330,10 +354,23 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       warnings: Object.freeze(sessionWarnings()),
       sessionBytes: heldBytes(),
       historyTrimmed: history.trimmed,
+      selection: Object.freeze([...selection]),
+      currentPage,
+      navigation: navigation ? Object.freeze({ ...navigation }) : undefined,
     });
   }
 
   function changed(): void {
+    // View state follows the plan: pages that left it can't be selected or current.
+    const keys = new Set(plan.pages.map((page) => page.key));
+    if (selection.some((key) => !keys.has(key))) {
+      selection = selection.filter((key) => keys.has(key));
+    }
+    if (currentPage !== undefined && !keys.has(currentPage)) {
+      currentPage = plan.pages[0]?.key;
+    }
+    if (currentPage === undefined && plan.pages.length > 0) currentPage = plan.pages[0]?.key;
+    if (navigation && !keys.has(navigation.page)) navigation = undefined;
     snapshot = makeSnapshot();
     for (const listener of [...listeners]) listener();
   }
@@ -688,6 +725,34 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
         busy -= 1;
         changed();
       }
+    },
+
+    select(keys) {
+      const wanted = new Set(keys);
+      const next = plan.pages.filter((page) => wanted.has(page.key)).map((page) => page.key);
+      if (
+        next.length === selection.length &&
+        next.every((key, index) => key === selection[index])
+      ) {
+        return;
+      }
+      selection = next;
+      changed();
+    },
+
+    setCurrentPage(key) {
+      if (key === currentPage || !plan.pages.some((page) => page.key === key)) return;
+      currentPage = key;
+      changed();
+    },
+
+    goToPage(key) {
+      if (!plan.pages.some((page) => page.key === key)) {
+        throw new TypeError(`The plan has no page ${key}.`);
+      }
+      currentPage = key;
+      navigation = { page: key, sequence: (navigation?.sequence ?? 0) + 1 };
+      changed();
     },
 
     async close() {

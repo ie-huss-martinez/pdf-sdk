@@ -43,6 +43,9 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
   "viewer.page": "Page {page} of {count}",
   "viewer.webLink": "Link to {destination}, opens in a new tab",
   "viewer.emailLink": "Email {destination}",
+  "thumbnails.label": "Pages",
+  "thumbnails.page": "Page {page} of {count}",
+  "thumbnails.number": "{page}",
 }) satisfies Record<`errors.${PdfErrorCode}`, MessageValue> &
   Record<`warnings.${PdfLimitName}`, MessageValue>;
 
