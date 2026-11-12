@@ -1,0 +1,42 @@
+name: CI image
+
+# Reads the browser test image from ci/Dockerfile (ADR 0025), for the verify
+# job in verify.yml, and for the release's verify job once release.yml exists.
+# A workflow can't read a file for `container.image`, so verify jobs take it
+# from this workflow's `ref` output, and the image has one copy, which
+# Dependabot updates.
+on:
+  workflow_call:
+    outputs:
+      ref:
+        description: The image reference, pinned by tag and digest.
+        value: ${{ jobs.read.outputs.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  read:
+    name: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      ref: ${{ steps.read.outputs.ref }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: ci
+
+      # Exactly one FROM line: Microsoft's Playwright image, pinned by tag and
+      # digest. Anything else fails here, before a container is pulled.
+      - name: Read the image
+        id: read
+        run: |
+          refs=$(sed -n 's/^FROM //p' ci/Dockerfile)
+          pattern='^mcr\.microsoft\.com/playwright:v[0-9]+\.[0-9]+\.[0-9]+-noble@sha256:[0-9a-f]{64}$'
+          if [ "$(printf '%s\n' "$refs" | grep -c .)" -ne 1 ] || ! printf '%s' "$refs" | grep -Eq "$pattern"; then
+            echo "::error file=ci/Dockerfile::ci/Dockerfile needs exactly one FROM line: mcr.microsoft.com/playwright:<tag>-noble@sha256:<digest>."
+            exit 1
+          fi
+          echo "ref=$refs" >> "$GITHUB_OUTPUT"

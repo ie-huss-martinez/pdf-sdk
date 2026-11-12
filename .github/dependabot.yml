@@ -17,6 +17,22 @@ updates:
       github-actions:
         patterns: ["*"]
 
+  # The browser test image, in its only copy (ADR 0025): verify.yml reads it
+  # from ci/Dockerfile, and so will the release workflow, so this one update
+  # changes both. Its tag must move together with the playwright package;
+  # test/ci-image.test.ts fails until both match. The short directory keeps
+  # titles such as "ci: bump playwright from v1.65.0-noble to v1.66.0-noble in
+  # /ci" within the 65-character limit, as Dependabot always appends
+  # "in /<directory>".
+  - package-ecosystem: docker
+    directory: /ci
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+
   # Workspace dependencies, including the pnpm catalog in pnpm-workspace.yaml.
   - package-ecosystem: npm
     directory: /
