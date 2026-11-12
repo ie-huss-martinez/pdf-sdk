@@ -197,6 +197,76 @@ describe("PdfViewer", () => {
     expect(renderPage.mock.calls.length).toBeLessThan(10);
   });
 
+  it("lands on the requested page however late page sizes arrive", async () => {
+    // Pages are laid out with an estimate until the first is measured. A
+    // navigation that runs before then must stay on its page when the real
+    // sizes arrive and every page above it grows, in every engine, with or
+    // without native scroll anchoring.
+    const { session, bytes } = fakeSession(30);
+    await session.open(bytes);
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const getPage = session.getPage.bind(session);
+    vi.spyOn(session, "getPage").mockImplementation(async (key, options) => {
+      await gate;
+      return getPage(key, options);
+    });
+    const container = await mount(viewer(session));
+    const region = container.querySelector("section") as HTMLElement;
+    const offsetOf = (key: string) =>
+      (region.querySelector(`[data-hm-page-key="${key}"]`) as HTMLElement).getBoundingClientRect()
+        .top - region.getBoundingClientRect().top;
+
+    await act(async () => session.goToPage("p30"));
+    await frames(2);
+    const before = offsetOf("p30");
+    expect(Math.abs(before)).toBeLessThan(40);
+
+    release();
+    await vi.waitFor(() =>
+      expect([...region.querySelectorAll("canvas")].some((canvas) => canvas.width > 0)).toBe(true),
+    );
+    await frames(5);
+    // The estimate (612 by 792) gave way to the real size (600 by 800), so
+    // every page above grew, and the page stayed where it was.
+    // Scroll positions round to whole pixels in some engines.
+    expect(Math.abs(offsetOf("p30") - before)).toBeLessThan(2);
+  });
+
+  it("keeps the user's place while sizes above it change", async () => {
+    const { session, bytes } = fakeSession(30);
+    await session.open(bytes);
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const getPage = session.getPage.bind(session);
+    vi.spyOn(session, "getPage").mockImplementation(async (key, options) => {
+      await gate;
+      return getPage(key, options);
+    });
+    const container = await mount(viewer(session));
+    const region = container.querySelector("section") as HTMLElement;
+    const page = region.querySelector('[data-hm-page-key="p20"]') as HTMLElement;
+    // The viewer lays its pages out once it knows its width.
+    await vi.waitFor(() => expect(page.offsetTop).toBeGreaterThan(0));
+    await act(async () => {
+      region.scrollTop = page.offsetTop + 100;
+    });
+    await frames(2);
+    const before = page.getBoundingClientRect().top - region.getBoundingClientRect().top;
+
+    release();
+    await vi.waitFor(() =>
+      expect([...region.querySelectorAll("canvas")].some((canvas) => canvas.width > 0)).toBe(true),
+    );
+    await frames(5);
+    const after = page.getBoundingClientRect().top - region.getBoundingClientRect().top;
+    expect(Math.abs(after - before)).toBeLessThan(2);
+  });
+
   it("draws only pages near the viewport, and gives back pixels of pages scrolled away", async () => {
     const { session, bytes } = fakeSession(40);
     const container = await mount(viewer(session));

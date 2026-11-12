@@ -54,31 +54,79 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
   const observe = useNearObserver(root);
   const session = usePdfSession();
 
+  // Scroll anchoring, the same in every engine (WebKit has none of its own):
+  // the page at the top of the viewer stays where it is on screen while
+  // sizes above it change, as placeholders take their real size and the
+  // first page measured replaces the estimate. A navigation sets the anchor
+  // to its page, so it lands on that page however late sizes arrive.
+  const anchor = useRef<{ key: string; offset: number }>(undefined);
+  // The scroll position the viewer set itself, so its own scrolls don't
+  // move the anchor; only the user's do.
+  const own = useRef<number>(undefined);
+
+  const findPage = useCallback(
+    (key: string) =>
+      root.current?.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(key)}"]`) ??
+      undefined,
+    [],
+  );
+
+  const scrollOwn = useCallback((element: HTMLElement, top: number) => {
+    element.scrollTop = top;
+    own.current = element.scrollTop;
+  }, []);
+
   useEffect(() => {
     const element = pages.current;
     if (!element) return;
+    // Runs after layout and before paint, so a restored position never shows
+    // the shifted one first.
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setWidth(entry.contentRect.width);
+      const viewer = root.current;
+      const held = anchor.current;
+      if (!viewer || !held) return;
+      const page = findPage(held.key);
+      if (!page) {
+        anchor.current = undefined;
+        return;
+      }
+      const top = page.offsetTop - held.offset;
+      if (Math.abs(viewer.scrollTop - top) >= 1) scrollOwn(viewer, top);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [findPage, scrollOwn]);
 
   // The current page follows scrolling: the last page whose top has passed a
-  // third of the way down the viewer. Measured once per animation frame.
+  // third of the way down the viewer. The anchor follows the user's
+  // scrolling: the last page whose top is at or above the viewer's top.
+  // Measured once per animation frame.
   useEffect(() => {
     const element = root.current;
     if (!element) return;
     let frame = 0;
     const measure = () => {
       frame = 0;
-      const line = element.scrollTop + element.clientHeight / 3;
-      let current: string | undefined;
+      const { scrollTop } = element;
+      const line = scrollTop + element.clientHeight / 3;
+      const user = own.current === undefined || Math.abs(scrollTop - own.current) >= 1;
+      let current: HTMLElement | undefined;
+      let top: HTMLElement | undefined;
       for (const page of element.querySelectorAll<HTMLElement>("[data-hm-page-key]")) {
         if (page.offsetTop > line) break;
-        current = page.dataset["hmPageKey"];
+        current = page;
+        if (page.offsetTop <= scrollTop || !top) top = page;
       }
-      if (current) session.setCurrentPage(current);
+      if (user) {
+        own.current = undefined;
+        anchor.current = top && {
+          key: top.dataset["hmPageKey"] as string,
+          offset: top.offsetTop - scrollTop,
+        };
+      }
+      const key = current?.dataset["hmPageKey"];
+      if (key) session.setCurrentPage(key);
     };
     const onScroll = () => {
       frame ||= requestAnimationFrame(measure);
@@ -91,18 +139,19 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
   }, [session]);
 
   // A navigation request scrolls its page to the top, at once, which also
-  // suits reduced motion. Only a new request scrolls: every snapshot has a
-  // new navigation object, but the same sequence number.
+  // suits reduced motion, and anchors it there. Only a new request scrolls:
+  // every snapshot has a new navigation object, but the same sequence number.
   const sequence = snapshot.navigation?.sequence;
   const target = snapshot.navigation?.page;
   useEffect(() => {
     const element = root.current;
     if (!element || sequence === undefined || target === undefined) return;
-    const page = element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(target)}"]`);
+    const page = findPage(target);
     if (!page) return;
     const inset = Number.parseFloat(getComputedStyle(pages.current as Element).paddingTop) || 0;
-    element.scrollTo({ top: page.offsetTop - inset, behavior: "auto" });
-  }, [sequence, target]);
+    anchor.current = { key: target, offset: inset };
+    scrollOwn(element, page.offsetTop - inset);
+  }, [sequence, target, findPage, scrollOwn]);
 
   const onMeasured = useCallback((info: PdfPageInfo) => {
     setEstimate((current) =>
