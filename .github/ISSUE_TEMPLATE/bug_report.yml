@@ -1,0 +1,82 @@
+name: Bug report
+description: Something in @hussmartinez/pdf-sdk doesn't work or look as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. **Security vulnerabilities**, including any PDF that crashes or freezes the page, go through [private reporting](https://github.com/ie-huss-martinez/pdf-sdk/security/advisories/new) instead. Accessibility problems are bugs, and belong here.
+
+        **Please don't attach real documents.** Anything you attach here is public. Share a PDF only if it contains nothing personal or confidential, or describe how to make one that shows the problem.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Opening or rendering a document
+        - Page tools (rotate, delete, move, merge)
+        - Export (download, compress, protect)
+        - Forms or annotations
+        - Accessibility (keyboard, screen readers, focus, contrast)
+        - Styling or themes
+        - The React editor, the element or the standalone script
+        - Server rendering or hydration
+        - Types or packaging
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The package version, or the commit if you're working from source.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include any error code (such as `INVALID_PDF`) and console warnings. For rendering problems, a screenshot helps a lot, if the page shows nothing confidential.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps or code that shows the problem. A link to a minimal repository is ideal.
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: document
+    attributes:
+      label: The document
+      description: What kind of PDF shows it, such as scanned, with forms, encrypted, very large or produced by a particular application. Attach one only if it contains nothing personal or confidential.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and version, operating system, React version if you use it, framework and bundler, and whether assets are inline or self-hosted. For accessibility problems, the assistive technology and its version.
+      placeholder: Safari 19 on iOS 19 with VoiceOver, React 19, Next.js 16 with Turbopack, inline assets
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues, and this hasn't been reported yet.
+          required: true
+        - label: This isn't a security vulnerability.
+          required: true
+        - label: Nothing I attached contains personal or confidential data.
+          required: true
