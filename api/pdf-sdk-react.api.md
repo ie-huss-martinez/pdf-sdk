@@ -5,11 +5,44 @@
 ```ts
 
 import { FilePolicyOverrides } from '@hussmartinez/sdk-core';
+import { ForwardRefExoticComponent } from 'react';
 import { MessageOverrides } from '@hussmartinez/sdk-core';
 import type { Messages } from '@hussmartinez/sdk-core';
 import { ReactNode } from 'react';
+import { RefAttributes } from 'react';
 import { SdkCoreErrorCode } from '@hussmartinez/sdk-core';
 import { SdkError } from '@hussmartinez/sdk-core';
+
+// @public
+export const PdfEditor: ForwardRefExoticComponent<PdfEditorProps & RefAttributes<PdfEditorHandle>>;
+
+// @public
+export interface PdfEditorChange {
+    readonly pageCount: number;
+    readonly reason: "open" | "edit" | "close";
+}
+
+// @public
+export interface PdfEditorHandle {
+    close(): Promise<void>;
+    export(options?: PdfExportOptions): Promise<Uint8Array>;
+    open(file: Blob | PdfBytes): Promise<void>;
+    redo(): void;
+    readonly session: PdfSession;
+    undo(): void;
+}
+
+// @public
+export type PdfEditorPart = "root" | "header" | "toolbar" | "body" | "sidebar" | "start" | "status" | "alert";
+
+// @public
+export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"> {
+    readonly className?: string;
+    readonly classNames?: Readonly<Partial<Record<PdfEditorPart, string>>>;
+    readonly file?: Blob | PdfBytes | null;
+    readonly onChange?: (change: PdfEditorChange) => void;
+    readonly unstyled?: boolean;
+}
 
 // @public
 export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode;

@@ -6,11 +6,18 @@
  * @remarks
  * A client entry: it starts with `"use client"`, which the build keeps
  * (ADR 0007). React and React DOM 18.3 or later are optional peer
- * dependencies. The full editor arrives in a later release.
+ * dependencies.
  *
  * @packageDocumentation
  */
 
+export { PdfEditor } from "./react/editor/PdfEditor.js";
+export type {
+  PdfEditorChange,
+  PdfEditorHandle,
+  PdfEditorPart,
+  PdfEditorProps,
+} from "./react/editor/types.js";
 export { usePdfDocument, usePdfMessages, usePdfSession } from "./react/hooks.js";
 export type { PdfSessionProviderProps } from "./react/PdfSessionProvider.js";
 export { PdfSessionProvider } from "./react/PdfSessionProvider.js";

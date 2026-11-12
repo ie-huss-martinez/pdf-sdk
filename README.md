@@ -6,6 +6,25 @@ This repository will publish **`@hussmartinez/pdf-sdk`**, which replaces the pri
 
 > Status: being bootstrapped. No packages are published yet.
 
+## The React editor
+
+```tsx
+import { PdfEditor, type PdfEditorHandle } from "@hussmartinez/pdf-sdk/react";
+import "@hussmartinez/pdf-sdk/styles.css";
+
+const editor = useRef<PdfEditorHandle>(null);
+
+<div style={{ height: "100dvh" }}>
+  <PdfEditor ref={editor} file={file} onChange={({ reason }) => setDirty(reason === "edit")} />
+</div>;
+
+const bytes = await editor.current?.export();
+```
+
+`PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own. Its styles use the design tokens of `@hussmartinez/ui`, which sets their values; every value is also a `--hm-pdf-*` property you can set yourself.
+
+`file` opens a document, and a different one replaces it; `null` closes it. Users can also open one with the editor's button or by dropping it on the editor. `onChange` reports each `open`, `edit` and `close`, and the ref's `PdfEditorHandle` exports, undoes, redoes and closes.
+
 ## Assets and Content Security Policy
 
 The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib, which builds documents. Some documents also need extra data: CMaps for CJK text whose fonts aren't embedded, standard fonts, and decoders for JBIG2 and JPX images, which are common in scanned documents. The SDK never fetches any of them from another origin. Choose one of two modes ([ADR 0002](docs/adr/0002-workers-and-assets.md), [ADR 0006](docs/adr/0006-icc-colour-and-self-hosted-assets.md), [ADR 0007](docs/adr/0007-one-assets-directory.md)):

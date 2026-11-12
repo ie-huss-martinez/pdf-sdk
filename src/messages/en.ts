@@ -6,7 +6,7 @@ import type { PdfLimitName } from "../core/errors/pdf-limits.js";
  * The PDF SDK's English message catalogue: sdk-core's messages, and text for
  * every {@link PdfErrorCode} and every limit's warning. Pass it to
  * `createMessages` from `@hussmartinez/sdk-core`, with the host's locale and
- * overrides. The editor's text joins it as the editor arrives.
+ * overrides.
  *
  * Error text is looked up by code, with the error's `details` as
  * parameters, and never taken from `error.message` (ADR 0019).
@@ -46,6 +46,18 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
   "thumbnails.label": "Pages",
   "thumbnails.page": "Page {page} of {count}",
   "thumbnails.number": "{page}",
+  "editor.label": "PDF editor",
+  "editor.start.title": "Open a PDF to get started",
+  "editor.start.retryTitle": "Try another PDF",
+  "editor.start.choose": "Choose a PDF",
+  "editor.start.retry": "Choose another PDF",
+  "editor.start.hint": "Or drop one here. Your file stays on this device and is never uploaded.",
+  "editor.opening": "Opening the PDF…",
+  "editor.opened": /* @__PURE__ */ plural("count", {
+    one: "Opened a PDF with {count} page.",
+    other: "Opened a PDF with {count} pages.",
+  }),
+  "editor.closed": "The PDF was closed.",
 }) satisfies Record<`errors.${PdfErrorCode}`, MessageValue> &
   Record<`warnings.${PdfLimitName}`, MessageValue>;
 
