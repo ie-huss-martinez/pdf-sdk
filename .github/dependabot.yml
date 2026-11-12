@@ -4,22 +4,26 @@ version: 2
 # caught and pulled before it is proposed. This also stays well above pnpm's
 # one-day minimumReleaseAge, so a proposed version can always be installed.
 updates:
-  # Keeps the commit SHAs that actions are pinned to current (ADR 0015).
+  # Keeps the commit SHAs that actions are pinned to current (ADR 0015),
+  # including the sdk-ci pins in every workflow. The organisation's own
+  # actions skip the cooldown, so an sdk-ci fix arrives at the next weekly
+  # run (ADR 0026).
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+      exclude: ["ie-huss-martinez/*"]
     commit-message:
       prefix: ci
     groups:
       github-actions:
         patterns: ["*"]
 
-  # The browser test image, in its only copy (ADR 0025): verify.yml reads it
-  # from ci/Dockerfile, and so will the release workflow, so this one update
-  # changes both. Its tag must move together with the playwright package;
+  # The browser test image, in its only copy (ADR 0025): both workflows read
+  # it from ci/Dockerfile through sdk-ci's image action, so this one update
+  # changes CI and releases together. Its tag must move together with the playwright package;
   # test/ci-image.test.ts fails until both match. The short directory keeps
   # titles such as "ci: bump playwright from v1.65.0-noble to v1.66.0-noble in
   # /ci" within the 65-character limit, as Dependabot always appends

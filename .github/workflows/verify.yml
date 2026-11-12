@@ -1,8 +1,9 @@
 name: Verify
 
 # Runs the full `pnpm verify` on every pull request and every push to main
-# (ADR 0015). The job name is the required status check, so keep it `verify`.
-# The `changeset` check (ADR 0021) joins it with the release workflow.
+# (ADR 0015, in sdk-core), and checks pull requests for changesets (ADR 0021).
+# The job names are the required status checks, so keep them `verify` and
+# `changeset`.
 on:
   pull_request:
   push:
@@ -21,44 +22,43 @@ jobs:
   # Reads the browser test image from ci/Dockerfile (ADR 0025).
   image:
     name: image
-    permissions:
-      contents: read
-    uses: ./.github/workflows/ci-image.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ref: ${{ steps.image.outputs.ref }}
+    steps:
+      - id: image
+        uses: ie-huss-martinez/sdk-ci/image@4fd30ccfb06f8854b3744201dccaaf000567af4b # v1.0.0
 
   verify:
     name: verify
     needs: image
     # A job whose dependency failed is skipped, and a skipped required check
-    # counts as passing. So verify still runs then, and fails on the
-    # fallback image name below, which can't be pulled.
+    # counts as passing. So verify still runs then, and fails on the fallback
+    # image name below, which can't be pulled.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The browser test image from ci/Dockerfile, with the browsers and their
-    # system libraries preinstalled, so nothing is installed with apt. User
-    # 1001 owns the runner's workspace, and Firefox won't start as root with a
-    # home directory owned by another user.
+    # The browser test image, with the browsers and their system libraries
+    # preinstalled. User 1001 owns the runner's workspace, and Firefox won't
+    # start as root with a home directory owned by another user.
     container:
       image: ${{ needs.image.outputs.ref || 'the-image-job-failed@sha256:0000000000000000000000000000000000000000000000000000000000000000' }}
       options: --user 1001 --ipc=host --init
     env:
       HUSKY: "0"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+      - uses: ie-huss-martinez/sdk-ci/verify@4fd30ccfb06f8854b3744201dccaaf000567af4b # v1.0.0
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
+      # This repository's workflows must match the skeleton of the sdk-ci
+      # version it pins (ADR 0026).
+      - uses: ie-huss-martinez/sdk-ci/check-workflows@4fd30ccfb06f8854b3744201dccaaf000567af4b # v1.0.0
 
-      # Installs the pnpm version in `packageManager` and caches its store.
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          cache: true
-
-      - run: pnpm install --frozen-lockfile
-
-      # Browser tests run on Chromium, Firefox and WebKit (ADR 0015), with the
-      # browsers the image provides.
-      - run: pnpm verify
+  # The version pull request consumes changesets by design, so it's skipped.
+  changeset:
+    name: changeset
+    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: ie-huss-martinez/sdk-ci/changeset@4fd30ccfb06f8854b3744201dccaaf000567af4b # v1.0.0
