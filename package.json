@@ -39,7 +39,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "packageManager": "pnpm@12.18.0",
   "engines": {
@@ -80,6 +81,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@biomejs/biome": "catalog:",
+    "@cantoo/pdf-lib": "catalog:",
     "@commitlint/cli": "catalog:",
     "@hussmartinez/sdk-config": "catalog:",
     "@microsoft/api-extractor": "catalog:",
@@ -91,6 +93,7 @@
     "dependency-cruiser": "catalog:",
     "husky": "catalog:",
     "lint-staged": "catalog:",
+    "pdfjs-dist": "catalog:",
     "playwright": "catalog:",
     "publint": "catalog:",
     "react": "catalog:",

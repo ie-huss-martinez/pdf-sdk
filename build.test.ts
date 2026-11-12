@@ -76,6 +76,61 @@ describe("the built package", () => {
 });
 
 /**
+ * Code generation from strings: `eval(…)`, `new Function(…)` and
+ * `Function(…)`, as whole words, so `evaluate(` or `new FunctionBasedShading(`
+ * don't match.
+ */
+const CODE_GENERATION = /(?<![\w$.])eval\s*\(|(?<![\w$.])(?:new\s+)?Function\s*\(/;
+
+describe("the bundled PDF engines (docs/adr/0001)", () => {
+  it("recognises code generation, and nothing that merely looks like it", () => {
+    for (const code of ['eval("1")', 'new Function("a", "return a")', "x = Function ('y')"]) {
+      expect(code).toMatch(CODE_GENERATION);
+    }
+    for (const code of [
+      "evaluate(x)",
+      "new FunctionBasedShading(x)",
+      "a.eval(x)",
+      "isFunction(x)",
+    ]) {
+      expect(code).not.toMatch(CODE_GENERATION);
+    }
+  });
+
+  it("generate no code from strings, in any chunk, including the inlined worker", () => {
+    const javascript = files.filter((file) => file.type === "chunk");
+    expect(javascript.map((file) => file.fileName)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^lazy\/inline-worker-/)]),
+    );
+    for (const file of javascript) {
+      expect(file.code, file.fileName).not.toMatch(CODE_GENERATION);
+    }
+  });
+
+  it("load only with import(), never with the entries", () => {
+    for (const entry of ["index.js", "react.js", "element.js"]) {
+      for (const imported of chunk(entry).imports) {
+        expect(imported, entry).not.toMatch(/^lazy\//);
+      }
+    }
+    expect(chunk("index.js").dynamicImports).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^lazy\/runtime-/),
+        expect.stringMatching(/^lazy\/inline-worker-/),
+      ]),
+    );
+  });
+
+  it("ship no worker source maps", () => {
+    expect(files.filter((file) => /\.worker-[\w-]+\.js\.map$/.test(file.fileName))).toEqual([]);
+    const worker = chunk(
+      files.find((file) => /^lazy\/inline-worker-[\w-]+\.js$/.test(file.fileName))?.fileName ?? "",
+    );
+    expect(worker.code).not.toMatch(/sourceMappingURL=pdfjs/);
+  });
+});
+
+/**
  * Builds the package to a temporary folder inside the repository, so the
  * built files resolve their external imports from its node_modules, as they
  * would in an application.

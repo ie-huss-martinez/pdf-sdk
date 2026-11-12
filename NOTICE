@@ -1,0 +1,13 @@
+@hussmartinez/pdf-sdk
+Copyright 2026 Huss Martinez
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It bundles the following third-party software, under the licences named.
+
+--------------------------------------------------------------------------------
+PDF.js (pdfjs-dist)
+Copyright Mozilla Foundation
+Licensed under the Apache License, Version 2.0.
+https://github.com/mozilla/pdf.js
+--------------------------------------------------------------------------------

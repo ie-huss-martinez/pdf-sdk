@@ -14,6 +14,9 @@ import { SdkError } from '@hussmartinez/sdk-core';
 export function addRotation(rotation: PdfRotation, angle: number): PdfRotation;
 
 // @public
+export function createPdfJsEngine(options?: PdfJsEngineOptions): PdfEngine;
+
+// @public
 export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unknown, code?: Code): value is PdfError & {
     readonly code: Code;
 };
@@ -149,6 +152,14 @@ export interface PdfImageAnnotation {
 export interface PdfImageCompression {
     readonly maxDimension: number;
     readonly quality: number;
+}
+
+// @public
+export interface PdfJsEngineOptions {
+    readonly maxImagePixels?: number;
+    // @internal
+    readonly _onDataRequest?: (kind: "cMapUrl" | "standardFontDataUrl" | "wasmUrl", filename: string) => void;
+    readonly workerUrl?: string | URL;
 }
 
 // @public
