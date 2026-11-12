@@ -49,6 +49,19 @@ export type {
 } from "./core/model/document.js";
 export type { PdfPoint, PdfRect, PdfRotation } from "./core/model/geometry.js";
 export { addRotation } from "./core/model/geometry.js";
+export type { PdfPlan, PdfPlanPage } from "./core/model/plan.js";
+export type {
+  PdfAddAnnotationCommand,
+  PdfCommand,
+  PdfDeletePagesCommand,
+  PdfInsertPagesCommand,
+  PdfMovePagesCommand,
+  PdfRemoveAnnotationCommand,
+  PdfReorderPagesCommand,
+  PdfRestorePagesCommand,
+  PdfRotatePagesCommand,
+  PdfSetFieldValueCommand,
+} from "./core/operations/commands.js";
 export type { PdfCallOptions, PdfTransferOptions } from "./core/ports/options.js";
 export type {
   PdfDocumentHandle,
@@ -57,5 +70,16 @@ export type {
 } from "./core/ports/pdf-engine.js";
 export { PDF_MAX_CANVAS_PIXELS } from "./core/ports/pdf-engine.js";
 export type { PdfBuildOptions, PdfProcessor } from "./core/ports/pdf-processor.js";
+export type {
+  PdfInsertOptions,
+  PdfSession,
+  PdfSessionEvent,
+  PdfSessionOptions,
+  PdfSessionSnapshot,
+  PdfSessionStatus,
+  PdfSourceInfo,
+  PdfWarning,
+} from "./core/session/session.js";
+export { createPdfSession } from "./core/session/session.js";
 export type { PdfMessageCatalogue } from "./messages/en.js";
 export { pdfMessages } from "./messages/en.js";
