@@ -11,9 +11,101 @@ import { SdkCoreErrorCode } from '@hussmartinez/sdk-core';
 import { SdkError } from '@hussmartinez/sdk-core';
 
 // @public
+export function addRotation(rotation: PdfRotation, angle: number): PdfRotation;
+
+// @public
 export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unknown, code?: Code): value is PdfError & {
     readonly code: Code;
 };
+
+// @public
+export const PDF_MAX_CANVAS_PIXELS = 16777216;
+
+// @public
+export type PdfAnnotation = PdfStrokeAnnotation | PdfTextAnnotation | PdfImageAnnotation;
+
+// @public
+export interface PdfBuildJob {
+    // (undocumented)
+    readonly compress?: PdfCompression;
+    // (undocumented)
+    readonly encrypt?: PdfEncryption;
+    // (undocumented)
+    readonly pages: readonly PdfBuildPage[];
+    // (undocumented)
+    readonly sources: readonly PdfBuildSource[];
+}
+
+// @public
+export interface PdfBuildOptions extends PdfTransferOptions {
+    readonly onProgress?: (progress: PdfBuildProgress) => void;
+}
+
+// @public
+export interface PdfBuildPage {
+    readonly annotations?: readonly PdfAnnotation[];
+    readonly pageIndex: number;
+    readonly rotation?: PdfRotation;
+    readonly source: string;
+}
+
+// @public
+export interface PdfBuildProgress {
+    // (undocumented)
+    readonly fraction: number;
+    // (undocumented)
+    readonly step: PdfBuildStep;
+}
+
+// @public
+export interface PdfBuildSource {
+    // (undocumented)
+    readonly bytes: PdfBytes;
+    readonly formValues?: Readonly<Record<string, PdfFieldValue>>;
+    readonly id: string;
+}
+
+// @public
+export type PdfBuildStep = "fill" | "assemble" | "flatten" | "compress" | "encrypt";
+
+// @public
+export type PdfBytes = ArrayBuffer | Uint8Array;
+
+// @public
+export interface PdfCallOptions {
+    readonly signal?: AbortSignal;
+}
+
+// @public
+export type PdfColor = `#${string}`;
+
+// @public
+export interface PdfCompression {
+    // (undocumented)
+    readonly images?: PdfImageCompression;
+}
+
+// @public
+export interface PdfDocumentHandle {
+    destroy(): Promise<void>;
+    getFormFields(pageIndex: number, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+    getPage(pageIndex: number, options?: PdfCallOptions): Promise<PdfPageInfo>;
+    getTextContent(pageIndex: number, options?: PdfCallOptions): Promise<PdfTextContent>;
+    readonly pageCount: number;
+    renderPage(pageIndex: number, canvas: HTMLCanvasElement, options: PdfRenderOptions): Promise<void>;
+}
+
+// @public
+export interface PdfEncryption {
+    readonly ownerPassword?: string;
+    readonly userPassword: string;
+}
+
+// @public
+export interface PdfEngine {
+    destroy(): Promise<void>;
+    open(source: PdfBytes, options?: PdfTransferOptions): Promise<PdfDocumentHandle>;
+}
 
 // @public
 export class PdfError extends SdkError<PdfErrorCode> {
@@ -24,10 +116,40 @@ export class PdfError extends SdkError<PdfErrorCode> {
 export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE";
 
 // @public
+export type PdfFieldValue = string | boolean;
+
+// @public
 export type PdfFilePolicy = FilePolicy<PdfLimitDefinitions>;
 
 // @public
 export type PdfFilePolicyOverrides = FilePolicyOverrides<PdfLimitDefinitions>;
+
+// @public
+export interface PdfFormField {
+    readonly name: string;
+    readonly readOnly: boolean;
+    readonly rect: PdfRect;
+    readonly type: "text" | "checkbox";
+    readonly value: PdfFieldValue;
+}
+
+// @public
+export interface PdfImageAnnotation {
+    readonly at: PdfPoint;
+    readonly height: number;
+    // (undocumented)
+    readonly id: string;
+    readonly png: Uint8Array;
+    // (undocumented)
+    readonly type: "signature";
+    readonly width: number;
+}
+
+// @public
+export interface PdfImageCompression {
+    readonly maxDimension: number;
+    readonly quality: number;
+}
 
 // @public
 export type PdfLimitDefinitions = typeof pdfLimitDefinitions;
@@ -123,5 +245,92 @@ export const pdfMessages: {
     readonly "warnings.maxDecodedSize": "This file is very large once opened and may be slow to process.";
     readonly "warnings.maxProcessingTime": "This is taking longer than usual.";
 };
+
+// @public
+export interface PdfPageInfo {
+    readonly height: number;
+    readonly rotation: PdfRotation;
+    readonly width: number;
+}
+
+// @public
+export interface PdfPoint {
+    // (undocumented)
+    readonly x: number;
+    // (undocumented)
+    readonly y: number;
+}
+
+// @public
+export interface PdfProcessor {
+    build(job: PdfBuildJob, options?: PdfBuildOptions): Promise<Uint8Array>;
+    destroy(): Promise<void>;
+}
+
+// @public
+export interface PdfRect {
+    // (undocumented)
+    readonly height: number;
+    // (undocumented)
+    readonly width: number;
+    // (undocumented)
+    readonly x: number;
+    // (undocumented)
+    readonly y: number;
+}
+
+// @public
+export interface PdfRenderOptions extends PdfCallOptions {
+    readonly pixelRatio?: number;
+    readonly rotation?: PdfRotation;
+    readonly scale: number;
+}
+
+// @public
+export type PdfRotation = 0 | 90 | 180 | 270;
+
+// @public
+export interface PdfStrokeAnnotation {
+    // (undocumented)
+    readonly color: PdfColor;
+    // (undocumented)
+    readonly id: string;
+    readonly points: readonly PdfPoint[];
+    // (undocumented)
+    readonly type: "pen" | "highlight";
+    readonly width: number;
+}
+
+// @public
+export interface PdfTextAnnotation {
+    readonly at: PdfPoint;
+    // (undocumented)
+    readonly color: PdfColor;
+    // (undocumented)
+    readonly id: string;
+    readonly size: number;
+    readonly text: string;
+    // (undocumented)
+    readonly type: "text";
+}
+
+// @public
+export interface PdfTextContent {
+    // (undocumented)
+    readonly items: readonly PdfTextItem[];
+}
+
+// @public
+export interface PdfTextItem {
+    readonly angle: number;
+    readonly endOfLine: boolean;
+    readonly rect: PdfRect;
+    readonly text: string;
+}
+
+// @public
+export interface PdfTransferOptions extends PdfCallOptions {
+    readonly transfer?: boolean;
+}
 
 ```
