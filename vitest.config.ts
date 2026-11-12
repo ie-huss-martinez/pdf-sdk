@@ -53,6 +53,16 @@ export default defineConfig(({ mode }) => {
           },
         },
         {
+          // Pre-bundled before the tests start. Otherwise Vite discovers pdf.js's
+          // worker while a test is running, re-optimises, and reloads the page,
+          // which fails the test on a cold cache, as in CI.
+          optimizeDeps: {
+            include: [
+              "pdfjs-dist/build/pdf.min.mjs",
+              "pdfjs-dist/build/pdf.worker.min.mjs",
+              "@cantoo/pdf-lib",
+            ],
+          },
           test: {
             name: "browser",
             include: ["src/**/*.browser.test.{ts,tsx}", "test/**/*.browser.test.ts"],
