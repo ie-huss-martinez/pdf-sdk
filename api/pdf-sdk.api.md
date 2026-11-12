@@ -17,7 +17,7 @@ export function addRotation(rotation: PdfRotation, angle: number): PdfRotation;
 export function createPdfJsEngine(options?: PdfJsEngineOptions): PdfEngine;
 
 // @public
-export function createPdfProcessor(): PdfProcessor;
+export function createPdfProcessor(options?: PdfProcessorOptions): PdfProcessor;
 
 // @public
 export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unknown, code?: Code): value is PdfError & {
@@ -279,6 +279,11 @@ export interface PdfPoint {
 export interface PdfProcessor {
     build(job: PdfBuildJob, options?: PdfBuildOptions): Promise<Uint8Array>;
     destroy(): Promise<void>;
+}
+
+// @public
+export interface PdfProcessorOptions {
+    readonly assetsUrl?: string | URL;
 }
 
 // @public

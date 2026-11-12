@@ -34,3 +34,9 @@ declare module "virtual:hm-qpdf-wasm" {
   const base64: string;
   export default base64;
 }
+
+/** The reviewed SHA-256 of qpdf.wasm, which the self-hosted worker checks. */
+declare module "virtual:hm-qpdf-wasm-sha256" {
+  const sha256: string;
+  export default sha256;
+}

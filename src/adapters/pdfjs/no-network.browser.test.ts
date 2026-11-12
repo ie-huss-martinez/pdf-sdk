@@ -89,10 +89,10 @@ describe("the pdf.js engine makes no requests (ADR 0002, ADR 0012)", () => {
   });
 });
 
-describe("the pdf.js engine with self-hosted assets (docs/adr/0006)", () => {
-  it("requests data only from assetsUrl, including ICC colour data", async () => {
-    // pdfjs-dist has the same layout as the package's dist/assets/pdfjs.
-    const assetsUrl = new URL("/node_modules/pdfjs-dist/", location.href).href;
+describe("the pdf.js engine with self-hosted assets (docs/adr/0006, docs/adr/0007)", () => {
+  it("requests only files under assetsUrl, including ICC colour data", async () => {
+    // The test server serves exactly what the build writes to dist/assets.
+    const assetsUrl = new URL("/hm-test-assets/", location.href).href;
     const engine = createPdfJsEngine({ assetsUrl });
     const canvas = document.createElement("canvas");
     const requests = await requestsDuring(async () => {
@@ -103,25 +103,20 @@ describe("the pdf.js engine with self-hosted assets (docs/adr/0006)", () => {
     });
     await engine.destroy();
 
-    // The test server injects its own client into the worker module it
-    // serves, and WebKit reports a module worker's imports as XHRs. A real
-    // self-hosted worker is a static file with no imports.
-    const isTestServerClient = ({ url }: Recorded) =>
-      /^\/@vite\/client$|\/vite\/dist\/client\/env\.mjs$/.test(new URL(url).pathname);
-    const data = requests.filter((request) => !isOwnCode(request) && !isTestServerClient(request));
-    for (const { url } of data) {
-      expect(url.startsWith(assetsUrl), url).toBe(true);
-    }
+    const outside = requests.filter(
+      (request) => !isOwnCode(request) && !request.url.startsWith(assetsUrl),
+    );
+    expect(outside).toEqual([]);
     const paths = requests
       .filter(({ url }) => url.startsWith(assetsUrl))
-      .map(({ url }) => new URL(url).pathname.slice(new URL(assetsUrl).pathname.length));
+      .map(({ url }) => url.slice(assetsUrl.length));
     expect(paths).toEqual(
       expect.arrayContaining([
-        "build/pdf.worker.min.mjs",
-        "cmaps/UniJIS-UCS2-H.bcmap",
-        "wasm/jbig2.wasm",
-        "wasm/qcms_bg.wasm",
-        "iccs/CGATS001Compat-v2-micro.icc",
+        "pdfjs/build/pdf.worker.min.mjs",
+        "pdfjs/cmaps/UniJIS-UCS2-H.bcmap",
+        "pdfjs/wasm/jbig2.wasm",
+        "pdfjs/wasm/qcms_bg.wasm",
+        "pdfjs/iccs/CGATS001Compat-v2-micro.icc",
       ]),
     );
   });
