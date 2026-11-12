@@ -4,4 +4,124 @@
 
 ```ts
 
+import { FilePolicy } from '@hussmartinez/sdk-core';
+import { FilePolicyOverrides } from '@hussmartinez/sdk-core';
+import { Limits } from '@hussmartinez/sdk-core';
+import { SdkCoreErrorCode } from '@hussmartinez/sdk-core';
+import { SdkError } from '@hussmartinez/sdk-core';
+
+// @public
+export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unknown, code?: Code): value is PdfError & {
+    readonly code: Code;
+};
+
+// @public
+export class PdfError extends SdkError<PdfErrorCode> {
+    readonly name = "PdfError";
+}
+
+// @public
+export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE";
+
+// @public
+export type PdfFilePolicy = FilePolicy<PdfLimitDefinitions>;
+
+// @public
+export type PdfFilePolicyOverrides = FilePolicyOverrides<PdfLimitDefinitions>;
+
+// @public
+export type PdfLimitDefinitions = typeof pdfLimitDefinitions;
+
+// @public
+export const pdfLimitDefinitions: {
+    readonly maxPages: {
+        readonly code: "TOO_MANY_PAGES";
+        readonly unit: "count";
+        readonly default: 5000;
+        readonly warning: 1000;
+    };
+    readonly maxSessionSize: {
+        readonly code: "SESSION_TOO_LARGE";
+        readonly unit: "bytes";
+        readonly default: 300000000;
+        readonly warning: 150000000;
+    };
+    readonly maxImagePixels: {
+        readonly code: "IMAGE_TOO_LARGE";
+        readonly unit: "pixels";
+        readonly default: 100000000;
+    };
+    readonly maxFileSize: {
+        readonly code: "FILE_TOO_LARGE";
+        readonly unit: "bytes";
+        readonly default: 100000000;
+        readonly warning: 50000000;
+    };
+    readonly maxFiles: {
+        readonly code: "TOO_MANY_FILES";
+        readonly unit: "count";
+        readonly default: 20;
+    };
+    readonly maxDecodedSize: {
+        readonly code: "DECODED_SIZE_TOO_LARGE";
+        readonly unit: "bytes";
+        readonly default: 500000000;
+    };
+    readonly maxProcessingTime: {
+        readonly code: "PROCESSING_TIME_EXCEEDED";
+        readonly unit: "milliseconds";
+        readonly default: 120000;
+    };
+};
+
+// @public
+export type PdfLimitName = keyof PdfLimitDefinitions;
+
+// @public
+export const pdfLimits: Limits<PdfLimitDefinitions>;
+
+// @public
+export type PdfMessageCatalogue = typeof pdfMessages;
+
+// @public
+export const pdfMessages: {
+    readonly "errors.INVALID_PDF": "This file isn't a PDF, or it's too damaged to open.";
+    readonly "errors.PASSWORD_REQUIRED": "This PDF is protected with a password.";
+    readonly "errors.PROCESSING_FAILED": "Something went wrong while processing this PDF. Please try again.";
+    readonly "errors.TOO_MANY_PAGES": "This document has {actual, number} pages, which is over the {maximum, number}-page limit.";
+    readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
+    readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
+    readonly "warnings.maxPages": {
+        readonly $plural: "actual";
+    } & {
+        readonly one: "This document has {actual} page. Large documents may be slow.";
+        readonly other: "This document has {actual} pages. Large documents may be slow.";
+    };
+    readonly "warnings.maxSessionSize": "The open documents use {actual, fileSize}. Clearing the undo history frees memory.";
+    readonly "warnings.maxImagePixels": "Some images are very large and may be slow to show.";
+    readonly "errors.UNKNOWN": "Something went wrong. Please try again.";
+    readonly "errors.ABORTED": "The operation was cancelled.";
+    readonly "errors.TIMEOUT": "The operation took too long and was stopped.";
+    readonly "errors.WORKER_START_FAILED": "The file processor couldn't start. Reload the page and try again.";
+    readonly "errors.WORKER_PROTOCOL_MISMATCH": "The file processor is out of date. Reload the page to update it.";
+    readonly "errors.WORKER_CRASHED": "The file processor stopped unexpectedly. Please try again.";
+    readonly "errors.WORKER_TERMINATED": "The operation was stopped before it finished. Please try again.";
+    readonly "errors.WORKER_METHOD_NOT_FOUND": "This operation isn't available. Reload the page and try again.";
+    readonly "errors.WORKER_DATA_NOT_CLONEABLE": "Something went wrong while processing the file. Please try again.";
+    readonly "errors.UNSUPPORTED_ENVIRONMENT": "This browser doesn't support a feature this tool needs. Update your browser, or try another one.";
+    readonly "errors.FILE_TOO_LARGE": "This file is {actual, fileSize}, which is over the {maximum, fileSize} limit.";
+    readonly "errors.TOO_MANY_FILES": {
+        readonly $plural: "maximum";
+    } & {
+        readonly one: "You can add {maximum} file at a time.";
+        readonly other: "You can add up to {maximum} files at a time.";
+    };
+    readonly "errors.DECODED_SIZE_TOO_LARGE": "This file expands to more than {maximum, fileSize} when opened, which is over the limit.";
+    readonly "errors.PROCESSING_TIME_EXCEEDED": "Processing this file took too long and was stopped.";
+    readonly "warnings.maxFileSize": "This file is {actual, fileSize}. Large files may be slow to process.";
+    readonly "warnings.maxFiles": "Adding {actual} files at once may be slow.";
+    readonly "warnings.maxDecodedSize": "This file is very large once opened and may be slow to process.";
+    readonly "warnings.maxProcessingTime": "This is taking longer than usual.";
+};
+
 ```
