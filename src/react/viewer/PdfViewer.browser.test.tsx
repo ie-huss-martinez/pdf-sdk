@@ -67,6 +67,13 @@ function fakeSession(pageCount: number): { session: PdfSession; bytes: Uint8Arra
   return { session: createPdfSession({ engine: createFakeEngine() }), bytes };
 }
 
+/** Waits for a number of animation frames, so observers have reported. */
+const frames = async (count: number) => {
+  for (let index = 0; index < count; index += 1) {
+    await act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  }
+};
+
 const viewer = (session: PdfSession) => (
   <PdfSessionProvider session={session}>
     <PdfViewer />
@@ -173,6 +180,21 @@ describe("PdfViewer", () => {
         /rotate\(90deg\)/,
       );
     });
+  });
+
+  it("reads and draws only nearby pages when it mounts with a document open", async () => {
+    // The editor mounts the viewer once a document is open. Until the viewer
+    // knows its width every page placeholder is empty, so no page may count
+    // as near before then, or every page is read and drawn at once.
+    const { session, bytes } = fakeSession(60);
+    await session.open(bytes);
+    const getPage = vi.spyOn(session, "getPage");
+    const renderPage = vi.spyOn(session, "renderPage");
+    const container = await mount(viewer(session));
+    await vi.waitFor(() => expect(container.querySelector("canvas")?.width).toBeGreaterThan(0));
+    await frames(5);
+    expect(getPage.mock.calls.length).toBeLessThan(10);
+    expect(renderPage.mock.calls.length).toBeLessThan(10);
   });
 
   it("draws only pages near the viewport, and gives back pixels of pages scrolled away", async () => {
