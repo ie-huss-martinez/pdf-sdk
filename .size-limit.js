@@ -51,4 +51,13 @@ export default [
     brotli: true,
     limit: "360 kB",
   },
+  {
+    // The names of pdf.js's inlined data files, loaded the first time a
+    // document needs one (docs/adr/0002). Each file is its own chunk, from
+    // 0.2 kB to 70 kB, loaded only by the documents that need it.
+    name: "pdf.js data index (lazy)",
+    path: "dist/lazy/_virtual_hm-pdfjs-data-*.js",
+    brotli: true,
+    limit: "4 kB",
+  },
 ];

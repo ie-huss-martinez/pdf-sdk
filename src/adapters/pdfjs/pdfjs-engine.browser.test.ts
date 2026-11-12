@@ -1,4 +1,3 @@
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { afterEach, describe, expect, it } from "vitest";
 import { describePdfEngineContract } from "../../../test/contracts/pdf-engine.contract.js";
 import { encryptedPdf, reportPdf } from "../../../test/fixtures/pdfs.js";
@@ -34,21 +33,19 @@ describe("the pdf.js engine", () => {
     await Promise.all(engines.splice(0).map((engine) => engine.destroy()));
   });
 
-  it("opens documents with a self-hosted worker (ADR 0002)", async () => {
-    const engine = track(createPdfJsEngine({ workerUrl }));
+  it("opens documents with self-hosted assets (docs/adr/0006)", async () => {
+    // The package's dist/assets/pdfjs has pdf.js's own layout, so the test
+    // server's copy of pdfjs-dist stands in for it.
+    const engine = track(createPdfJsEngine({ assetsUrl: "/node_modules/pdfjs-dist" }));
     const document = await engine.open(await reportPdf());
     expect(document.pageCount).toBe(2);
   });
 
   it("fails pending work with WORKER_CRASHED when the worker crashes", async () => {
-    const crashing = URL.createObjectURL(
-      new Blob(['throw new Error("boom");'], { type: "text/javascript" }),
-    );
-    const engine = track(createPdfJsEngine({ workerUrl: crashing }));
+    const engine = track(createPdfJsEngine({ assetsUrl: "/test/fixtures/crashing-assets/" }));
     await expect(engine.open(await reportPdf())).rejects.toSatisfy((error) =>
       isPdfError(error, "WORKER_CRASHED"),
     );
-    URL.revokeObjectURL(crashing);
   });
 
   it("rejects an open cancelled while loading, and keeps working", async () => {

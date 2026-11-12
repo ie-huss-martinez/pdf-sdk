@@ -15,3 +15,16 @@ declare module "pdfjs-dist/build/pdf.min.mjs" {
 
 /** pdf.js's minified worker, which starts itself when loaded in a worker. */
 declare module "pdfjs-dist/build/pdf.worker.min.mjs" {}
+
+/**
+ * pdf.js's data files, inlined by tools/pdfjs-data-plugin.ts: per kind, a
+ * function per file name that loads the file as base64 from its own chunk.
+ */
+declare module "virtual:hm-pdfjs-data" {
+  export const pdfJsData: Readonly<
+    Record<
+      "cMapUrl" | "standardFontDataUrl" | "wasmUrl",
+      Readonly<Record<string, () => Promise<string>>>
+    >
+  >;
+}
