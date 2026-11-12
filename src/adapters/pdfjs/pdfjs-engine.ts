@@ -18,6 +18,7 @@ import {
   type PdfEngine,
   type PdfRenderOptions,
 } from "../../core/ports/pdf-engine.js";
+import { assetsBase } from "../assets-url.js";
 import { createInlineDataFactory, NO_NETWORK_URL } from "./binary-data.js";
 import { fromPdfJsError } from "./errors.js";
 
@@ -57,12 +58,13 @@ function toPageRect(viewport: PageViewport, box: readonly number[]): PdfRect {
  */
 export interface PdfJsEngineOptions {
   /**
-   * Where your application serves the package's `dist/assets/pdfjs/`
-   * directory, on its own origin, such as `"/pdf-sdk/pdfjs/"`. pdf.js then
-   * loads its worker and its data files from there, rather than from the
+   * Where your application serves the package's `dist/assets/` directory,
+   * on its own origin, such as `"/pdf-sdk/"`. pdf.js then loads its worker
+   * and its data files from its `pdfjs/` subdirectory, rather than from the
    * inlined copies. Use it for Content Security Policies without
    * `worker-src blob:`, and for accurate ICC colour, which only this mode
-   * supports (docs/adr/0006). The directory has pdf.js's own layout.
+   * supports (docs/adr/0006, docs/adr/0007). Pass the same URL to
+   * `createPdfProcessor`.
    */
   readonly assetsUrl?: string | URL;
   /**
@@ -297,12 +299,10 @@ class PdfJsEngine implements PdfEngine {
     return this.#host;
   }
 
-  /** `assetsUrl` as an absolute URL ending in a slash, if it's set. */
+  /** pdf.js's directory under `assetsUrl`, if it's set. */
   #assetsBase(): string | undefined {
-    const { assetsUrl } = this.#options;
-    if (assetsUrl === undefined) return undefined;
-    const base = new URL(String(assetsUrl), globalThis.location?.href).href;
-    return base.endsWith("/") ? base : `${base}/`;
+    const base = assetsBase(this.#options.assetsUrl);
+    return base === undefined ? undefined : `${base}pdfjs/`;
   }
 
   /** Stops a cancelled open, and terminates the worker if pdf.js doesn't stop in time. */

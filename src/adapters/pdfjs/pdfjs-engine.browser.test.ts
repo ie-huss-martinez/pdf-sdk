@@ -33,10 +33,9 @@ describe("the pdf.js engine", () => {
     await Promise.all(engines.splice(0).map((engine) => engine.destroy()));
   });
 
-  it("opens documents with self-hosted assets (docs/adr/0006)", async () => {
-    // The package's dist/assets/pdfjs has pdf.js's own layout, so the test
-    // server's copy of pdfjs-dist stands in for it.
-    const engine = track(createPdfJsEngine({ assetsUrl: "/node_modules/pdfjs-dist" }));
+  it("opens documents with self-hosted assets (docs/adr/0007)", async () => {
+    // The test server serves exactly what the build writes to dist/assets.
+    const engine = track(createPdfJsEngine({ assetsUrl: "/hm-test-assets" }));
     const document = await engine.open(await reportPdf());
     expect(document.pageCount).toBe(2);
   });

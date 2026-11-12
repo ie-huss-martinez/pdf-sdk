@@ -1,6 +1,6 @@
 # 0006. ICC colour needs self-hosted assets; inline mode uses approximate colour
 
-- **Status:** Accepted
+- **Status:** Accepted; where `assetsUrl` points is superseded by [0007](0007-one-assets-directory.md)
 - **Date:** 2026-11-12
 - **Supersedes:** the parts of [ADR 0002](0002-workers-and-assets.md) that serve the ICC profile and the qcms decoder through the asset provider, and that serve self-hosted files through it; the rest of ADR 0002 stands
 

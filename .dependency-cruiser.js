@@ -29,7 +29,7 @@ const forbidden = preset.forbidden.flatMap((rule) => {
  * pdf.js's data files and qpdf's WebAssembly are virtual modules that Vite
  * plugins generate (tools/), so dependency-cruiser can't resolve them.
  */
-const VIRTUAL_MODULES = "^virtual:hm-(?:pdfjs-data|qpdf-wasm)$";
+const VIRTUAL_MODULES = "^virtual:hm-(?:pdfjs-data|qpdf-wasm|qpdf-wasm-sha256)$";
 const resolvable = forbidden.map((rule) =>
   rule.name === "not-to-unresolvable"
     ? {

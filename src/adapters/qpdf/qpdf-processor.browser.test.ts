@@ -58,3 +58,41 @@ describe("the qpdf processor", () => {
     await processor.destroy();
   });
 });
+
+describe("the qpdf processor with self-hosted assets (docs/adr/0007)", () => {
+  const job = async () => ({
+    sources: [{ id: "a", bytes: await pagesPdf([{ width: 612, height: 792 }]) }],
+    pages: [{ source: "a", pageIndex: 0, rotation: 90 as const }],
+    encrypt: { userPassword: "secret" },
+  });
+
+  it("loads its worker and qpdf.wasm only from assetsUrl", async () => {
+    // The test server serves exactly what the build writes to dist/assets.
+    const assetsUrl = new URL("/hm-test-assets/", location.href).href;
+    const processor = createPdfProcessor({ assetsUrl });
+    const built = await job();
+    await commands.startRecordingRequests();
+    const output = await processor.build(built);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const requests = await commands.stopRecordingRequests();
+    await processor.destroy();
+
+    expect((await inspectPdf(output, "secret")).pages).toEqual([
+      { width: 612, height: 792, rotation: 90 },
+    ]);
+    expect(requests.map(({ url }) => url).sort()).toEqual([
+      `${assetsUrl}processing/processing.worker.js`,
+      `${assetsUrl}processing/qpdf.wasm`,
+    ]);
+  });
+
+  it("refuses a qpdf.wasm that isn't this version's, with WORKER_START_FAILED", async () => {
+    const processor = createPdfProcessor({ assetsUrl: "/hm-test-assets-tampered/" });
+    await expect(processor.build(await job())).rejects.toSatisfy(
+      (error) =>
+        isPdfError(error, "WORKER_START_FAILED") &&
+        (error.details as { asset?: string } | undefined)?.asset === "qpdf.wasm",
+    );
+    await processor.destroy();
+  });
+});

@@ -8,12 +8,12 @@ This repository will publish **`@hussmartinez/pdf-sdk`**, which replaces the pri
 
 ## Assets and Content Security Policy
 
-PDF.js needs a worker, and some documents need extra data: CMaps for CJK text whose fonts aren't embedded, standard fonts, and decoders for JBIG2 and JPX images, which are common in scanned documents. The SDK never fetches any of them from the network. Choose one of two modes ([ADR 0002](docs/adr/0002-workers-and-assets.md), [ADR 0006](docs/adr/0006-icc-colour-and-self-hosted-assets.md)):
+The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib, which builds documents. Some documents also need extra data: CMaps for CJK text whose fonts aren't embedded, standard fonts, and decoders for JBIG2 and JPX images, which are common in scanned documents. The SDK never fetches any of them from another origin. Choose one of two modes ([ADR 0002](docs/adr/0002-workers-and-assets.md), [ADR 0006](docs/adr/0006-icc-colour-and-self-hosted-assets.md), [ADR 0007](docs/adr/0007-one-assets-directory.md)):
 
 | | Inline (default) | Self-hosted |
 |---|---|---|
-| Setup | Nothing | Serve `node_modules/@hussmartinez/pdf-sdk/dist/assets/pdfjs/` from your origin, and pass its URL: `createPdfJsEngine({ assetsUrl: "/pdf-sdk/pdfjs/" })` |
-| Where files come from | Your bundle: each data file is its own lazy chunk, loaded only by documents that need it | Your origin, under `assetsUrl` |
+| Setup | Nothing | Serve `node_modules/@hussmartinez/pdf-sdk/dist/assets/` from your origin, and pass its URL to both: `createPdfJsEngine({ assetsUrl: "/pdf-sdk/" })` and `createPdfProcessor({ assetsUrl: "/pdf-sdk/" })` |
+| Where files come from | Your bundle: the workers are inlined, and each data file is its own lazy chunk, loaded only by documents that need it | Your origin, under `assetsUrl`: `pdfjs/` and `processing/` |
 | CMYK and ICC-based colour | Approximate | Accurate, with pdf.js's colour management |
 | Content Security Policy | `worker-src blob:` and `script-src 'wasm-unsafe-eval'` | `worker-src 'self'`, `script-src 'self' 'wasm-unsafe-eval'` and `connect-src 'self'` |
 
@@ -21,9 +21,7 @@ PDF.js needs a worker, and some documents need extra data: CMaps for CJK text wh
 - **Inline** for the simplest setup. Most documents use RGB or grey and look the same in both modes.
 - **Self-hosted** if your Content Security Policy doesn't allow `blob:` workers, or if print colour must be accurate, for example for proofs and CMYK artwork.
 
-In self-hosted mode, copy the directory as it is when you upgrade the package. pdf.js requires the worker to be the same version as the code that uses it.
-
-**The processor's worker is inlined in both modes, for now.** `createPdfProcessor()` runs qpdf and pdf-lib in a worker that's always inlined, with qpdf's WebAssembly inside it, so it needs `worker-src blob:` and `script-src 'wasm-unsafe-eval'` even when the viewer is self-hosted. It never fetches anything. Self-hosting it comes in a later release.
+**In self-hosted mode, copy the whole directory again whenever you upgrade the package.** pdf.js requires its worker to be the same version as the code that uses it, and the processing worker refuses a `qpdf.wasm` from another version, with `WORKER_START_FAILED`.
 
 ## Development
 

@@ -217,7 +217,24 @@ describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
       expect(file.code, file.fileName).not.toContain("data:application/wasm");
       expect(file.code, file.fileName).not.toMatch(/new URL\(\\?["']\.?\/?(?:wasm\/)?qpdf\.wasm/);
     }
-    expect(files.filter((file) => file.fileName.endsWith("qpdf.wasm"))).toEqual([]);
+    // The only file is the self-hosted copy, which the worker checks.
+    expect(
+      files.filter((file) => file.fileName.endsWith("qpdf.wasm")).map((file) => file.fileName),
+    ).toEqual(["assets/processing/qpdf.wasm"]);
+  });
+
+  it("ships a self-hosted copy that fetches qpdf.wasm and checks it (docs/adr/0007)", () => {
+    const worker = files.find((file) => file.fileName === "assets/processing/processing.worker.js");
+    const wasm = files.find((file) => file.fileName === "assets/processing/qpdf.wasm");
+    expect(worker?.type).toBe("asset");
+    expect(wasm?.type).toBe("asset");
+    const code = String(worker?.type === "asset" ? worker.source : "");
+    expect(code).toContain(QPDF_WASM_SHA256);
+    expect(code).not.toMatch(/[A-Za-z0-9+/=]{100000,}/);
+    expect(code).not.toMatch(CODE_GENERATION);
+    expect(code.split("\n").length).toBeLessThan(100);
+    const bytes = wasm?.type === "asset" ? Buffer.from(wasm.source) : Buffer.alloc(0);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(QPDF_WASM_SHA256);
   });
 
   it("is minified, like every inlined worker, because applications can't minify it", () => {

@@ -71,4 +71,12 @@ export default [
     brotli: true,
     limit: "980 kB",
   },
+  {
+    // The self-hosted processing worker, without qpdf.wasm, which it fetches
+    // from its own directory (docs/adr/0007). It measures 226 kB.
+    name: "Processing worker, self-hosted",
+    path: "dist/assets/processing/processing.worker.js",
+    brotli: true,
+    limit: "250 kB",
+  },
 ];

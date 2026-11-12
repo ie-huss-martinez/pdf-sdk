@@ -13,4 +13,5 @@ Use [`template.md`](template.md) for new records. Name files `NNNN-short-title.m
 | [0003](0003-page-plan-document-model.md) | The page plan: edits change a model, and bytes are built on export | Accepted |
 | [0004](0004-pdf-limits.md) | PDF limits and session memory | Accepted |
 | [0005](0005-element-in-the-light-dom.md) | The element renders in the light DOM, and the standalone script stays in its layers | Accepted |
-| [0006](0006-icc-colour-and-self-hosted-assets.md) | ICC colour needs self-hosted assets; inline mode uses approximate colour | Accepted |
+| [0006](0006-icc-colour-and-self-hosted-assets.md) | ICC colour needs self-hosted assets; inline mode uses approximate colour | Accepted; where `assetsUrl` points superseded by [0007](0007-one-assets-directory.md) |
+| [0007](0007-one-assets-directory.md) | One assets directory, and a self-hosted processing worker | Accepted |

@@ -5,7 +5,7 @@ import { formPdf, pagesPdf } from "../../../test/fixtures/pdfs.js";
 import { PdfError } from "../../core/errors/pdf-error.js";
 import type { PdfProcessor } from "../../core/ports/pdf-processor.js";
 import { runBuild } from "./build.js";
-import { loadToolkit } from "./toolkit.js";
+import { inlinedWasm, loadToolkit } from "./toolkit.js";
 
 /**
  * The pipeline the processing worker runs, called in process, so the
@@ -17,7 +17,7 @@ function inProcessProcessor(): PdfProcessor {
     async build(job, options = {}) {
       if (destroyed) throw new PdfError("WORKER_TERMINATED", "Destroyed.");
       return runBuild(job, {
-        toolkit: loadToolkit,
+        toolkit: () => loadToolkit(inlinedWasm),
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.onProgress ? { progress: options.onProgress } : {}),
       });

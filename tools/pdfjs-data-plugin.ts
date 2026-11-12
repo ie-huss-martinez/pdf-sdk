@@ -96,16 +96,23 @@ export function pdfJsData(): Plugin {
       return undefined;
     },
     generateBundle() {
-      // Only for builds; the test server serves pdf.js's own directory.
-      for (const { directory, files } of [...Object.values(PDFJS_DATA), ...SELF_HOSTED_EXTRA]) {
-        for (const name of list(root, directory, files)) {
-          this.emitFile({
-            type: "asset",
-            fileName: `assets/pdfjs/${directory}/${name}`,
-            source: readFileSync(join(root, directory, name)),
-          });
-        }
+      for (const { path, read } of selfHostedPdfJsFiles()) {
+        this.emitFile({ type: "asset", fileName: `assets/pdfjs/${path}`, source: read() });
       }
     },
   };
+}
+
+/**
+ * The files of the self-hosted copy, by their path under `pdfjs/`. The build
+ * writes them, and the browser tests serve the same list.
+ */
+export function selfHostedPdfJsFiles(): { path: string; read: () => Buffer }[] {
+  const root = pdfJsRoot();
+  return [...Object.values(PDFJS_DATA), ...SELF_HOSTED_EXTRA].flatMap(({ directory, files }) =>
+    list(root, directory, files).map((name) => ({
+      path: `${directory}/${name}`,
+      read: () => readFileSync(join(root, directory, name)),
+    })),
+  );
 }

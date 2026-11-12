@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import { pdfJsData } from "./tools/pdfjs-data-plugin.js";
-import { qpdfWasm } from "./tools/qpdf-wasm-plugin.js";
+import { qpdfWasm, selfHostedProcessing } from "./tools/qpdf-wasm-plugin.js";
 
 const manifest = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8")) as {
   dependencies?: Record<string, string>;
@@ -52,7 +52,7 @@ const dropWorkerSourceMaps: Plugin = {
 };
 
 export default defineConfig({
-  plugins: [dropWorkerSourceMaps, pdfJsData()],
+  plugins: [dropWorkerSourceMaps, pdfJsData(), selfHostedProcessing()],
   // The production JSX runtime, whatever NODE_ENV the build runs with.
   // Otherwise a build under NODE_ENV=development or test ships jsxDEV and
   // the absolute path of every source file.

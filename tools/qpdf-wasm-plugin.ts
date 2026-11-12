@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import type { Plugin } from "vite";
+import { fileURLToPath } from "node:url";
+import { build, type Plugin, type Rolldown } from "vite";
 
 /**
  * The SHA-256 of the `qpdf.wasm` that `pdfstudio` ships, at the pinned
@@ -18,6 +19,7 @@ export function readQpdfWasm(): Buffer {
 }
 
 const ID = "virtual:hm-qpdf-wasm";
+const SHA256_ID = "virtual:hm-qpdf-wasm-sha256";
 
 /**
  * Inlines `qpdf.wasm` into the processing worker as base64, after checking
@@ -58,9 +60,12 @@ export function qpdfWasm(): Plugin {
       return { code: code.replaceAll(target.expression, UNFETCHABLE), map: null };
     },
     resolveId(id) {
-      return id === ID ? `\0${ID}` : undefined;
+      return id === ID || id === SHA256_ID ? `\0${id}` : undefined;
     },
     load(id) {
+      if (id === `\0${SHA256_ID}`) {
+        return `export default ${JSON.stringify(QPDF_WASM_SHA256)};`;
+      }
       if (id !== `\0${ID}`) return undefined;
       const bytes = readQpdfWasm();
       const hash = createHash("sha256").update(bytes).digest("hex");
@@ -70,6 +75,62 @@ export function qpdfWasm(): Plugin {
         );
       }
       return `export default ${JSON.stringify(bytes.toString("base64"))};`;
+    },
+  };
+}
+
+const SELF_HOSTED_ENTRY = fileURLToPath(
+  new URL("../src/workers/processing-self-hosted.worker.ts", import.meta.url),
+);
+
+/**
+ * Builds the self-hosted processing worker as one minified ES module, with
+ * everything bundled and qpdf.wasm left out: the worker fetches it from its
+ * own directory and checks its hash (docs/adr/0007).
+ */
+export async function buildSelfHostedWorker(): Promise<string> {
+  const result = await build({
+    configFile: false,
+    logLevel: "silent",
+    plugins: [qpdfWasm()],
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
+    build: {
+      write: false,
+      minify: true,
+      target: "es2022",
+      sourcemap: false,
+      lib: { entry: SELF_HOSTED_ENTRY, formats: ["es"], fileName: () => "processing.worker.js" },
+      // Library mode doesn't minify ES output by itself.
+      rolldownOptions: { output: { codeSplitting: false, minify: true } },
+    },
+  });
+  const outputs = (Array.isArray(result) ? result : [result]) as Rolldown.RolldownOutput[];
+  const chunk = outputs.flatMap((output) => output.output).find((file) => file.type === "chunk");
+  if (chunk?.type !== "chunk") {
+    throw new Error("The self-hosted processing worker didn't build.");
+  }
+  return chunk.code;
+}
+
+/**
+ * Writes the self-hosted processing files next to pdf.js's: the worker and
+ * `qpdf.wasm`, after checking its hash (docs/adr/0007).
+ */
+export function selfHostedProcessing(): Plugin {
+  return {
+    name: "hm-self-hosted-processing",
+    async generateBundle() {
+      const wasm = readQpdfWasm();
+      const hash = createHash("sha256").update(wasm).digest("hex");
+      if (hash !== QPDF_WASM_SHA256) {
+        throw new Error(`qpdf.wasm has SHA-256 ${hash}, not the reviewed ${QPDF_WASM_SHA256}.`);
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: "assets/processing/processing.worker.js",
+        source: await buildSelfHostedWorker(),
+      });
+      this.emitFile({ type: "asset", fileName: "assets/processing/qpdf.wasm", source: wasm });
     },
   };
 }
