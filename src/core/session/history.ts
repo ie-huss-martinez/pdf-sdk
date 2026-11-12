@@ -8,13 +8,16 @@ export interface HistoryStep {
 
 /**
  * Undo and redo stacks of command steps (ADR 0010). Steps are small plain
- * data, because edits change the plan, not bytes (docs/adr/0003).
+ * data, because edits change the plan, not bytes (docs/adr/0003). The
+ * session drops steps when the documents they refer to need too much memory
+ * (docs/adr/0004).
  *
  * @internal
  */
 export class History {
   #past: HistoryStep[] = [];
   #future: HistoryStep[] = [];
+  #trimmed = false;
 
   get canUndo(): boolean {
     return this.#past.length > 0;
@@ -22,6 +25,26 @@ export class History {
 
   get canRedo(): boolean {
     return this.#future.length > 0;
+  }
+
+  /** Whether steps were dropped to save memory since the history was cleared. */
+  get trimmed(): boolean {
+    return this.#trimmed;
+  }
+
+  /** Every step, undoable and redoable. */
+  get steps(): readonly HistoryStep[] {
+    return [...this.#past, ...this.#future];
+  }
+
+  /**
+   * The order steps are dropped in to save memory, so the steps that remain
+   * can always still be applied: first the redo steps, from the one redo
+   * would reach last, then the undo steps, oldest first.
+   */
+  get dropOrder(): readonly HistoryStep[] {
+    // Both stacks keep their far end, the step reached last, at index 0.
+    return [...this.#future, ...this.#past];
   }
 
   /** Records a new step. Anything that could be redone is dropped. */
@@ -55,8 +78,18 @@ export class History {
     }
   }
 
+  /** Drops the first `count` steps of {@link History.dropOrder}. */
+  drop(count: number): void {
+    if (count <= 0) return;
+    const fromFuture = Math.min(count, this.#future.length);
+    this.#future.splice(0, fromFuture);
+    this.#past.splice(0, count - fromFuture);
+    this.#trimmed = true;
+  }
+
   clear(): void {
     this.#past = [];
     this.#future = [];
+    this.#trimmed = false;
   }
 }
