@@ -25,6 +25,16 @@ export async function pagesPdf(sizes: readonly { width: number; height: number }
   return document.save();
 }
 
+/** A one-page document with an empty text field `name` and an unchecked checkbox `agree`. */
+export async function formPdf(): Promise<Uint8Array> {
+  const document = await PDFDocument.create();
+  const page = document.addPage([612, 792]);
+  const form = document.getForm();
+  form.createTextField("name").addToPage(page, { x: 72, y: 600, width: 240, height: 24 });
+  form.createCheckBox("agree").addToPage(page, { x: 72, y: 560, width: 18, height: 18 });
+  return document.save();
+}
+
 /** A one-page document encrypted with AES-256 and the user password `secret`. */
 export async function encryptedPdf(): Promise<Uint8Array> {
   const document = await PDFDocument.create();

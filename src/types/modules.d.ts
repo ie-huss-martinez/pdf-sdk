@@ -28,3 +28,9 @@ declare module "virtual:hm-pdfjs-data" {
     >
   >;
 }
+
+/** qpdf's WebAssembly, as base64, inlined by tools/qpdf-wasm-plugin.ts after checking its hash. */
+declare module "virtual:hm-qpdf-wasm" {
+  const base64: string;
+  export default base64;
+}

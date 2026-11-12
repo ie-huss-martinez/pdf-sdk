@@ -218,6 +218,9 @@ catalogs:
     pdfjs-dist:
       specifier: 6.5.438
       version: 6.5.438
+    pdfstudio:
+      specifier: 0.4.0
+      version: 0.4.0
     playwright:
       specifier: ^1.64.1
       version: 1.65.0
@@ -308,6 +311,9 @@ importers:
       pdfjs-dist:
         specifier: 'catalog:'
         version: 6.5.438
+      pdfstudio:
+        specifier: 'catalog:'
+        version: 0.4.0
       playwright:
         specifier: 'catalog:'
         version: 1.65.0
@@ -1752,6 +1758,10 @@ packages:
   pdfjs-dist@6.5.438:
     resolution: {integrity: sha512-vg8Pw1x+AFKy4AMDvhuWl5cOYV8d698UoEANoFFhc79hqXDnZQqnOXoxw3HG907WHOg1JYOvLhP756boddFxpA==}
     engines: {node: '>=22.13.0 || >=24'}
+
+  pdfstudio@0.4.0:
+    resolution: {integrity: sha512-yFHlp/VHxKmrYxYA45ACkh24c4mCBa/Al3EmajnlBnN9FzfynZz63sR2do2kBH34XoTAQSXy+ywijAcq0DUcSQ==}
+    engines: {node: '>=18'}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -3597,6 +3607,8 @@ snapshots:
   pdfjs-dist@6.5.438:
     optionalDependencies:
       '@napi-rs/canvas': 1.1.0
+
+  pdfstudio@0.4.0: {}
 
   picocolors@1.1.1: {}
 

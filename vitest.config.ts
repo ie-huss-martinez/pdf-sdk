@@ -3,6 +3,7 @@ import type { Page, Request } from "playwright";
 import { defineConfig } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
 import { pdfJsData } from "./tools/pdfjs-data-plugin.js";
+import { qpdfWasm } from "./tools/qpdf-wasm-plugin.js";
 
 /**
  * Records every request the browser makes, from the page, its frames and its
@@ -51,7 +52,9 @@ export default defineConfig(({ mode }) => {
     process.env["CI"] || mode === "all-browsers" ? ALL_BROWSERS : (["chromium"] as const);
   return {
     // Serves pdf.js's data files to the SDK, as in the build (docs/adr/0002).
-    plugins: [pdfJsData()],
+    plugins: [pdfJsData(), qpdfWasm()],
+    // The processing worker inlines qpdf's WebAssembly, as in the build.
+    worker: { format: "es", plugins: () => [qpdfWasm()] },
     test: {
       projects: [
         {
@@ -74,6 +77,7 @@ export default defineConfig(({ mode }) => {
               "pdfjs-dist/build/pdf.min.mjs",
               "pdfjs-dist/build/pdf.worker.min.mjs",
               "@cantoo/pdf-lib",
+              "pdfstudio",
             ],
           },
           test: {

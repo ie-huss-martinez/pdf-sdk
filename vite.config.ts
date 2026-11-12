@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import { pdfJsData } from "./tools/pdfjs-data-plugin.js";
+import { qpdfWasm } from "./tools/qpdf-wasm-plugin.js";
 
 const manifest = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8")) as {
   dependencies?: Record<string, string>;
@@ -62,10 +63,13 @@ export default defineConfig({
   // where they're imported with ?worker&inline (ADR 0002).
   worker: {
     format: "es",
-    rolldownOptions: { output: { codeSplitting: false } },
+    // Minified, unlike the library: an inlined worker is a string that
+    // applications' bundlers can't minify.
+    rolldownOptions: { output: { codeSplitting: false, minify: true } },
     // No source maps for workers: pdf.js ships minified, and a map would add
     // megabytes to the package and a sourceMappingURL to the inlined blob.
     plugins: () => [
+      qpdfWasm(),
       {
         name: "hm-no-worker-source-maps",
         generateBundle(_options, bundle) {
