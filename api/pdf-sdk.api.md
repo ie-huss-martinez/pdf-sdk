@@ -20,12 +20,25 @@ export function createPdfJsEngine(options?: PdfJsEngineOptions): PdfEngine;
 export function createPdfProcessor(options?: PdfProcessorOptions): PdfProcessor;
 
 // @public
+export function createPdfSession(options: PdfSessionOptions): PdfSession;
+
+// @public
 export function isPdfError<Code extends PdfErrorCode = PdfErrorCode>(value: unknown, code?: Code): value is PdfError & {
     readonly code: Code;
 };
 
 // @public
 export const PDF_MAX_CANVAS_PIXELS = 16777216;
+
+// @public
+export interface PdfAddAnnotationCommand {
+    // (undocumented)
+    readonly annotation: PdfAnnotation;
+    readonly index?: number;
+    readonly page: string;
+    // (undocumented)
+    readonly type: "pdf.addAnnotation";
+}
 
 // @public
 export type PdfAnnotation = PdfStrokeAnnotation | PdfTextAnnotation | PdfImageAnnotation;
@@ -86,9 +99,20 @@ export interface PdfCallOptions {
 export type PdfColor = `#${string}`;
 
 // @public
+export type PdfCommand = PdfRotatePagesCommand | PdfDeletePagesCommand | PdfRestorePagesCommand | PdfMovePagesCommand | PdfReorderPagesCommand | PdfInsertPagesCommand | PdfSetFieldValueCommand | PdfAddAnnotationCommand | PdfRemoveAnnotationCommand;
+
+// @public
 export interface PdfCompression {
     // (undocumented)
     readonly images?: PdfImageCompression;
+}
+
+// @public
+export interface PdfDeletePagesCommand {
+    // (undocumented)
+    readonly pages: readonly string[];
+    // (undocumented)
+    readonly type: "pdf.deletePages";
 }
 
 // @public
@@ -155,6 +179,22 @@ export interface PdfImageAnnotation {
 export interface PdfImageCompression {
     readonly maxDimension: number;
     readonly quality: number;
+}
+
+// @public
+export interface PdfInsertOptions extends PdfCallOptions {
+    readonly at?: number;
+    readonly pageIndexes?: readonly number[];
+}
+
+// @public
+export interface PdfInsertPagesCommand {
+    readonly at: number;
+    readonly keys: readonly string[];
+    readonly pageIndexes: readonly number[];
+    readonly source: string;
+    // (undocumented)
+    readonly type: "pdf.insertPages";
 }
 
 // @public
@@ -261,10 +301,35 @@ export const pdfMessages: {
 };
 
 // @public
+export interface PdfMovePagesCommand {
+    // (undocumented)
+    readonly pages: readonly string[];
+    readonly to: number;
+    // (undocumented)
+    readonly type: "pdf.movePages";
+}
+
+// @public
 export interface PdfPageInfo {
     readonly height: number;
     readonly rotation: PdfRotation;
     readonly width: number;
+}
+
+// @public
+export interface PdfPlan {
+    readonly formValues: Readonly<Record<string, Readonly<Record<string, PdfFieldValue>>>>;
+    // (undocumented)
+    readonly pages: readonly PdfPlanPage[];
+}
+
+// @public
+export interface PdfPlanPage {
+    readonly annotations: readonly PdfAnnotation[];
+    readonly key: string;
+    readonly pageIndex: number;
+    readonly rotation: PdfRotation;
+    readonly source: string;
 }
 
 // @public
@@ -299,6 +364,15 @@ export interface PdfRect {
 }
 
 // @public
+export interface PdfRemoveAnnotationCommand {
+    readonly id: string;
+    // (undocumented)
+    readonly page: string;
+    // (undocumented)
+    readonly type: "pdf.removeAnnotation";
+}
+
+// @public
 export interface PdfRenderOptions extends PdfCallOptions {
     readonly pixelRatio?: number;
     readonly rotation?: PdfRotation;
@@ -306,7 +380,118 @@ export interface PdfRenderOptions extends PdfCallOptions {
 }
 
 // @public
+export interface PdfReorderPagesCommand {
+    // (undocumented)
+    readonly order: readonly string[];
+    // (undocumented)
+    readonly type: "pdf.reorderPages";
+}
+
+// @public
+export interface PdfRestorePagesCommand {
+    readonly entries: readonly {
+        readonly index: number;
+        readonly page: PdfPlanPage;
+    }[];
+    // (undocumented)
+    readonly type: "pdf.restorePages";
+}
+
+// @public
+export interface PdfRotatePagesCommand {
+    readonly angle: number;
+    readonly pages: readonly string[];
+    // (undocumented)
+    readonly type: "pdf.rotatePages";
+}
+
+// @public
 export type PdfRotation = 0 | 90 | 180 | 270;
+
+// @public
+export interface PdfSession {
+    close(): Promise<void>;
+    execute(commands: PdfCommand | readonly PdfCommand[]): void;
+    getFormFields(key: string, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+    getPage(key: string, options?: PdfCallOptions): Promise<PdfPageInfo>;
+    getSnapshot(): PdfSessionSnapshot;
+    getTextContent(key: string, options?: PdfCallOptions): Promise<PdfTextContent>;
+    insert(file: Blob | PdfBytes, options?: PdfInsertOptions): Promise<void>;
+    open(file: Blob | PdfBytes, options?: PdfCallOptions): Promise<void>;
+    // (undocumented)
+    redo(): void;
+    renderPage(key: string, canvas: HTMLCanvasElement, options: Omit<PdfRenderOptions, "rotation">): Promise<void>;
+    subscribe(listener: () => void): () => void;
+    // (undocumented)
+    undo(): void;
+}
+
+// @public
+export type PdfSessionEvent = {
+    readonly type: "document_opened";
+    readonly pageCount: number;
+} | {
+    readonly type: "document_closed";
+} | {
+    readonly type: "pages_inserted";
+    readonly pageCount: number;
+} | {
+    readonly type: "command";
+    readonly commands: readonly PdfCommand["type"][];
+} | {
+    readonly type: "undo";
+} | {
+    readonly type: "redo";
+} | {
+    readonly type: "failed";
+    readonly operation: "open" | "insert";
+    readonly code: string;
+};
+
+// @public
+export interface PdfSessionOptions {
+    readonly engine: PdfEngine;
+    readonly filePolicy?: PdfFilePolicyOverrides;
+    readonly onEvent?: (event: PdfSessionEvent) => void;
+}
+
+// @public
+export interface PdfSessionSnapshot {
+    readonly busy: boolean;
+    // (undocumented)
+    readonly canRedo: boolean;
+    // (undocumented)
+    readonly canUndo: boolean;
+    readonly error: PdfError | undefined;
+    readonly plan: PdfPlan;
+    readonly sources: readonly PdfSourceInfo[];
+    // (undocumented)
+    readonly status: PdfSessionStatus;
+    readonly warnings: readonly PdfWarning[];
+}
+
+// @public
+export type PdfSessionStatus = "empty" | "opening" | "ready" | "error";
+
+// @public
+export interface PdfSetFieldValueCommand {
+    // (undocumented)
+    readonly field: string;
+    // (undocumented)
+    readonly source: string;
+    // (undocumented)
+    readonly type: "pdf.setFieldValue";
+    // (undocumented)
+    readonly value: PdfFieldValue | null;
+}
+
+// @public
+export interface PdfSourceInfo {
+    readonly byteLength: number;
+    readonly id: string;
+    // (undocumented)
+    readonly pageCount: number;
+}
 
 // @public
 export interface PdfStrokeAnnotation {
@@ -350,6 +535,14 @@ export interface PdfTextItem {
 // @public
 export interface PdfTransferOptions extends PdfCallOptions {
     readonly transfer?: boolean;
+}
+
+// @public
+export interface PdfWarning {
+    // (undocumented)
+    readonly actual: number;
+    // (undocumented)
+    readonly limit: PdfLimitName;
 }
 
 ```
