@@ -36,9 +36,15 @@
     min-height: 0;
   }
 
+  /*
+   * A missing token makes a whole declaration invalid, so layout reads its
+   * semantic tokens with a percentage fallback: without ui's stylesheet the
+   * editor loses its looks, never its layout. The sidebar is then a fifth of
+   * the editor's width.
+   */
   .hm-pdf-editor[data-hm-status="ready"] .hm-pdf-editor-body {
     grid-template-columns:
-      var(--hm-pdf-editor-sidebar-width, calc(var(--hm-target-size) * 4))
+      var(--hm-pdf-editor-sidebar-width, calc(var(--hm-target-size, 5%) * 4))
       minmax(0, 1fr);
   }
 

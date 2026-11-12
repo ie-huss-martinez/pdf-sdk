@@ -242,19 +242,6 @@ describe("PdfEditor", () => {
     expect(changes.at(-1)).toEqual({ reason: "close", pageCount: 0 });
   });
 
-  it("gives the document the width on narrow screens", async () => {
-    const { mounted, handle } = setUp(
-      {},
-      "width: 360px; height: 600px; display: grid; grid-template-rows: minmax(0, 1fr);",
-    );
-    const container = await mounted;
-    await act(() => handle.current?.open(fakePdf(2)));
-    const sidebar = container.querySelector(".hm-pdf-editor-sidebar") as HTMLElement;
-    expect(getComputedStyle(sidebar).display).toBe("none");
-    const viewer = container.querySelector(".hm-pdf-viewer") as HTMLElement;
-    expect(viewer.getBoundingClientRect().width).toBeCloseTo(360, 0);
-  });
-
   it("puts the thumbnails beside the document on wider screens", async () => {
     // The sidebar's width comes from ui's tokens, which hosts load with ui.
     const { mounted, handle } = setUp(
@@ -271,6 +258,53 @@ describe("PdfEditor", () => {
     );
     // The editor keeps the height it's given; its parts scroll within it.
     expect(editor(container)?.getBoundingClientRect().height).toBeCloseTo(600, 0);
+  });
+
+  describe("without ui's tokens", () => {
+    // Hosts that don't load @hussmartinez/ui's stylesheet lose the looks,
+    // never the layout. These tests load only the SDK's styles.
+    const unset = () =>
+      expect(getComputedStyle(document.documentElement).getPropertyValue("--hm-target-size")).toBe(
+        "",
+      );
+
+    it("keeps the thumbnails beside the document, and sizes the pages to the viewer", async () => {
+      const { mounted, handle } = setUp();
+      const container = await mounted;
+      unset();
+      await act(() => handle.current?.open(fakePdf(2)));
+      const sidebar = (
+        container.querySelector(".hm-pdf-editor-sidebar") as HTMLElement
+      ).getBoundingClientRect();
+      const viewer = container.querySelector(".hm-pdf-viewer") as HTMLElement;
+      const area = viewer.getBoundingClientRect();
+      expect(sidebar.width).toBeCloseTo(160, 0);
+      expect(sidebar.height).toBeCloseTo(600, 0);
+      expect(area.left).toBeGreaterThanOrEqual(sidebar.right);
+      expect(area.width).toBeCloseTo(640, 0);
+      expect(area.height).toBeCloseTo(600, 0);
+      await vi.waitFor(() => {
+        const page = (
+          container.querySelector(".hm-pdf-page") as HTMLElement
+        ).getBoundingClientRect();
+        expect(page.width).toBeGreaterThan(area.width / 2);
+        expect(page.width).toBeLessThanOrEqual(viewer.clientWidth);
+      });
+    });
+
+    it("gives the document the width on narrow screens", async () => {
+      const { mounted, handle } = setUp(
+        {},
+        "width: 360px; height: 600px; display: grid; grid-template-rows: minmax(0, 1fr);",
+      );
+      const container = await mounted;
+      unset();
+      await act(() => handle.current?.open(fakePdf(2)));
+      const sidebar = container.querySelector(".hm-pdf-editor-sidebar") as HTMLElement;
+      expect(getComputedStyle(sidebar).display).toBe("none");
+      const viewer = container.querySelector(".hm-pdf-viewer") as HTMLElement;
+      expect(viewer.getBoundingClientRect().width).toBeCloseTo(360, 0);
+    });
   });
 
   it("renders on a server and hydrates without warnings (ADR 0007)", async () => {
