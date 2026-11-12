@@ -51,7 +51,7 @@ The git hooks run on their own: a secret scan and lint of staged files on commit
 - **Title:** a Conventional Commit of at most 65 characters, because it becomes the commit title on `main`, followed by ` (#NNN)`, and that must fit in 72. Put explanations in the description. The `pr-title` check enforces both.
 - **Description:** fill in the template: what changed, why, and how you tested it, including the result of `pnpm verify`. Be as detailed as is useful; the description doesn't go into git history.
 - **Changeset:** add one if the pull request changes what the package publishes. See [Changesets](#changesets).
-- **Checks:** `verify` and `pr-title` must pass, and the branch must be up to date with `main`. The `changeset` check joins them with the release workflow.
+- **Checks:** `verify`, `changeset` and `pr-title` must pass, and the branch must be up to date with `main`.
 
 Mark the pull request ready once `pnpm verify` passes locally. CI is the final gate, not a substitute for running it yourself.
 
@@ -86,7 +86,7 @@ the document is exported.
 
 ## Changesets
 
-Versions and release notes come from changesets ([ADR 0021](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0021-version-and-release-with-changesets.md)), not from commit messages. `pnpm changeset` and the `changeset` check arrive with the release workflow; until then, describe the change for users in the pull request. A changeset is a small Markdown file in `.changeset/` that names the version bump a pull request needs and a note for the people who use the package.
+Versions and release notes come from changesets ([ADR 0021](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0021-version-and-release-with-changesets.md)), not from commit messages. A changeset is a small Markdown file in `.changeset/` that names the version bump a pull request needs and a note for the people who use the package.
 
 ```sh
 pnpm changeset
