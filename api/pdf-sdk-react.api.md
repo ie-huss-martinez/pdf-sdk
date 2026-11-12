@@ -4,4 +4,54 @@
 
 ```ts
 
+import { FilePolicyOverrides } from '@hussmartinez/sdk-core';
+import { MessageOverrides } from '@hussmartinez/sdk-core';
+import type { Messages } from '@hussmartinez/sdk-core';
+import { ReactNode } from 'react';
+import { SdkCoreErrorCode } from '@hussmartinez/sdk-core';
+import { SdkError } from '@hussmartinez/sdk-core';
+
+// @public
+export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode;
+
+// @public
+export interface PdfSessionProviderProps {
+    readonly assetsUrl?: string | URL;
+    readonly children?: ReactNode;
+    readonly engine?: PdfEngine;
+    readonly filePolicy?: PdfFilePolicyOverrides;
+    readonly locale?: string;
+    readonly messages?: MessageOverrides<PdfMessageCatalogue>;
+    readonly onEvent?: (event: PdfSessionEvent) => void;
+    readonly processor?: PdfProcessor;
+    readonly session?: PdfSession;
+}
+
+// @public
+export function PdfViewer(props: PdfViewerProps): ReactNode;
+
+// @public
+export type PdfViewerClassNames = Readonly<Partial<Record<PdfViewerPart, string>>>;
+
+// @public
+export type PdfViewerPart = "root" | "pages" | "page" | "canvas" | "textLayer" | "linkLayer" | "link" | "error" | "empty";
+
+// @public
+export interface PdfViewerProps {
+    readonly className?: string;
+    readonly classNames?: PdfViewerClassNames;
+    readonly concurrency?: number;
+    readonly unstyled?: boolean;
+    readonly zoom?: number;
+}
+
+// @public
+export function usePdfDocument(): PdfSessionSnapshot;
+
+// @public
+export function usePdfMessages(): Messages<PdfMessageCatalogue>;
+
+// @public
+export function usePdfSession(): PdfSession;
+
 ```

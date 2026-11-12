@@ -50,7 +50,7 @@ export type {
 } from "./core/model/document.js";
 export type { PdfPoint, PdfRect, PdfRotation } from "./core/model/geometry.js";
 export { addRotation } from "./core/model/geometry.js";
-export { safeLinkUrl } from "./core/model/links.js";
+export { linkDestination, safeLinkUrl } from "./core/model/links.js";
 export type { PdfPlan, PdfPlanPage } from "./core/model/plan.js";
 export type {
   PdfAddAnnotationCommand,

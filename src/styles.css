@@ -7,3 +7,5 @@
  * host's unlayered CSS beats every hm layer without !important (ADR 0005).
  */
 @layer hm.tokens, hm.base, hm.components, hm.sdk;
+
+@import "./react/viewer/viewer.css";

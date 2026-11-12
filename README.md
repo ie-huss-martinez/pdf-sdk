@@ -54,7 +54,7 @@ Browser tests need Playwright's browsers once: `pnpm exec playwright install chr
 
 The configuration extends the shared presets in [`@hussmartinez/sdk-config`](https://www.npmjs.com/package/@hussmartinez/sdk-config). The git hooks ([ADR 0016](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0016-git-hooks-and-merge-guards.md)) run automatically: a secret scan and lint of staged files on commit, a Conventional Commits check of the message, and `pnpm verify:fast` on push.
 
-When a change alters the public API on purpose, update the reports with `pnpm api:update` and commit them.
+When a change alters the public API on purpose, update the reports with `pnpm api:update` and commit them. api-extractor rolls up one entry point per run, so the React and element entries' declarations carry copies of the core types their APIs use, such as `PdfSession`. Their reports don't flag those as forgotten exports (`ae-forgotten-export` is off in `api-extractor.react.json` and `api-extractor.element.json`), because the core entry exports every one of them.
 
 ## Contributing
 

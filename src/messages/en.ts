@@ -38,6 +38,11 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
   "warnings.maxSessionSize":
     "The open documents use {actual, fileSize}. Clearing the undo history frees memory.",
   "warnings.maxImagePixels": "Some images are very large and may be slow to show.",
+  "viewer.label": "Document",
+  "viewer.empty": "No document is open.",
+  "viewer.page": "Page {page} of {count}",
+  "viewer.webLink": "Link to {destination}, opens in a new tab",
+  "viewer.emailLink": "Email {destination}",
 }) satisfies Record<`errors.${PdfErrorCode}`, MessageValue> &
   Record<`warnings.${PdfLimitName}`, MessageValue>;
 
