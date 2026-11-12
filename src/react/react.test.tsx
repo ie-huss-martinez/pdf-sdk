@@ -1,5 +1,6 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { PdfEditor } from "./editor/PdfEditor.js";
 import { usePdfDocument, usePdfSession } from "./hooks.js";
 import { PdfSessionProvider } from "./PdfSessionProvider.js";
 import { PdfViewer } from "./viewer/PdfViewer.js";
@@ -24,6 +25,13 @@ describe("the React layer on a server (ADR 0007)", () => {
     );
     expect(html).toContain('aria-label="Document"');
     expect(html).toContain("No document is open.");
+  });
+
+  it("renders the editor's start state, with its default engine and processor", () => {
+    const html = renderToString(<PdfEditor />);
+    expect(html).toContain('aria-label="PDF editor"');
+    expect(html).toContain('data-hm-status="empty"');
+    expect(html).toContain("Choose a PDF");
   });
 
   it("uses the locale and message overrides", () => {

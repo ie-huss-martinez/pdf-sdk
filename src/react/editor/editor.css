@@ -1,0 +1,145 @@
+/*
+ * PdfEditor. Every value is a --hm-pdf-editor-* token, falling back to ui's
+ * semantic tokens. States come from attributes: data-hm-status on the root,
+ * data-hm-dragging on the drop zone, and focus. The editor fills the height
+ * its host gives it; its viewer and thumbnails scroll within it.
+ */
+@layer hm.sdk {
+  .hm-pdf-editor {
+    container: hm-pdf-editor / inline-size;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    position: relative;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) {
+    background: var(--hm-pdf-editor-bg, var(--hm-color-surface));
+    color: var(--hm-pdf-editor-text, var(--hm-color-text));
+  }
+
+  .hm-pdf-editor-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hm-pdf-editor-header-gap, var(--hm-gap-tight));
+  }
+
+  /* An empty slot takes no room until the toolbar fills it. */
+  .hm-pdf-editor-toolbar:empty {
+    display: none;
+  }
+
+  .hm-pdf-editor-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .hm-pdf-editor[data-hm-status="ready"] .hm-pdf-editor-body {
+    grid-template-columns:
+      var(--hm-pdf-editor-sidebar-width, calc(var(--hm-target-size) * 4))
+      minmax(0, 1fr);
+  }
+
+  /* On narrow screens the document gets the width; pages are still a tab away. */
+  @container hm-pdf-editor (width < 32rem) {
+    .hm-pdf-editor[data-hm-status="ready"] .hm-pdf-editor-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .hm-pdf-editor-sidebar {
+      display: none;
+    }
+  }
+
+  .hm-pdf-editor-start,
+  .hm-pdf-editor-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--hm-pdf-editor-start-gap, var(--hm-gap-normal));
+    margin: var(--hm-pdf-editor-inset, var(--hm-inset-loose));
+    padding: var(--hm-pdf-editor-inset, var(--hm-inset-loose));
+    text-align: center;
+  }
+
+  .hm-pdf-editor-start p,
+  .hm-pdf-editor-loading p {
+    margin: 0;
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-start {
+    border: var(--hm-border-width-2) dashed
+      var(--hm-pdf-editor-drop-border, var(--hm-color-text-muted));
+    border-radius: var(--hm-pdf-editor-drop-radius, var(--hm-radius-control));
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-start[data-hm-dragging] {
+    border-color: var(--hm-pdf-editor-drop-active, var(--hm-color-accent));
+    background: var(--hm-pdf-editor-drop-active-bg, var(--hm-color-accent-subtle));
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-start-title {
+    font-weight: var(--hm-font-weight-strong);
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-start-hint {
+    color: var(--hm-pdf-editor-muted, var(--hm-color-text-muted));
+    font-size: var(--hm-font-size-small);
+  }
+
+  .hm-pdf-editor-button {
+    min-height: var(--hm-target-size);
+    padding-inline: var(--hm-pdf-editor-button-inset, var(--hm-inset-normal));
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-button {
+    border: 0;
+    border-radius: var(--hm-radius-control);
+    background: var(--hm-pdf-editor-button-bg, var(--hm-color-accent));
+    color: var(--hm-pdf-editor-button-text, var(--hm-color-surface));
+    font-weight: var(--hm-font-weight-strong);
+  }
+
+  .hm-pdf-editor-button:focus-visible {
+    outline: var(--hm-focus-ring);
+    outline-offset: var(--hm-focus-ring-offset);
+  }
+
+  .hm-pdf-editor-alert {
+    margin: 0;
+  }
+
+  .hm-pdf-editor-header > .hm-pdf-editor-alert,
+  .hm-pdf-editor-warnings {
+    padding-inline: var(--hm-pdf-editor-inset, var(--hm-inset-normal));
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-alert {
+    color: var(--hm-pdf-editor-error-text, var(--hm-color-danger-text));
+  }
+
+  .hm-pdf-editor-warnings ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hm-pdf-editor:not([data-hm-unstyled]) .hm-pdf-editor-warnings {
+    color: var(--hm-pdf-editor-muted, var(--hm-color-text-muted));
+    font-size: var(--hm-font-size-small);
+  }
+
+  /* Read by screen readers, never shown. */
+  .hm-pdf-editor-announcer {
+    position: absolute;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+}
