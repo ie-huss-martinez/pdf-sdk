@@ -19,6 +19,8 @@ export interface FakePage {
   readonly text?: string;
   /** How many annotations have been flattened into the page. */
   readonly drawn?: number;
+  /** Link annotations, with any URL, as a hostile document could have. */
+  readonly links?: readonly { readonly rect: PdfRect; readonly url: string }[];
 }
 
 export interface FakeField {

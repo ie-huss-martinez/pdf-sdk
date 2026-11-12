@@ -4,7 +4,13 @@ import { PdfError } from "../errors/pdf-error.js";
 import { type PdfFilePolicyOverrides, type PdfLimitName, pdfLimits } from "../errors/pdf-limits.js";
 import type { PdfBuildJob, PdfCompression, PdfEncryption } from "../model/build-job.js";
 import { copyBytes } from "../model/bytes.js";
-import type { PdfBytes, PdfFormField, PdfPageInfo, PdfTextContent } from "../model/document.js";
+import type {
+  PdfBytes,
+  PdfFormField,
+  PdfLink,
+  PdfPageInfo,
+  PdfTextContent,
+} from "../model/document.js";
 import { addRotation } from "../model/geometry.js";
 import { EMPTY_PLAN, type PdfPlan, type PdfPlanPage } from "../model/plan.js";
 import { applyCommands, type PdfCommand } from "../operations/commands.js";
@@ -203,6 +209,8 @@ export interface PdfSession {
   getTextContent(key: string, options?: PdfCallOptions): Promise<PdfTextContent>;
   /** A plan page's form fields, with the session's values applied. */
   getFormFields(key: string, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+  /** A plan page's web and email links, positioned on the unrotated page. */
+  getLinks(key: string, options?: PdfCallOptions): Promise<readonly PdfLink[]>;
   /**
    * Builds the document as it is now: its pages in plan order, with their
    * rotations, form values and annotations, compressed or encrypted if asked.
@@ -595,6 +603,11 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
           ? { ...field, value: values[field.name] as typeof field.value }
           : field,
       );
+    },
+
+    async getLinks(key, callOptions) {
+      const { page, source } = pageFor(key);
+      return source.document.getLinks(page.pageIndex, callOptions);
     },
 
     async export(exportOptions = {}) {

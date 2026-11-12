@@ -1,5 +1,6 @@
 import { abortError, throwIfAborted } from "../../src/core/errors/abort.js";
 import { assertPageIndex, copyBytes } from "../../src/core/model/bytes.js";
+import { safeLinkUrl } from "../../src/core/model/links.js";
 import {
   addRotation,
   PDF_MAX_CANVAS_PIXELS,
@@ -76,6 +77,15 @@ class FakeDocument implements PdfDocumentHandle {
       (this.pdf.fields ?? [])
         .filter((field) => field.page === pageIndex)
         .map(({ name, type, rect, value }) => ({ name, type, rect, value, readOnly: false })),
+    );
+  }
+
+  getLinks(pageIndex: number, options?: PdfCallOptions) {
+    return this.#run(pageIndex, options, (page) =>
+      (page.links ?? []).flatMap(({ rect, url }) => {
+        const safe = safeLinkUrl(url);
+        return safe ? [{ rect, url: safe }] : [];
+      }),
     );
   }
 

@@ -119,6 +119,7 @@ export interface PdfDeletePagesCommand {
 export interface PdfDocumentHandle {
     destroy(): Promise<void>;
     getFormFields(pageIndex: number, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+    getLinks(pageIndex: number, options?: PdfCallOptions): Promise<readonly PdfLink[]>;
     getPage(pageIndex: number, options?: PdfCallOptions): Promise<PdfPageInfo>;
     getTextContent(pageIndex: number, options?: PdfCallOptions): Promise<PdfTextContent>;
     readonly pageCount: number;
@@ -262,6 +263,12 @@ export type PdfLimitName = keyof PdfLimitDefinitions;
 
 // @public
 export const pdfLimits: Limits<PdfLimitDefinitions>;
+
+// @public
+export interface PdfLink {
+    readonly rect: PdfRect;
+    readonly url: string;
+}
 
 // @public
 export type PdfMessageCatalogue = typeof pdfMessages;
@@ -421,6 +428,7 @@ export interface PdfSession {
     execute(commands: PdfCommand | readonly PdfCommand[]): void;
     export(options?: PdfExportOptions): Promise<Uint8Array>;
     getFormFields(key: string, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+    getLinks(key: string, options?: PdfCallOptions): Promise<readonly PdfLink[]>;
     getPage(key: string, options?: PdfCallOptions): Promise<PdfPageInfo>;
     getSnapshot(): PdfSessionSnapshot;
     getTextContent(key: string, options?: PdfCallOptions): Promise<PdfTextContent>;
@@ -560,5 +568,8 @@ export interface PdfWarning {
     // (undocumented)
     readonly limit: PdfLimitName;
 }
+
+// @public
+export function safeLinkUrl(url: string): string | undefined;
 
 ```

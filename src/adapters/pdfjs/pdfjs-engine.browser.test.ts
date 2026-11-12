@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { describePdfEngineContract } from "../../../test/contracts/pdf-engine.contract.js";
-import { encryptedPdf, reportPdf } from "../../../test/fixtures/pdfs.js";
+import { encryptedPdf, reportPdf, SAFE_LINKS } from "../../../test/fixtures/pdfs.js";
 import { isPdfError } from "../../core/errors/pdf-error.js";
 import type { PdfEngine } from "../../core/ports/pdf-engine.js";
 import { createPdfJsEngine } from "./pdfjs-engine.js";
@@ -15,6 +15,7 @@ describePdfEngineContract("pdf.js engine", {
       { width: 842, height: 595, rotation: 90 },
     ],
     firstPageText: "Quarterly report",
+    firstPageLinks: SAFE_LINKS,
     firstPageFields: {
       name: { type: "text", value: "" },
       agree: { type: "checkbox", value: false },

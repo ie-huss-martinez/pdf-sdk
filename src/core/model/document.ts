@@ -73,3 +73,17 @@ export interface PdfFormField {
  * @public
  */
 export type PdfFieldValue = string | boolean;
+
+/**
+ * A link on a page to a web page or an email address. Only `http`, `https`
+ * and `mailto` links are reported (ADR 0012); links into the document and
+ * every other scheme, such as `javascript:`, are left out.
+ *
+ * @public
+ */
+export interface PdfLink {
+  /** Where the link sits on the page, in fractions of the unrotated page. */
+  readonly rect: PdfRect;
+  /** The absolute URL, normalised. */
+  readonly url: string;
+}

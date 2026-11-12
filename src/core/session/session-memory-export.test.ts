@@ -30,6 +30,7 @@ function setup(options: Partial<PdfSessionOptions> = {}, { withProcessor = true 
         renderPage: document.renderPage.bind(document),
         getTextContent: document.getTextContent.bind(document),
         getFormFields: document.getFormFields.bind(document),
+        getLinks: document.getLinks.bind(document),
         destroy: async () => {
           destroyed.push(id);
           await document.destroy();
