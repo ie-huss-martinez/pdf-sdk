@@ -3,6 +3,7 @@ import type { PdfLink, PdfPageInfo, PdfTextContent } from "../../core/model/docu
 import { linkDestination, safeLinkUrl } from "../../core/model/links.js";
 import type { PdfPlanPage } from "../../core/model/plan.js";
 import { usePdfMessages, usePdfSession } from "../hooks.js";
+import { useNear } from "../use-near-observer.js";
 import { usePageDrawing } from "../use-page-drawing.js";
 import { pageGeometry } from "./geometry.js";
 import type { RenderQueue } from "./render-queue.js";
@@ -32,7 +33,7 @@ export function PdfViewerPage(props: PageProps): ReactNode {
   const messages = usePdfMessages();
   const element = useRef<HTMLDivElement>(null);
   const textLayer = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(false);
+  const near = useNear(observe, element, displayWidth > 0);
   const [text, setText] = useState<PdfTextContent>();
   const [links, setLinks] = useState<readonly PdfLink[]>([]);
   const { canvas, info, drawn, failure } = usePageDrawing({
@@ -44,8 +45,6 @@ export function PdfViewerPage(props: PageProps): ReactNode {
     queue,
     onMeasured,
   });
-
-  useEffect(() => (element.current ? observe(element.current, setNear) : undefined), [observe]);
 
   // The text and links, which don't depend on the zoom, read once.
   useEffect(() => {

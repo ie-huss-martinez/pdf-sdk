@@ -12,7 +12,7 @@ import type { PdfPageInfo } from "../../core/model/document.js";
 import type { PdfPlanPage } from "../../core/model/plan.js";
 import type { PdfSession } from "../../core/session/session.js";
 import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
-import { useNearObserver } from "../use-near-observer.js";
+import { useNear, useNearObserver } from "../use-near-observer.js";
 import { usePageDrawing } from "../use-page-drawing.js";
 import { pageGeometry } from "../viewer/geometry.js";
 import { RenderQueue } from "../viewer/render-queue.js";
@@ -65,9 +65,7 @@ function Thumbnail(props: ThumbnailProps): ReactNode {
   const { page, index, count, id, selected, current, active, displayWidth, classNames } = props;
   const messages = usePdfMessages();
   const element = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(false);
-  const { observe } = props;
-  useEffect(() => (element.current ? observe(element.current, setNear) : undefined), [observe]);
+  const near = useNear(props.observe, element, displayWidth > 0);
   const { canvas, info, drawn } = usePageDrawing({
     session: props.session,
     pageKey: page.key,

@@ -7,6 +7,8 @@
 @layer hm.sdk {
   .hm-pdf-viewer {
     overflow: auto;
+    /* The viewer anchors scrolling itself, the same in every engine. */
+    overflow-anchor: none;
     position: relative;
   }
 

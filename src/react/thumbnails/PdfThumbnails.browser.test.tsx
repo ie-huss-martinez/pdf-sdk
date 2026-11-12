@@ -30,6 +30,13 @@ const layout = (session: PdfSession, withViewer = false) => (
   </PdfSessionProvider>
 );
 
+/** Waits for a number of animation frames, so observers have reported. */
+const frames = async (count: number) => {
+  for (let index = 0; index < count; index += 1) {
+    await act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  }
+};
+
 const SIDE_BY_SIDE =
   "width: 900px; height: 600px; display: grid; grid-template-columns: 160px 1fr;";
 
@@ -137,13 +144,22 @@ describe("PdfThumbnails", () => {
   });
 
   it("draws only the thumbnails near its viewport", async () => {
+    // Until the list knows its width every thumbnail is empty, so none may
+    // count as near before then, or every page is read and drawn at once.
+    // Counting the session's reads and draws catches that even when the
+    // observer has taken the pixels back by the time the test looks.
     const session = await opened(60);
+    const getPage = vi.spyOn(session, "getPage");
+    const renderPage = vi.spyOn(session, "renderPage");
     const container = await mount(
       layout(session),
       "width: 160px; height: 600px; display: grid; grid-template-rows: minmax(0, 1fr);",
     );
     const canvases = () => [...container.querySelectorAll("canvas")];
     await vi.waitFor(() => expect(canvases()[0]?.width).toBeGreaterThan(0));
+    await frames(5);
+    expect(getPage.mock.calls.length).toBeLessThan(20);
+    expect(renderPage.mock.calls.length).toBeLessThan(20);
     expect(canvases().filter((canvas) => canvas.width > 0).length).toBeLessThan(20);
   });
 
