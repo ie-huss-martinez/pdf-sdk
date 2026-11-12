@@ -5,9 +5,9 @@
  * minifies and drops what they don't import.
  *
  * These are starting ceilings for what each entry should hold. Worker,
- * WebAssembly and PDF engine code loads lazily in its own chunks, which get
- * their own budgets when they're added. The feature pull requests revisit
- * these against real sizes.
+ * WebAssembly and PDF engine code loads lazily, with import(), in its own
+ * chunks in dist/lazy, which have budgets of their own below. The feature
+ * pull requests revisit these against real sizes.
  */
 export default [
   {
@@ -33,5 +33,22 @@ export default [
     path: "dist/styles.css",
     brotli: true,
     limit: "10 kB",
+  },
+  {
+    // pdf.js's display layer, loaded on the first open (docs/adr/0001).
+    // pdf.js 6.5.438 measures 124 kB; the budget leaves room for patch
+    // releases, not for a second engine.
+    name: "pdf.js display layer (lazy)",
+    path: "dist/lazy/runtime-*.js",
+    brotli: true,
+    limit: "135 kB",
+  },
+  {
+    // pdf.js's worker, inlined as a string (docs/adr/0002). It measures
+    // 336 kB with pdf.js 6.5.438. Self-hosting applications never load it.
+    name: "pdf.js worker, inlined (lazy)",
+    path: "dist/lazy/inline-worker-*.js",
+    brotli: true,
+    limit: "360 kB",
   },
 ];
