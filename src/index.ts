@@ -71,6 +71,7 @@ export type {
 export { PDF_MAX_CANVAS_PIXELS } from "./core/ports/pdf-engine.js";
 export type { PdfBuildOptions, PdfProcessor } from "./core/ports/pdf-processor.js";
 export type {
+  PdfExportOptions,
   PdfInsertOptions,
   PdfSession,
   PdfSessionEvent,

@@ -2,6 +2,7 @@ import { checkFile, withProcessingTime } from "@hussmartinez/sdk-core";
 import { asPdfError, throwIfAborted } from "../errors/abort.js";
 import { PdfError } from "../errors/pdf-error.js";
 import { type PdfFilePolicyOverrides, type PdfLimitName, pdfLimits } from "../errors/pdf-limits.js";
+import type { PdfBuildJob, PdfCompression, PdfEncryption } from "../model/build-job.js";
 import { copyBytes } from "../model/bytes.js";
 import type { PdfBytes, PdfFormField, PdfPageInfo, PdfTextContent } from "../model/document.js";
 import { addRotation } from "../model/geometry.js";
@@ -9,7 +10,8 @@ import { EMPTY_PLAN, type PdfPlan, type PdfPlanPage } from "../model/plan.js";
 import { applyCommands, type PdfCommand } from "../operations/commands.js";
 import type { PdfCallOptions } from "../ports/options.js";
 import type { PdfDocumentHandle, PdfEngine, PdfRenderOptions } from "../ports/pdf-engine.js";
-import { History } from "./history.js";
+import type { PdfBuildOptions, PdfProcessor } from "../ports/pdf-processor.js";
+import { History, type HistoryStep } from "./history.js";
 
 /**
  * A source document the session holds: opened or inserted, never changed.
@@ -71,6 +73,18 @@ export interface PdfSessionSnapshot {
   readonly error: PdfError | undefined;
   /** Limits the open documents are close to. */
   readonly warnings: readonly PdfWarning[];
+  /**
+   * The bytes of every document the session holds, which the
+   * `maxSessionSize` limit counts: those the plan uses, and those the undo
+   * and redo history can bring back (docs/adr/0004).
+   */
+  readonly sessionBytes: number;
+  /**
+   * Whether undo steps were dropped since the document opened, to make room
+   * for an insert within `maxSessionSize`. Editors say so, because the
+   * earliest edits can no longer be undone (ADR 0010).
+   */
+  readonly historyTrimmed: boolean;
 }
 
 /**
@@ -86,7 +100,17 @@ export type PdfSessionEvent =
   | { readonly type: "command"; readonly commands: readonly PdfCommand["type"][] }
   | { readonly type: "undo" }
   | { readonly type: "redo" }
-  | { readonly type: "failed"; readonly operation: "open" | "insert"; readonly code: string };
+  | {
+      readonly type: "document_exported";
+      readonly pageCount: number;
+      readonly compressed: boolean;
+      readonly encrypted: boolean;
+    }
+  | {
+      readonly type: "failed";
+      readonly operation: "open" | "insert" | "export";
+      readonly code: string;
+    };
 
 /**
  * Options for {@link createPdfSession}.
@@ -96,6 +120,8 @@ export type PdfSessionEvent =
 export interface PdfSessionOptions {
   /** Opens, reads and renders documents, such as `createPdfJsEngine()`. */
   readonly engine: PdfEngine;
+  /** Builds exported documents, such as `createPdfProcessor()`. Needed for `export()`. */
+  readonly processor?: PdfProcessor;
   /** Limits for untrusted files (docs/adr/0004). Unknown names throw. */
   readonly filePolicy?: PdfFilePolicyOverrides;
   /** Receives anonymous usage events. Errors it throws are ignored. */
@@ -112,6 +138,20 @@ export interface PdfInsertOptions extends PdfCallOptions {
   readonly at?: number;
   /** Zero-based indexes of the pages to insert. Defaults to every page. */
   readonly pageIndexes?: readonly number[];
+}
+
+/**
+ * Options for {@link PdfSession.export}.
+ *
+ * @public
+ */
+export interface PdfExportOptions extends PdfCallOptions {
+  /** Compress the result, losslessly unless `images` is set. */
+  readonly compress?: PdfCompression;
+  /** Encrypt the result with AES-256. */
+  readonly encrypt?: PdfEncryption;
+  /** Called as the export moves through its steps. */
+  readonly onProgress?: PdfBuildOptions["onProgress"];
 }
 
 /**
@@ -134,7 +174,14 @@ export interface PdfSession {
    * document, if any, stays open.
    */
   open(file: Blob | PdfBytes, options?: PdfCallOptions): Promise<void>;
-  /** Inserts the pages of another document, as one undoable step. */
+  /**
+   * Inserts the pages of another document, as one undoable step. If the
+   * documents held would then exceed `maxSessionSize`, the session first
+   * drops the redo steps, then the oldest undo steps, as far as needed to
+   * release documents only they refer to, and sets `historyTrimmed`. If even
+   * that isn't enough, it rejects with `SESSION_TOO_LARGE` and changes
+   * nothing.
+   */
   insert(file: Blob | PdfBytes, options?: PdfInsertOptions): Promise<void>;
   /**
    * Runs one command, or several as one undoable step. Throws `TypeError`
@@ -156,6 +203,13 @@ export interface PdfSession {
   getTextContent(key: string, options?: PdfCallOptions): Promise<PdfTextContent>;
   /** A plan page's form fields, with the session's values applied. */
   getFormFields(key: string, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
+  /**
+   * Builds the document as it is now: its pages in plan order, with their
+   * rotations, form values and annotations, compressed or encrypted if asked.
+   * An unchanged document with no options is returned as its original bytes,
+   * without the processor. The result is a new buffer the caller owns.
+   */
+  export(options?: PdfExportOptions): Promise<Uint8Array>;
   /** Closes the document and releases its sources. */
   close(): Promise<void>;
 }
@@ -196,7 +250,61 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   let nextSource = 0;
   /** Cancels the load in progress when a newer open replaces it. */
   let loading: AbortController | undefined;
+  const heldBytes = (): number =>
+    [...sources.values()].reduce((total, source) => total + source.byteLength, 0);
+
+  /** The sources the plan and the given history steps refer to: only pages need bytes. */
+  function referenced(steps: readonly HistoryStep[]): Set<string> {
+    const ids = new Set(plan.pages.map((page) => page.source));
+    for (const { commands, inverses } of steps) {
+      for (const command of [...commands, ...inverses]) {
+        if (command.type === "pdf.insertPages") ids.add(command.source);
+        if (command.type === "pdf.restorePages") {
+          for (const { page } of command.entries) ids.add(page.source);
+        }
+      }
+    }
+    return ids;
+  }
+
+  /** Releases the sources nothing refers to any more, and their engine documents. */
+  function collect(): void {
+    const keep = referenced(history.steps);
+    for (const [id, source] of sources) {
+      if (keep.has(id)) continue;
+      sources.delete(id);
+      void source.document.destroy().catch(() => {});
+    }
+  }
+
+  /**
+   * How many history steps must be dropped, in drop order, for the held
+   * sources plus `extra` bytes to fit `maxSessionSize`, or undefined if
+   * dropping every step isn't enough.
+   */
+  function stepsToDrop(extra: number): number | undefined {
+    const { maximum } = policy.limits.maxSessionSize;
+    const order = history.dropOrder;
+    for (let count = 0; count <= order.length; count += 1) {
+      const kept = new Set(order.slice(count));
+      const ids = referenced(history.steps.filter((entry) => kept.has(entry)));
+      const total = [...ids].reduce((sum, id) => sum + (sources.get(id)?.byteLength ?? 0), 0);
+      if (total + extra <= maximum) return count;
+    }
+    return undefined;
+  }
+
   let snapshot = makeSnapshot();
+
+  /** The load warnings, and the session size warning, which follows every change. */
+  function sessionWarnings(): PdfWarning[] {
+    const bytes = heldBytes();
+    const sessionWarning =
+      bytes > 0 && bytes >= policy.limits.maxSessionSize.warning
+        ? [{ limit: "maxSessionSize" as const, actual: bytes }]
+        : [];
+    return [...warnings, ...sessionWarning];
+  }
 
   function makeSnapshot(): PdfSessionSnapshot {
     return Object.freeze({
@@ -211,7 +319,9 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       canRedo: history.canRedo,
       busy: busy > 0,
       error,
-      warnings: Object.freeze([...warnings]),
+      warnings: Object.freeze(sessionWarnings()),
+      sessionBytes: heldBytes(),
+      historyTrimmed: history.trimmed,
     });
   }
 
@@ -306,6 +416,8 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
     const result = applyCommands(plan, commands);
     plan = result.plan;
     history.push({ commands, inverses: result.inverses });
+    // A new step drops the redo steps, and the documents only they held.
+    collect();
   }
 
   return {
@@ -320,7 +432,12 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       status = "opening";
       error = undefined;
       try {
-        const source = await track(callOptions.signal, true, (signal) => load(file, signal));
+        const source = await track(callOptions.signal, true, async (signal) => {
+          // The open document is released once this one opens, so this one
+          // must fit on its own.
+          policy.check("maxSessionSize", file instanceof Blob ? file.size : file.byteLength);
+          return load(file, signal);
+        });
         await release();
         sources.set(source.id, source);
         history.clear();
@@ -383,6 +500,12 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
             nextKey += 1;
             return `p${nextKey}`;
           });
+          const drop = stepsToDrop(source.byteLength);
+          if (drop === undefined) {
+            throw policy.error("maxSessionSize", heldBytes() + source.byteLength);
+          }
+          history.drop(drop);
+          collect();
           sources.set(source.id, source);
           step([
             {
@@ -472,6 +595,86 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
           ? { ...field, value: values[field.name] as typeof field.value }
           : field,
       );
+    },
+
+    async export(exportOptions = {}) {
+      if (status !== "ready" && sources.size === 0) {
+        throw new PdfError("PROCESSING_FAILED", "Open a document before exporting it.");
+      }
+      const pages = plan.pages;
+      const used = [...new Set(pages.map((page) => page.source))];
+      const job: PdfBuildJob = {
+        sources: used.map((id) => {
+          const values = plan.formValues[id];
+          return {
+            id,
+            bytes: (sources.get(id) as Source).bytes,
+            ...(values && Object.keys(values).length > 0 ? { formValues: values } : {}),
+          };
+        }),
+        pages: pages.map((page) => ({
+          source: page.source,
+          pageIndex: page.pageIndex,
+          ...(page.rotation === 0 ? {} : { rotation: page.rotation }),
+          ...(page.annotations.length === 0 ? {} : { annotations: page.annotations }),
+        })),
+        ...(exportOptions.compress ? { compress: exportOptions.compress } : {}),
+        ...(exportOptions.encrypt ? { encrypt: exportOptions.encrypt } : {}),
+      };
+      const done = () =>
+        emit({
+          type: "document_exported",
+          pageCount: pages.length,
+          compressed: Boolean(exportOptions.compress),
+          encrypted: Boolean(exportOptions.encrypt),
+        });
+
+      // An unchanged document with no options is its original bytes.
+      const [only] = job.sources;
+      const source = only && sources.get(only.id);
+      if (
+        job.sources.length === 1 &&
+        !only?.formValues &&
+        !job.compress &&
+        !job.encrypt &&
+        source &&
+        job.pages.length === source.pageCount &&
+        job.pages.every(
+          (page, index) => page.pageIndex === index && !page.rotation && !page.annotations,
+        )
+      ) {
+        throwIfAborted(exportOptions.signal);
+        done();
+        return copyBytes(source.bytes);
+      }
+
+      const { processor } = options;
+      if (!processor) {
+        throw new TypeError("Exporting an edited document needs a processor in createPdfSession.");
+      }
+      busy += 1;
+      changed();
+      try {
+        const output = await withProcessingTime(
+          policy,
+          (signal) =>
+            processor.build(job, {
+              signal,
+              ...(exportOptions.onProgress ? { onProgress: exportOptions.onProgress } : {}),
+            }),
+          exportOptions.signal ? { signal: exportOptions.signal } : {},
+        );
+        done();
+        return output;
+      } catch (reason) {
+        if (reason instanceof TypeError || reason instanceof RangeError) throw reason;
+        const failure = asPdfError(reason, "The PDF couldn't be exported.");
+        emit({ type: "failed", operation: "export", code: failure.code });
+        throw failure;
+      } finally {
+        busy -= 1;
+        changed();
+      }
     },
 
     async close() {

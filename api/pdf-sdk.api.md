@@ -146,6 +146,13 @@ export class PdfError extends SdkError<PdfErrorCode> {
 export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE";
 
 // @public
+export interface PdfExportOptions extends PdfCallOptions {
+    readonly compress?: PdfCompression;
+    readonly encrypt?: PdfEncryption;
+    readonly onProgress?: PdfBuildOptions["onProgress"];
+}
+
+// @public
 export type PdfFieldValue = string | boolean;
 
 // @public
@@ -412,6 +419,7 @@ export type PdfRotation = 0 | 90 | 180 | 270;
 export interface PdfSession {
     close(): Promise<void>;
     execute(commands: PdfCommand | readonly PdfCommand[]): void;
+    export(options?: PdfExportOptions): Promise<Uint8Array>;
     getFormFields(key: string, options?: PdfCallOptions): Promise<readonly PdfFormField[]>;
     getPage(key: string, options?: PdfCallOptions): Promise<PdfPageInfo>;
     getSnapshot(): PdfSessionSnapshot;
@@ -443,8 +451,13 @@ export type PdfSessionEvent = {
 } | {
     readonly type: "redo";
 } | {
+    readonly type: "document_exported";
+    readonly pageCount: number;
+    readonly compressed: boolean;
+    readonly encrypted: boolean;
+} | {
     readonly type: "failed";
-    readonly operation: "open" | "insert";
+    readonly operation: "open" | "insert" | "export";
     readonly code: string;
 };
 
@@ -453,6 +466,7 @@ export interface PdfSessionOptions {
     readonly engine: PdfEngine;
     readonly filePolicy?: PdfFilePolicyOverrides;
     readonly onEvent?: (event: PdfSessionEvent) => void;
+    readonly processor?: PdfProcessor;
 }
 
 // @public
@@ -463,7 +477,9 @@ export interface PdfSessionSnapshot {
     // (undocumented)
     readonly canUndo: boolean;
     readonly error: PdfError | undefined;
+    readonly historyTrimmed: boolean;
     readonly plan: PdfPlan;
+    readonly sessionBytes: number;
     readonly sources: readonly PdfSourceInfo[];
     // (undocumented)
     readonly status: PdfSessionStatus;
