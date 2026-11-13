@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build, type Rolldown } from "vite";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PDFJS_DATA } from "./tools/pdfjs-data-plugin.js";
 import { QPDF_WASM_SHA256 } from "./tools/qpdf-wasm-plugin.js";
 import { externalPackages } from "./vite.config.js";
@@ -297,7 +297,7 @@ describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
  * built files resolve their external imports from its node_modules, as they
  * would in an application.
  */
-const temporaryBuild = (async () => {
+async function temporaryBuild(): Promise<string> {
   const parent = join(process.cwd(), "temp");
   await mkdir(parent, { recursive: true });
   const directory = await mkdtemp(join(parent, "build-test-"));
@@ -307,20 +307,31 @@ const temporaryBuild = (async () => {
     build: { outDir: directory, emptyOutDir: true },
   });
   return directory;
-})();
+}
 
-afterAll(async () => {
-  await rm(await temporaryBuild, { recursive: true, force: true });
-});
+/**
+ * A whole build takes seconds, and longer on a busy machine, so it runs
+ * once, before the tests, with a timeout of its own. Inside a test it would
+ * count against the test's five seconds, which only cover the import.
+ */
+const BUILD_TIMEOUT = 120_000;
 
 describe("importing on a server", () => {
+  let directory = "";
+  beforeAll(async () => {
+    directory = await temporaryBuild();
+  }, BUILD_TIMEOUT);
+  afterAll(async () => {
+    if (directory) await rm(directory, { recursive: true, force: true });
+  });
+
   // The unit project runs in Node, without a DOM, as a server would.
   it.each(["index.js", "element.js"])(
     "imports %s without touching browser APIs (ADR 0004, ADR 0007)",
     async (entry) => {
       expect(globalThis).not.toHaveProperty("window");
       expect(globalThis).not.toHaveProperty("customElements");
-      const url = pathToFileURL(join(await temporaryBuild, entry)).href;
+      const url = pathToFileURL(join(directory, entry)).href;
       await expect(import(url)).resolves.toBeTypeOf("object");
     },
   );
