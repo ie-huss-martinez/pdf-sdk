@@ -69,12 +69,12 @@ Browser tests need Playwright's browsers once: `pnpm exec playwright install chr
 | Unit tests | `test` | Vitest |
 | Browser tests | `test:browser` | Vitest in Chromium, and in Firefox and WebKit too in CI |
 | Size budgets | `check:size` | size-limit, brotli size of each entry point |
-| API reports | `check:api` | api-extractor, one report per entry point in [`api`](api) |
+| API reports | `check:api` | api-extractor, one report per entry point in [`api`](api), and `hm-check-api-reports` across them |
 | Package checks | `check:package` | publint and Are the Types Wrong? |
 
 The configuration extends the shared presets in [`@hussmartinez/sdk-config`](https://www.npmjs.com/package/@hussmartinez/sdk-config). The git hooks ([ADR 0016](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0016-git-hooks-and-merge-guards.md)) run automatically: a secret scan and lint of staged files on commit, a Conventional Commits check of the message, and `pnpm verify:fast` on push.
 
-When a change alters the public API on purpose, update the reports with `pnpm api:update` and commit them. api-extractor rolls up one entry point per run, so the React and element entries' declarations carry copies of the core types their APIs use, such as `PdfSession`. Their reports don't flag those as forgotten exports (`ae-forgotten-export` is off in `api-extractor.react.json` and `api-extractor.element.json`), because the core entry exports every one of them.
+When a change alters the public API on purpose, update the reports with `pnpm api:update` and commit them. api-extractor rolls up one entry point per run, so the React and element entries' declarations carry copies of the core types their APIs use, such as `PdfSession`. Their reports list those copies, and `hm-check-api-reports` from [`@hussmartinez/sdk-config`](https://www.npmjs.com/package/@hussmartinez/sdk-config) then checks that the core entry exports every one of them, and that none is a class with private members, whose copy TypeScript would treat as a different type. All three configurations extend sdk-config's api-extractor preset.
 
 ## Contributing
 
