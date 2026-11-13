@@ -94,11 +94,23 @@ const button = (container: HTMLElement) =>
   container.querySelector<HTMLButtonElement>(".hm-pdf-editor-start button");
 const input = (container: HTMLElement) =>
   container.querySelector<HTMLInputElement>('input[type="file"]') as HTMLInputElement;
-/** What ui's polite live region says, once it says something. */
-const announced = async (container: HTMLElement, text: string) =>
-  vi.waitFor(() =>
-    expect(container.querySelector('.hm-announcer [aria-live="polite"]')?.textContent).toBe(text),
-  );
+/** Waits for a number of animation frames, and for React to apply what they changed. */
+const frames = async (count: number) => {
+  for (let index = 0; index < count; index += 1) {
+    await act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  }
+};
+
+/**
+ * What ui's polite live region says after an announcement. ui clears the
+ * region, then sets the text in an animation frame, so screen readers notice
+ * a repeat. Frames run in the order they're asked for, so two more frames
+ * guarantee it has run, however slowly a busy browser schedules them.
+ */
+const announced = async (container: HTMLElement, text: string) => {
+  await frames(2);
+  expect(container.querySelector('.hm-announcer [aria-live="polite"]')?.textContent).toBe(text);
+};
 
 /** A host's icon, for the icons prop. */
 function Star() {
