@@ -30,11 +30,21 @@ const forbidden = preset.forbidden.flatMap((rule) => {
  * plugins generate (tools/), so dependency-cruiser can't resolve them.
  */
 const VIRTUAL_MODULES = "^virtual:hm-(?:pdfjs-data|qpdf-wasm|qpdf-wasm-sha256)$";
+/**
+ * A package's stylesheet as a URL, through Vite's `?url` suffix, such as the
+ * browser tests' `@hussmartinez/ui/styles.css?url`: dependency-cruiser can't
+ * resolve a query through a package's exports, but Vite does, and fails the
+ * test run if the file is missing. Only stylesheets, and only as URLs.
+ */
+const STYLESHEET_URLS = "^@hussmartinez/[a-z-]+/styles\\.css\\?url$";
 const resolvable = forbidden.map((rule) =>
   rule.name === "not-to-unresolvable"
     ? {
         ...rule,
-        to: { ...rule.to, pathNot: [rule.to.pathNot, VIRTUAL_MODULES].flat().filter(Boolean) },
+        to: {
+          ...rule.to,
+          pathNot: [rule.to.pathNot, VIRTUAL_MODULES, STYLESHEET_URLS].flat().filter(Boolean),
+        },
       }
     : rule,
 );

@@ -58,6 +58,22 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
     other: "Opened a PDF with {count} pages.",
   }),
   "editor.closed": "The PDF was closed.",
+  "editor.undone": "Undone.",
+  "editor.redone": "Redone.",
+  "editor.rotated": /* @__PURE__ */ plural("count", {
+    one: "Rotated {count} page.",
+    other: "Rotated {count} pages.",
+  }),
+  "toolbar.label": "PDF tools",
+  "toolbar.groups.file": "File",
+  "toolbar.groups.history": "History",
+  "toolbar.groups.pages": "Pages",
+  "toolbar.groups.other": "More tools",
+  "tools.open": "Open a PDF",
+  "tools.undo": "Undo",
+  "tools.redo": "Redo",
+  "tools.rotate-left": "Rotate left",
+  "tools.rotate-right": "Rotate right",
 }) satisfies Record<`errors.${PdfErrorCode}`, MessageValue> &
   Record<`warnings.${PdfLimitName}`, MessageValue>;
 
