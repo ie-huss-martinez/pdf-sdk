@@ -314,6 +314,24 @@ export const pdfMessages: {
         readonly other: "Opened a PDF with {count} pages.";
     };
     readonly "editor.closed": "The PDF was closed.";
+    readonly "editor.undone": "Undone.";
+    readonly "editor.redone": "Redone.";
+    readonly "editor.rotated": {
+        readonly $plural: "count";
+    } & {
+        readonly one: "Rotated {count} page.";
+        readonly other: "Rotated {count} pages.";
+    };
+    readonly "toolbar.label": "PDF tools";
+    readonly "toolbar.groups.file": "File";
+    readonly "toolbar.groups.history": "History";
+    readonly "toolbar.groups.pages": "Pages";
+    readonly "toolbar.groups.other": "More tools";
+    readonly "tools.open": "Open a PDF";
+    readonly "tools.undo": "Undo";
+    readonly "tools.redo": "Redo";
+    readonly "tools.rotate-left": "Rotate left";
+    readonly "tools.rotate-right": "Rotate right";
     readonly "errors.UNKNOWN": "Something went wrong. Please try again.";
     readonly "errors.ABORTED": "The operation was cancelled.";
     readonly "errors.TIMEOUT": "The operation took too long and was stopped.";

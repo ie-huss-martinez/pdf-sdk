@@ -6,12 +6,16 @@
 
 import { FilePolicyOverrides } from '@hussmartinez/sdk-core';
 import { ForwardRefExoticComponent } from 'react';
+import { IconComponent } from '@hussmartinez/ui/react';
 import { MessageOverrides } from '@hussmartinez/sdk-core';
 import type { Messages } from '@hussmartinez/sdk-core';
 import { ReactNode } from 'react';
 import { RefAttributes } from 'react';
 import { SdkCoreErrorCode } from '@hussmartinez/sdk-core';
 import { SdkError } from '@hussmartinez/sdk-core';
+import type { ShortcutRegistry } from '@hussmartinez/sdk-core';
+import type { Tool } from '@hussmartinez/sdk-core';
+import type { ToolRegistry } from '@hussmartinez/sdk-core';
 
 // @public
 export const PdfEditor: ForwardRefExoticComponent<PdfEditorProps & RefAttributes<PdfEditorHandle>>;
@@ -43,9 +47,15 @@ export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"
     readonly className?: string;
     readonly classNames?: Readonly<Partial<Record<PdfEditorPart, string>>>;
     readonly file?: Blob | PdfBytes | null;
+    readonly icons?: Readonly<Record<string, IconComponent>>;
     readonly onChange?: (change: PdfEditorChange) => void;
+    readonly toolbar?: readonly (readonly string[])[];
+    readonly tools?: readonly string[];
     readonly unstyled?: boolean;
 }
+
+// @public
+export const pdfIcons: Readonly<Record<string, IconComponent>>;
 
 // @public
 export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode;
@@ -83,6 +93,37 @@ export interface PdfThumbnailsProps {
 }
 
 // @public
+export type PdfTool = Tool<PdfToolState, PdfToolContext, undefined>;
+
+// @public
+export function PdfToolbar(props: PdfToolbarProps): ReactNode;
+
+// @public
+export interface PdfToolbarProps {
+    readonly className?: string;
+    readonly context: PdfToolContext;
+    readonly icons: Readonly<Record<string, IconComponent>>;
+    readonly onRun?: (tool: PdfTool) => void;
+    readonly registry: ToolRegistry<PdfTool>;
+    readonly shortcuts?: ShortcutRegistry;
+}
+
+// @public
+export interface PdfToolContext {
+    readonly chooseFile: () => void;
+    readonly session: PdfSession;
+}
+
+// @public
+export const pdfTools: readonly PdfTool[];
+
+// @public
+export interface PdfToolState {
+    // Warning: (ae-forgotten-export) The symbol "PdfSessionSnapshot" needs to be exported by the entry point react.d.ts
+    readonly snapshot: PdfSessionSnapshot;
+}
+
+// @public
 export function PdfViewer(props: PdfViewerProps): ReactNode;
 
 // @public
@@ -100,8 +141,6 @@ export interface PdfViewerProps {
     readonly zoom?: number;
 }
 
-// Warning: (ae-forgotten-export) The symbol "PdfSessionSnapshot" needs to be exported by the entry point react.d.ts
-//
 // @public
 export function usePdfDocument(): PdfSessionSnapshot;
 

@@ -11,6 +11,8 @@
  * @packageDocumentation
  */
 
+export type { PdfTool, PdfToolContext, PdfToolState } from "./features/tool-types.js";
+export { pdfTools } from "./features/tools.js";
 export { PdfEditor } from "./react/editor/PdfEditor.js";
 export type {
   PdfEditorChange,
@@ -23,6 +25,9 @@ export type { PdfSessionProviderProps } from "./react/PdfSessionProvider.js";
 export { PdfSessionProvider } from "./react/PdfSessionProvider.js";
 export type { PdfThumbnailsPart, PdfThumbnailsProps } from "./react/thumbnails/PdfThumbnails.js";
 export { PdfThumbnails } from "./react/thumbnails/PdfThumbnails.js";
+export { pdfIcons } from "./react/toolbar/icons.js";
+export type { PdfToolbarProps } from "./react/toolbar/PdfToolbar.js";
+export { PdfToolbar } from "./react/toolbar/PdfToolbar.js";
 export type { PdfViewerProps } from "./react/viewer/PdfViewer.js";
 export { PdfViewer } from "./react/viewer/PdfViewer.js";
 export type { PdfViewerClassNames, PdfViewerPart } from "./react/viewer/types.js";

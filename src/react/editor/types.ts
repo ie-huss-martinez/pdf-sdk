@@ -1,3 +1,4 @@
+import type { IconComponent } from "@hussmartinez/ui/react";
 import type { PdfBytes } from "../../core/model/document.js";
 import type { PdfExportOptions, PdfSession } from "../../core/session/session.js";
 import type { PdfSessionProviderProps } from "../PdfSessionProvider.js";
@@ -49,6 +50,21 @@ export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"
   readonly file?: Blob | PdfBytes | null;
   /** Called after the document opens, changes or closes. */
   readonly onChange?: (change: PdfEditorChange) => void;
+  /**
+   * Which tools are present, by id, in order, such as
+   * `["pdf.undo", "pdf.redo"]`. All of {@link pdfTools} by default. Their
+   * shortcuts work only while they're present.
+   */
+  readonly tools?: readonly string[];
+  /**
+   * The toolbar's groups, as tool ids, such as
+   * `[["pdf.undo", "pdf.redo"], ["pdf.rotate-left", "pdf.rotate-right"]]`.
+   * Defaults to the present tools in their usual groups; `[]` hides the
+   * toolbar, keeping the shortcuts. An unknown id throws.
+   */
+  readonly toolbar?: readonly (readonly string[])[];
+  /** Icon components by name, over the SDK's own from ui. */
+  readonly icons?: Readonly<Record<string, IconComponent>>;
   /** Extra classes on the root. */
   readonly className?: string;
   /** Extra classes on each part. */

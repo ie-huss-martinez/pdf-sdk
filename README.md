@@ -22,9 +22,36 @@ const editor = useRef<PdfEditorHandle>(null);
 const bytes = await editor.current?.export();
 ```
 
-`PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own. **Styles:** import `@hussmartinez/ui/styles.css` before `@hussmartinez/pdf-sdk/styles.css`, once, in your application. ui's stylesheet defines the design tokens that give the editor its designed look, light and dark themes and theming; the SDK's stylesheet doesn't bundle it. Without it the editor keeps its layout and stays usable, but loses its colours, spacing and shadows. Every value is also a `--hm-pdf-*` property you can set on any ancestor.
+**Styles: ui's stylesheet is required.** Import `@hussmartinez/ui/styles.css` once in your application, before `@hussmartinez/pdf-sdk/styles.css`, as above. The editor's toolbar is built from [`@hussmartinez/ui`](https://www.npmjs.com/package/@hussmartinez/ui)'s components, and their focus rings and minimum target sizes are in ui's stylesheet, along with the design tokens, themes and density ([sdk-core ADR 0036](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0036-ui-as-a-dependency-of-the-sdks.md)). The SDK's stylesheet never includes it, so a page with several SDKs loads it once. Every value is also a `--hm-pdf-*` property you can set on any ancestor.
+
+**One copy of ui.** The SDK depends on `@hussmartinez/ui` `^0.3.0`. If your application uses ui itself, depend on the same minor version, and check that `npm ls @hussmartinez/ui` lists one version: a second copy doesn't share providers with the first, so text falls back to English and announcements are lost.
+
+**A bounded height.** `PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own.
 
 `file` opens a document, and a different one replaces it; `null` closes it. Users can also open one with the editor's button or by dropping it on the editor. `onChange` reports each `open`, `edit` and `close`, and the ref's `PdfEditorHandle` exports, undoes, redoes and closes.
+
+### Tools, the toolbar and shortcuts
+
+The editor's tools are in `pdfTools`:
+
+| Tool | Shortcut | What it does |
+|---|---|---|
+| `pdf.open` | none: `Ctrl+O` is the browser's own | Opens a PDF, replacing the current one |
+| `pdf.undo` | `Ctrl+Z`, or `⌘Z` on Apple platforms | Undoes the last edit |
+| `pdf.redo` | `Ctrl+Shift+Z` or `Ctrl+Y`, or `⇧⌘Z` | Redoes the last undone edit |
+| `pdf.rotate-left` | `[` | Turns the selected pages, or the current one, a quarter turn anticlockwise |
+| `pdf.rotate-right` | `]` | Turns them a quarter turn clockwise |
+
+Choose which tools are present with `tools`, and arrange the toolbar with `toolbar`, as groups of tool ids; `toolbar={[]}` hides it and keeps the shortcuts. An unknown id throws when the editor renders, so a typo never leaves a tool silently missing. `icons` replaces any icon by name with your own component.
+
+```tsx
+<PdfEditor
+  tools={["pdf.undo", "pdf.redo", "pdf.rotate-left", "pdf.rotate-right"]}
+  toolbar={[["pdf.undo", "pdf.redo"], ["pdf.rotate-left", "pdf.rotate-right"]]}
+/>
+```
+
+Shortcuts work only while focus is inside the editor, never on the rest of your page, and never while typing in a field. The toolbar is one tab stop, with arrow keys between its buttons; each button names its shortcut in `aria-keyshortcuts`. Undoing, redoing and rotating are announced to screen readers.
 
 ## Assets and Content Security Policy
 

@@ -1,19 +1,41 @@
-import type { Messages } from "@hussmartinez/sdk-core";
+import {
+  createMessages,
+  createShortcutRegistry,
+  createToolRegistry,
+  defineMessages,
+  type Messages,
+  sdkCoreMessages,
+} from "@hussmartinez/sdk-core";
+import {
+  type Announce,
+  AnnouncerProvider,
+  UiMessagesProvider,
+  uiMessages,
+  useAnnounce,
+} from "@hussmartinez/ui/react";
 import {
   type ForwardedRef,
   forwardRef,
+  type KeyboardEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
-  useState,
 } from "react";
 import type { PdfLimitName } from "../../core/errors/pdf-limits.js";
 import type { PdfSessionSnapshot, PdfWarning } from "../../core/session/session.js";
+import { targetPages } from "../../features/pages/rotate-tools.js";
+import type { PdfTool, PdfToolContext } from "../../features/tool-types.js";
+import { DEFAULT_TOOLBAR, pdfTools } from "../../features/tools.js";
 import type { PdfMessageCatalogue } from "../../messages/en.js";
 import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
 import { PdfSessionProvider } from "../PdfSessionProvider.js";
 import { PdfThumbnails } from "../thumbnails/PdfThumbnails.js";
+import { pdfIcons } from "../toolbar/icons.js";
+import { PdfToolbar } from "../toolbar/PdfToolbar.js";
+import { usePlatform } from "../toolbar/use-platform.js";
 import { PdfViewer } from "../viewer/PdfViewer.js";
 import { PdfEditorStart } from "./PdfEditorStart.js";
 import type { PdfEditorChange, PdfEditorHandle, PdfEditorProps } from "./types.js";
@@ -28,6 +50,33 @@ function warningText(messages: Messages<PdfMessageCatalogue>, warning: PdfWarnin
 }
 
 const join = (...names: (string | undefined)[]) => names.filter(Boolean).join(" ");
+
+/** ui's own text, for the ui components the editor renders. */
+const UI_CATALOGUE = /* @__PURE__ */ defineMessages({ ...sdkCoreMessages, ...uiMessages });
+
+/**
+ * What to announce after a tool ran from the toolbar or a shortcut, so a
+ * change that has no focus of its own still reaches screen readers. Tools
+ * whose result is already announced, such as opening, or visible where
+ * focus is, have none.
+ */
+function resultOf(
+  tool: PdfTool,
+  messages: Messages<PdfMessageCatalogue>,
+  before: PdfSessionSnapshot,
+): string | undefined {
+  switch (tool.id) {
+    case "pdf.undo":
+      return messages.t("editor.undone");
+    case "pdf.redo":
+      return messages.t("editor.redone");
+    case "pdf.rotate-left":
+    case "pdf.rotate-right":
+      return messages.t("editor.rotated", { count: targetPages(before).length });
+    default:
+      return undefined;
+  }
+}
 
 /** What changed between two snapshots, if the host should hear about it. */
 function changeBetween(
@@ -47,8 +96,24 @@ function changeBetween(
   return undefined;
 }
 
+/**
+ * Hands ui's `announce` to the editor's body, which renders the provider
+ * inside its own root: ui's live regions follow the provider's children,
+ * and inside the root they never land in the host's layout.
+ */
+function AnnounceBridge({ target }: { target: { current: Announce } }): null {
+  const announce = useAnnounce();
+  useEffect(() => {
+    target.current = announce;
+  }, [target, announce]);
+  return null;
+}
+
 interface BodyProps
-  extends Pick<PdfEditorProps, "file" | "onChange" | "className" | "classNames" | "unstyled"> {
+  extends Pick<
+    PdfEditorProps,
+    "file" | "onChange" | "className" | "classNames" | "unstyled" | "tools" | "toolbar" | "icons"
+  > {
   readonly handle: ForwardedRef<PdfEditorHandle>;
 }
 
@@ -57,11 +122,61 @@ function PdfEditorBody(props: BodyProps): ReactNode {
   const session = usePdfSession();
   const snapshot = usePdfDocument();
   const messages = usePdfMessages();
+  // ui's announcer lives inside the root, below this component.
+  const announceTo = useRef<Announce>(() => {});
+  const announce = useCallback<Announce>(
+    (message, options) => announceTo.current(message, options),
+    [],
+  );
+  const platform = usePlatform();
   const root = useRef<HTMLDivElement>(null);
   const startButton = useRef<HTMLButtonElement>(null);
-  const [announcement, setAnnouncement] = useState("");
+  const input = useRef<HTMLInputElement>(null);
   const latestOnChange = useRef(onChange);
   latestOnChange.current = onChange;
+
+  // Mistakes in `tools` or `toolbar`, such as an unknown id, throw here, when
+  // the editor renders, rather than leaving a tool silently missing.
+  const registry = useMemo(
+    () =>
+      createToolRegistry(pdfTools, {
+        ...(props.tools ? { tools: props.tools } : {}),
+        toolbar:
+          props.toolbar ??
+          DEFAULT_TOOLBAR.map((group) =>
+            group.filter((id) => !props.tools || props.tools.includes(id)),
+          ).filter((group) => group.length > 0),
+      }),
+    [props.tools, props.toolbar],
+  );
+  const shortcuts = useMemo(
+    () => createShortcutRegistry({ platform, tools: registry.tools }),
+    [platform, registry],
+  );
+  const context: PdfToolContext = useMemo(
+    () => ({ session, chooseFile: () => input.current?.click() }),
+    [session],
+  );
+  const icons = useMemo(() => ({ ...pdfIcons, ...props.icons }), [props.icons]);
+
+  const runTool = (tool: PdfTool) => {
+    const before = session.getSnapshot();
+    if (!(tool.isEnabled?.({ snapshot: before }) ?? true)) return;
+    void Promise.resolve(tool.run(context)).then(() => {
+      const result = resultOf(tool, messages, before);
+      if (result) announce(result);
+    });
+  };
+
+  // Shortcuts work while focus is inside the editor, never on the whole page
+  // (WCAG 2.1.4, sdk-core ADR 0030).
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const id = shortcuts.match(event.nativeEvent);
+    const tool = id ? registry.get(id) : undefined;
+    if (!tool) return;
+    event.preventDefault();
+    runTool(tool);
+  };
 
   useImperativeHandle(
     handle,
@@ -98,13 +213,13 @@ function PdfEditorBody(props: BodyProps): ReactNode {
       before = after;
       if (!change) return;
       if (change.reason === "open") {
-        setAnnouncement(messages.t("editor.opened", { count: change.pageCount }));
+        announce(messages.t("editor.opened", { count: change.pageCount }));
       } else if (change.reason === "close") {
-        setAnnouncement(messages.t("editor.closed"));
+        announce(messages.t("editor.closed"));
       }
       latestOnChange.current?.(change);
     });
-  }, [session, messages]);
+  }, [session, messages, announce]);
 
   // Focus follows the content that replaced what had it: the document once
   // it opens, or the button to try again after a failure. Focus elsewhere on
@@ -168,11 +283,32 @@ function PdfEditorBody(props: BodyProps): ReactNode {
       aria-busy={status === "opening" || snapshot.busy}
       className={join("hm-pdf-editor", className, classNames.root)}
       data-hm-status={status}
+      onKeyDown={onKeyDown}
       {...(unstyled ? { "data-hm-unstyled": "" } : {})}
     >
+      <input
+        ref={input}
+        type="file"
+        accept="application/pdf,.pdf"
+        // The open tool is the control; this input only opens the picker.
+        tabIndex={-1}
+        aria-hidden="true"
+        hidden
+        onChange={(event) => {
+          const [chosen] = event.target.files ?? [];
+          event.target.value = "";
+          if (chosen) open(chosen);
+        }}
+      />
       <div className={join("hm-pdf-editor-header", classNames.header)}>
-        {/* The toolbar's place; the toolbar arrives in a later release. */}
-        <div className={join("hm-pdf-editor-toolbar", classNames.toolbar)} />
+        <PdfToolbar
+          registry={registry}
+          shortcuts={shortcuts}
+          context={context}
+          icons={icons}
+          onRun={runTool}
+          className={join("hm-pdf-editor-toolbar", classNames.toolbar)}
+        />
         {status === "ready" && showError ? (
           <p role="alert" className={join("hm-pdf-editor-alert", classNames.alert)}>
             {messages.error(error)}
@@ -189,9 +325,9 @@ function PdfEditorBody(props: BodyProps): ReactNode {
         ) : null}
       </div>
       <div className={join("hm-pdf-editor-body", classNames.body)}>{content}</div>
-      <p role="status" className="hm-pdf-editor-announcer">
-        {announcement}
-      </p>
+      <AnnouncerProvider>
+        <AnnounceBridge target={announceTo} />
+      </AnnouncerProvider>
     </div>
   );
 }
@@ -206,6 +342,13 @@ function PdfEditorBody(props: BodyProps): ReactNode {
  * reach like any other, or by dropping it on the editor. Opening and
  * closing are announced, and focus moves to the document once it opens, or
  * to the button to try again if it couldn't.
+ *
+ * Its toolbar is built from {@link pdfTools}: choose them with `tools` and
+ * arrange them with `toolbar`. Each tool's shortcut works while focus is in
+ * the editor, and undoing, redoing and rotating are announced.
+ *
+ * Load `@hussmartinez/ui/styles.css` once, before the SDK's stylesheet: the
+ * toolbar's focus rings and target sizes are in it (sdk-core ADR 0036).
  *
  * Give the editor a bounded height, such as a grid row or a fixed height:
  * its viewer and thumbnails scroll within it.
@@ -223,17 +366,25 @@ export const PdfEditor = /* @__PURE__ */ forwardRef(function PdfEditor(
   props: PdfEditorProps,
   handle: ForwardedRef<PdfEditorHandle>,
 ): ReactNode {
-  const { file, onChange, className, classNames, unstyled, ...provider } = props;
+  const { file, onChange, className, classNames, unstyled, tools, toolbar, icons, ...provider } =
+    props;
+  const locale = provider.locale ?? "en";
+  const uiText = useMemo(() => createMessages(UI_CATALOGUE, { locale }), [locale]);
   return (
     <PdfSessionProvider {...provider}>
-      <PdfEditorBody
-        handle={handle}
-        {...(file !== undefined ? { file } : {})}
-        {...(onChange ? { onChange } : {})}
-        {...(className !== undefined ? { className } : {})}
-        {...(classNames ? { classNames } : {})}
-        {...(unstyled !== undefined ? { unstyled } : {})}
-      />
+      <UiMessagesProvider messages={uiText}>
+        <PdfEditorBody
+          handle={handle}
+          {...(file !== undefined ? { file } : {})}
+          {...(onChange ? { onChange } : {})}
+          {...(className !== undefined ? { className } : {})}
+          {...(classNames ? { classNames } : {})}
+          {...(unstyled !== undefined ? { unstyled } : {})}
+          {...(tools ? { tools } : {})}
+          {...(toolbar ? { toolbar } : {})}
+          {...(icons ? { icons } : {})}
+        />
+      </UiMessagesProvider>
     </PdfSessionProvider>
   );
 });

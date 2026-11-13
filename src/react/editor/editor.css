@@ -25,11 +25,6 @@
     gap: var(--hm-pdf-editor-header-gap, var(--hm-gap-tight));
   }
 
-  /* An empty slot takes no room until the toolbar fills it. */
-  .hm-pdf-editor-toolbar:empty {
-    display: none;
-  }
-
   .hm-pdf-editor-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -39,12 +34,13 @@
   /*
    * A missing token makes a whole declaration invalid, so layout reads its
    * semantic tokens with a percentage fallback: without ui's stylesheet the
-   * editor loses its looks, never its layout. The sidebar is then a fifth of
-   * the editor's width.
+   * editor loses its looks, never its layout. The sidebar is five control
+   * heights wide, so it follows ui's density, from about 140 to 220 pixels;
+   * without ui it's a fifth of the editor's width.
    */
   .hm-pdf-editor[data-hm-status="ready"] .hm-pdf-editor-body {
     grid-template-columns:
-      var(--hm-pdf-editor-sidebar-width, calc(var(--hm-target-size, 5%) * 4))
+      var(--hm-pdf-editor-sidebar-width, calc(var(--hm-control-height, 4%) * 5))
       minmax(0, 1fr);
   }
 
