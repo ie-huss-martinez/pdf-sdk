@@ -53,7 +53,7 @@ interface Owned {
  * Creates what the provider owns. Nothing touches the DOM until a document
  * opens, so this is safe during server rendering (ADR 0007).
  */
-function own(props: PdfSessionProviderProps): Owned {
+function own(props: PdfSessionSource): Owned {
   const assets = props.assetsUrl === undefined ? {} : { assetsUrl: props.assetsUrl };
   const engine = props.engine ?? createPdfJsEngine(assets);
   const processor = props.processor ?? createPdfProcessor(assets);
@@ -74,23 +74,17 @@ function own(props: PdfSessionProviderProps): Owned {
   };
 }
 
+/** What {@link useProvidedSession} reads: the provider's session props. */
+export type PdfSessionSource = Omit<PdfSessionProviderProps, "messages" | "locale" | "children">;
+
 /**
- * Makes a PDF session and the SDK's text available to the components and
- * hooks below it, such as `PdfViewer` and `usePdfDocument` (ADR 0008).
- *
- * @example
- * ```tsx
- * <PdfSessionProvider locale="de" messages={{ "viewer.empty": "Kein Dokument geöffnet." }}>
- *   <PdfViewer />
- * </PdfSessionProvider>
- * ```
- *
- * @public
+ * The session a provider gives its components: the one passed in, or one it
+ * creates from the options and releases when it unmounts. Shared by
+ * `PdfSessionProvider` and `PdfEditor`, which builds its own messages.
  */
-export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode {
-  const { session: given, messages: overrides, locale = "en", children } = props;
+export function useProvidedSession(props: PdfSessionSource): PdfSession {
+  const given = props.session;
   const [owned] = useState(() => (given ? undefined : own(props)));
-  const session = given ?? (owned as Owned).session;
 
   useEffect(() => {
     if (!owned) return;
@@ -106,12 +100,33 @@ export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode {
     };
   }, [owned]);
 
+  return given ?? (owned as Owned).session;
+}
+
+/**
+ * Makes a PDF session and the SDK's text available to the components and
+ * hooks below it, such as `PdfViewer` and `usePdfDocument` (ADR 0008).
+ *
+ * @example
+ * ```tsx
+ * <PdfSessionProvider locale="de" messages={{ "viewer.empty": "Kein Dokument geöffnet." }}>
+ *   <PdfViewer />
+ * </PdfSessionProvider>
+ * ```
+ *
+ * @public
+ */
+export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode {
+  const { messages: overrides, locale = "en", children } = props;
+  const session = useProvidedSession(props);
   const messages = useMemo(
     () =>
       createMessages(pdfMessages, {
         locale,
         // Overrides are typed for hosts that write them as literals; at
         // runtime createMessages validates them and ignores what doesn't fit.
+        // sdk-core 0.4.1 accepts them without this cast; it goes once ui
+        // depends on sdk-core 0.4, so an application keeps one copy.
         ...(overrides ? { overrides: overrides as never } : {}),
       }),
     [locale, overrides],
