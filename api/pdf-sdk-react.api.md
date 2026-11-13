@@ -25,9 +25,12 @@ export interface PdfEditorChange {
 // @public
 export interface PdfEditorHandle {
     close(): Promise<void>;
+    // Warning: (ae-forgotten-export) The symbol "PdfExportOptions" needs to be exported by the entry point react.d.ts
     export(options?: PdfExportOptions): Promise<Uint8Array>;
+    // Warning: (ae-forgotten-export) The symbol "PdfBytes" needs to be exported by the entry point react.d.ts
     open(file: Blob | PdfBytes): Promise<void>;
     redo(): void;
+    // Warning: (ae-forgotten-export) The symbol "PdfSession" needs to be exported by the entry point react.d.ts
     readonly session: PdfSession;
     undo(): void;
 }
@@ -51,11 +54,16 @@ export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode;
 export interface PdfSessionProviderProps {
     readonly assetsUrl?: string | URL;
     readonly children?: ReactNode;
+    // Warning: (ae-forgotten-export) The symbol "PdfEngine" needs to be exported by the entry point react.d.ts
     readonly engine?: PdfEngine;
+    // Warning: (ae-forgotten-export) The symbol "PdfFilePolicyOverrides" needs to be exported by the entry point react.d.ts
     readonly filePolicy?: PdfFilePolicyOverrides;
     readonly locale?: string;
+    // Warning: (ae-forgotten-export) The symbol "PdfMessageCatalogue" needs to be exported by the entry point react.d.ts
     readonly messages?: MessageOverrides<PdfMessageCatalogue>;
+    // Warning: (ae-forgotten-export) The symbol "PdfSessionEvent" needs to be exported by the entry point react.d.ts
     readonly onEvent?: (event: PdfSessionEvent) => void;
+    // Warning: (ae-forgotten-export) The symbol "PdfProcessor" needs to be exported by the entry point react.d.ts
     readonly processor?: PdfProcessor;
     readonly session?: PdfSession;
 }
@@ -92,6 +100,8 @@ export interface PdfViewerProps {
     readonly zoom?: number;
 }
 
+// Warning: (ae-forgotten-export) The symbol "PdfSessionSnapshot" needs to be exported by the entry point react.d.ts
+//
 // @public
 export function usePdfDocument(): PdfSessionSnapshot;
 
