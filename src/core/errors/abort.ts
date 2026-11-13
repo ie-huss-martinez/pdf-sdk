@@ -1,5 +1,14 @@
-import { isSdkError } from "@hussmartinez/sdk-core";
+import { createErrorHelpers } from "@hussmartinez/sdk-core";
 import { PdfError } from "./pdf-error.js";
+
+/**
+ * The family's error helpers, bound to `PdfError` (sdk-core ADR 0034), so
+ * every port and the session make failures `PdfError`s the same way.
+ */
+const helpers = /* @__PURE__ */ createErrorHelpers(PdfError, {
+  fallbackCode: "PROCESSING_FAILED",
+  fallbackMessage: "PDF processing failed.",
+});
 
 /**
  * Makes any failure a `PdfError`, as every port promises: a `PdfError` as
@@ -9,18 +18,7 @@ import { PdfError } from "./pdf-error.js";
  *
  * @internal
  */
-export function asPdfError(reason: unknown, message = "PDF processing failed."): PdfError {
-  if (reason instanceof PdfError) {
-    return reason;
-  }
-  if (isSdkError(reason)) {
-    return new PdfError(reason.code as never, reason.message, {
-      ...(reason.details === undefined ? {} : { details: reason.details }),
-      cause: reason,
-    });
-  }
-  return new PdfError("PROCESSING_FAILED", message, { cause: reason });
-}
+export const asPdfError: (reason: unknown, message?: string) => PdfError = helpers.adapt;
 
 /**
  * The error an aborted call rejects with, as the family's worker client does
@@ -30,29 +28,11 @@ export function asPdfError(reason: unknown, message = "PDF processing failed."):
  *
  * @internal
  */
-export function abortError(signal: AbortSignal): PdfError {
-  const { reason } = signal;
-  if (reason instanceof PdfError) {
-    return reason;
-  }
-  if (isSdkError(reason)) {
-    return asPdfError(reason);
-  }
-  const timedOut = reason instanceof DOMException && reason.name === "TimeoutError";
-  return new PdfError(
-    timedOut ? "TIMEOUT" : "ABORTED",
-    timedOut ? "The operation timed out." : "The operation was cancelled.",
-    { cause: reason },
-  );
-}
+export const abortError: (signal: AbortSignal) => PdfError = helpers.abortError;
 
 /**
  * Throws {@link abortError} if the signal has been aborted.
  *
  * @internal
  */
-export function throwIfAborted(signal: AbortSignal | undefined): void {
-  if (signal?.aborted) {
-    throw abortError(signal);
-  }
-}
+export const throwIfAborted: (signal: AbortSignal | undefined) => void = helpers.throwIfAborted;
