@@ -150,3 +150,54 @@ export function assetHungryPdf(): Uint8Array {
     ),
   ]);
 }
+
+/**
+ * A 16 by 16 JPEG 2000 codestream in four 8 by 8 quadrants: red top left,
+ * green top right, blue bottom left and yellow bottom right. Lossless, so it
+ * decodes to exactly these colours. Made with OpenJPEG through ffmpeg:
+ *
+ * ```sh
+ * # quad.rgb: the 768 bytes of RGB pixels above, row by row
+ * ffmpeg -f rawvideo -pix_fmt rgb24 -s 16x16 -i quad.rgb -frames:v 1 \
+ *   -c:v libopenjpeg -format j2k -numresolution 3 -compression_level 0 quad.j2k
+ * ```
+ *
+ * SHA-256 b6152751858b287e542cc3a5d27d907acd17dfeb8f2e7d9d836a6dbbe6bf2eca.
+ */
+const JPX_QUADRANTS =
+  "/0//UQAvAAAAAAAQAAAAEAAAAAAAAAAAAAAAEAAAABAAAAAAAAAAAAADBwEBBwEBBwEB/1IADAAAAAEAAgQEAAH/XAAKQEBISFBISFD/ZAAlAAFDcmVhdGVkIGJ5IE9wZW5KUEVHIHZlcnNpb24gMi41LjD/kAAKAAAAAADvAAH/k9+AoA7JGZR4dE2+pDnwOU8wHgUB56lP34CQEU+FIduqXv637FZRs4yJbXV/34CQEMxN55ARFRuKhFo4nV2/xfEHz8AufgFx+AQAF7EfSUyFSFDCH38PFBHZtXUWY9X7fxawbJAFMMBfz8AkFyyoiTomFletz8AifgEw+0HAGeUKg7v0kqUMZt9Ovna8NiAWBGqQBTDLz8AyfgGR+AKAIhkFUB9TZC78NAgPA3rbEeP3ooxWEeF/JCxO/3/H2ggAIW4H+s/AHn4BUH1AgEnN2y7IEp8k3OPPNQ/SzDVfJNyvf//Z";
+
+/** The colours of {@link jpxPdf}'s image, by quadrant, as RGB. */
+export const JPX_COLOURS = {
+  topLeft: [255, 0, 0],
+  topRight: [0, 255, 0],
+  bottomLeft: [0, 0, 255],
+  bottomRight: [255, 255, 0],
+} as const;
+
+/**
+ * Where {@link jpxPdf} draws its image: a square on a US Letter page, as
+ * fractions of the page's width and height from its top-left corner.
+ */
+export const JPX_IMAGE = { x: 72 / 612, y: 92 / 792, width: 400 / 612, height: 400 / 792 } as const;
+
+/**
+ * One US Letter page with a real JPEG 2000 image, which pdf.js decodes with
+ * OpenJPEG's WebAssembly: the decoder the SDK serves itself, inline or
+ * self-hosted, never from a CDN. Unlike {@link assetHungryPdf}'s, this
+ * image is valid, so the decoder really loads and runs.
+ */
+export function jpxPdf(): Uint8Array {
+  const image = Uint8Array.from(atob(JPX_QUADRANTS), (char) => char.charCodeAt(0));
+  const content = new TextEncoder().encode(
+    ["BT /F1 18 Tf 72 720 Td (JPEG 2000) Tj ET", "q 400 0 0 400 72 300 cm /Im1 Do Q"].join("\n"),
+  );
+  return rawPdf([
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> /XObject << /Im1 6 0 R >> >> >>",
+    stream("", content),
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    stream("/Type /XObject /Subtype /Image /Width 16 /Height 16 /Filter /JPXDecode", image),
+  ]);
+}

@@ -1,11 +1,18 @@
 # The repository root is the published package, @hussmartinez/pdf-sdk, as in
-# the family's standard layout. The examples and the end-to-end suite join the
-# workspace when they're added.
+# the family's standard layout. The examples consume its built output as
+# hosts do, and the end-to-end suite runs against them (ADR 0039 in sdk-core).
+packages:
+  # The root, the published package, listed so that tools reading this list,
+  # such as Changesets, still find it.
+  - "."
+  - examples/*
+  - e2e
 
 # One version of each tool for the whole workspace. Packages refer to these
 # with `catalog:`, and pnpm writes the real ranges into published manifests.
 catalog:
   "@arethetypeswrong/cli": ^0.18.5
+  "@axe-core/playwright": ^4.14.0
   "@biomejs/biome": ^2.6.5
   # Bundled engines are pinned exactly, and upgraded one per pull request
   # with their contract and fixture tests (docs/adr/0001).
@@ -17,6 +24,7 @@ catalog:
   "@hussmartinez/sdk-core": ^0.3.0
   "@hussmartinez/ui": ^0.3.0
   "@microsoft/api-extractor": ^7.60.1
+  "@playwright/test": ^1.64.1
   "@size-limit/file": ^14.3.0
   "@types/node": ^24.19.2
   "@types/react": ^19.3.0
@@ -25,6 +33,7 @@ catalog:
   dependency-cruiser: ^18.7.2
   husky: ^9.1.7
   lint-staged: ^17.6.0
+  next: ^16.4.0
   pdfjs-dist: 6.5.438
   pdfstudio: 0.4.0
   playwright: ^1.64.1
@@ -40,7 +49,9 @@ catalog:
 
 # Supply-chain hardening (ADR 0012).
 # Dependency install scripts are blocked unless allowlisted here.
-allowBuilds: {}
+allowBuilds:
+  # Next.js's optional image optimiser; the examples don't use next/image.
+  sharp: false
 # Fail the install when an unapproved package wants to run a build script.
 strictDepBuilds: true
 # Don't resolve versions published less than a day ago, except the family's

@@ -1,0 +1,26 @@
+{
+  "name": "@hussmartinez/pdf-sdk-example-vite",
+  "private": true,
+  "description": "A Vite React page that uses the built @hussmartinez/pdf-sdk editor, with inlined and with self-hosted assets, each under the Content Security Policy the README gives, for the end-to-end tests.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "start": "vite preview --port 4320 --strictPort"
+  },
+  "dependencies": {
+    "@hussmartinez/pdf-sdk": "workspace:*",
+    "@hussmartinez/ui": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@hussmartinez/sdk-config": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}
