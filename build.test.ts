@@ -215,6 +215,34 @@ describe("the pdf.js assets (docs/adr/0002, docs/adr/0006)", () => {
   });
 });
 
+/**
+ * The runs of base64 characters at least `minimum` long, found in one pass.
+ * A regular expression such as `/[A-Za-z0-9+/=]{1000000,}/` backtracks: it
+ * rescans each shorter run from every position in it, which takes seconds
+ * on a worker of several megabytes.
+ */
+function base64Runs(code: string, minimum: number): string[] {
+  const runs: string[] = [];
+  let start = -1;
+  for (let index = 0; index <= code.length; index += 1) {
+    const char = code.charCodeAt(index);
+    const base64 =
+      (char >= 0x30 && char <= 0x39) ||
+      (char >= 0x41 && char <= 0x5a) ||
+      (char >= 0x61 && char <= 0x7a) ||
+      char === 0x2b ||
+      char === 0x2f ||
+      char === 0x3d;
+    if (base64) {
+      if (start < 0) start = index;
+    } else if (start >= 0) {
+      if (index - start >= minimum) runs.push(code.slice(start, index));
+      start = -1;
+    }
+  }
+  return runs;
+}
+
 describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
   const workers = files.filter(
     (file): file is Rolldown.OutputChunk =>
@@ -224,9 +252,9 @@ describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
 
   it("inlines qpdf.wasm once, and only the reviewed binary", () => {
     expect(processing, "the processing worker chunk").toBeDefined();
-    const blobs = [...(processing?.code ?? "").matchAll(/[A-Za-z0-9+/=]{1000000,}/g)];
+    const blobs = base64Runs(processing?.code ?? "", 1_000_000);
     expect(blobs).toHaveLength(1);
-    const bytes = Buffer.from(blobs[0]?.[0] ?? "", "base64");
+    const bytes = Buffer.from(blobs[0] ?? "", "base64");
     expect(createHash("sha256").update(bytes).digest("hex")).toBe(QPDF_WASM_SHA256);
   });
 
@@ -248,7 +276,7 @@ describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
     expect(wasm?.type).toBe("asset");
     const code = String(worker?.type === "asset" ? worker.source : "");
     expect(code).toContain(QPDF_WASM_SHA256);
-    expect(code).not.toMatch(/[A-Za-z0-9+/=]{100000,}/);
+    expect(base64Runs(code, 100_000)).toEqual([]);
     expect(code).not.toMatch(CODE_GENERATION);
     expect(code.split("\n").length).toBeLessThan(100);
     const bytes = wasm?.type === "asset" ? Buffer.from(wasm.source) : Buffer.alloc(0);
