@@ -95,4 +95,21 @@ describe("the qpdf processor with self-hosted assets (docs/adr/0007)", () => {
     );
     await processor.destroy();
   });
+
+  it("refuses a worker from another version of the package, naming it (sdk-core ADR 0038)", async () => {
+    // A host that upgraded without copying dist/assets/ again serves this.
+    const assetsUrl = new URL("/hm-test-assets-stale/", location.href).href;
+    const processor = createPdfProcessor({ assetsUrl });
+    await expect(processor.build(await job())).rejects.toSatisfy(
+      (error) =>
+        isPdfError(error, "WORKER_START_FAILED") &&
+        JSON.stringify(error.details) ===
+          JSON.stringify({
+            asset: `${assetsUrl}processing/processing.worker.js`,
+            expected: __PDF_SDK_VERSION__,
+            actual: "0.0.0-stale",
+          }),
+    );
+    await processor.destroy();
+  });
 });

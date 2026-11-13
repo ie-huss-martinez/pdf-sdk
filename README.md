@@ -70,7 +70,9 @@ The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib
 - **Inline** for the simplest setup. Most documents use RGB or grey and look the same in both modes.
 - **Self-hosted** if your Content Security Policy doesn't allow `blob:` workers, or if print colour must be accurate, for example for proofs and CMYK artwork.
 
-**In self-hosted mode, copy the whole directory again whenever you upgrade the package.** pdf.js requires its worker to be the same version as the code that uses it, and the processing worker refuses a `qpdf.wasm` from another version, with `WORKER_START_FAILED`.
+**In self-hosted mode, copy the whole directory again whenever you upgrade the package.** A worker left over from another version is refused with `WORKER_START_FAILED`, whose `details` name the file and both versions, `{ asset, expected, actual }`: the processing worker checks the package's version, pdf.js checks its own, and the processing worker also refuses a `qpdf.wasm` from another version.
+
+`assetsUrl` can be absolute or relative to the page. A relative URL needs a page, so on a server, such as during server rendering, pass an absolute one, or create the engine and processor in the browser. A URL with a query or a fragment is refused too, because the files resolved from it would lose them. Both fail with `TypeError` when you create the engine or processor, not on the first document.
 
 ## Development
 

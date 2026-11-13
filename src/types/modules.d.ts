@@ -2,6 +2,9 @@
 // here rather than through vite/client, so the library doesn't see Vite's
 // or Node's global types.
 
+/** The package version, defined at build time (tools/package-version.ts, sdk-core ADR 0038). */
+declare const __PDF_SDK_VERSION__: string;
+
 /** A worker that Vite inlines into the build as a blob (ADR 0002). */
 declare module "*?worker&inline" {
   const InlineWorker: new (options?: { readonly name?: string }) => Worker;

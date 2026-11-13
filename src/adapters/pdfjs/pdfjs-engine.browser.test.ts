@@ -41,6 +41,19 @@ describe("the pdf.js engine", () => {
     expect(document.pageCount).toBe(2);
   });
 
+  it("refuses a self-hosted pdf.js worker from another pdf.js version, naming it (sdk-core ADR 0038)", async () => {
+    // A host that upgraded without copying dist/assets/ again serves this.
+    const assetsUrl = new URL("/hm-test-assets-stale/", location.href).href;
+    const engine = track(createPdfJsEngine({ assetsUrl }));
+    const failure = await engine.open(await reportPdf()).catch((error: unknown) => error);
+    expect(isPdfError(failure, "WORKER_START_FAILED")).toBe(true);
+    expect((failure as { details?: unknown }).details).toEqual({
+      asset: `${assetsUrl}pdfjs/build/pdf.worker.min.mjs`,
+      expected: expect.stringMatching(/^\d+\.\d+\.\d+$/),
+      actual: "0.0.0-stale",
+    });
+  });
+
   it("fails pending work with WORKER_CRASHED when the worker crashes", async () => {
     const engine = track(createPdfJsEngine({ assetsUrl: "/test/fixtures/crashing-assets/" }));
     await expect(engine.open(await reportPdf())).rejects.toSatisfy((error) =>

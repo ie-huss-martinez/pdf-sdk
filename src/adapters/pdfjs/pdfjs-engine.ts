@@ -1,3 +1,4 @@
+import { resolveAssetsBase } from "@hussmartinez/sdk-core";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, PDFWorker } from "pdfjs-dist";
 import { abortError, throwIfAborted } from "../../core/errors/abort.js";
 import { PdfError } from "../../core/errors/pdf-error.js";
@@ -20,7 +21,6 @@ import {
   type PdfEngine,
   type PdfRenderOptions,
 } from "../../core/ports/pdf-engine.js";
-import { assetsBase } from "../assets-url.js";
 import { createInlineDataFactory, NO_NETWORK_URL } from "./binary-data.js";
 import { fromPdfJsError } from "./errors.js";
 
@@ -193,6 +193,31 @@ function settle<Value>(
   });
 }
 
+const VERSION_MISMATCH = /The API version "([^"]+)" does not match the Worker version "([^"]+)"/;
+
+/**
+ * pdf.js refuses a worker from another pdf.js version, such as a self-hosted
+ * copy left over from before an upgrade. That's a start failure, not a
+ * problem with the document, so it's reported as one, with the same details
+ * as sdk-core's worker client gives (sdk-core ADR 0038).
+ */
+function workerVersionMismatch(error: unknown, base: string | undefined): PdfError | undefined {
+  for (let reason = error; reason instanceof Error; reason = reason.cause) {
+    const match = VERSION_MISMATCH.exec(reason.message);
+    if (match) {
+      return new PdfError("WORKER_START_FAILED", "The PDF render worker is another version.", {
+        details: {
+          asset: base === undefined ? null : `${base}build/pdf.worker.min.mjs`,
+          expected: match[1] ?? null,
+          actual: match[2] ?? null,
+        },
+        cause: error,
+      });
+    }
+  }
+  return undefined;
+}
+
 /** pdf.js transfers the bytes it's given, so it gets a copy unless the caller transfers. */
 function takeBytes(source: PdfBytes, transfer: boolean | undefined): Uint8Array {
   if (transfer) {
@@ -211,6 +236,8 @@ const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 class PdfJsEngine implements PdfEngine {
   #options: PdfJsEngineOptions;
+  /** pdf.js's directory under `assetsUrl`, if it's set. */
+  readonly #pdfJsBase: string | undefined;
   #runtime: Promise<PdfJs> | undefined;
   #host: WorkerHost | undefined;
   #documents = new Set<PdfJsDocument>();
@@ -218,6 +245,11 @@ class PdfJsEngine implements PdfEngine {
 
   constructor(options: PdfJsEngineOptions) {
     this.#options = options;
+    // Resolved now, so a URL that can't be, such as a relative one during
+    // server rendering, throws TypeError here rather than on the first open
+    // (sdk-core ADR 0038).
+    this.#pdfJsBase =
+      options.assetsUrl === undefined ? undefined : `${resolveAssetsBase(options.assetsUrl)}pdfjs/`;
   }
 
   async open(source: PdfBytes, options: PdfTransferOptions = {}): Promise<PdfDocumentHandle> {
@@ -272,6 +304,12 @@ class PdfJsEngine implements PdfEngine {
       return document;
     } catch (error) {
       void task.destroy().catch(() => {});
+      const mismatch = workerVersionMismatch(error, base);
+      if (mismatch) {
+        // The worker is unusable; the next open starts a new one.
+        host.fail(mismatch);
+        throw mismatch;
+      }
       throw error;
     }
   }
@@ -303,8 +341,7 @@ class PdfJsEngine implements PdfEngine {
 
   /** pdf.js's directory under `assetsUrl`, if it's set. */
   #assetsBase(): string | undefined {
-    const base = assetsBase(this.#options.assetsUrl);
-    return base === undefined ? undefined : `${base}pdfjs/`;
+    return this.#pdfJsBase;
   }
 
   /** Stops a cancelled open, and terminates the worker if pdf.js doesn't stop in time. */

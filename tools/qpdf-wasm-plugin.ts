@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { build, type Plugin, type Rolldown } from "vite";
+import { PACKAGE_VERSION, versionDefine } from "./package-version.js";
 
 /**
  * The SHA-256 of the `qpdf.wasm` that `pdfstudio` ships, at the pinned
@@ -88,12 +89,12 @@ const SELF_HOSTED_ENTRY = fileURLToPath(
  * everything bundled and qpdf.wasm left out: the worker fetches it from its
  * own directory and checks its hash (docs/adr/0007).
  */
-export async function buildSelfHostedWorker(): Promise<string> {
+export async function buildSelfHostedWorker(version = PACKAGE_VERSION): Promise<string> {
   const result = await build({
     configFile: false,
     logLevel: "silent",
     plugins: [qpdfWasm()],
-    define: { "process.env.NODE_ENV": JSON.stringify("production") },
+    define: { ...versionDefine(version), "process.env.NODE_ENV": JSON.stringify("production") },
     build: {
       write: false,
       minify: true,
