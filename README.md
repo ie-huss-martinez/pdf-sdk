@@ -24,9 +24,11 @@ const bytes = await editor.current?.export();
 
 **Styles: ui's stylesheet is required.** Import `@hussmartinez/ui/styles.css` once in your application, before `@hussmartinez/pdf-sdk/styles.css`, as above. The editor's toolbar is built from [`@hussmartinez/ui`](https://www.npmjs.com/package/@hussmartinez/ui)'s components, and their focus rings and minimum target sizes are in ui's stylesheet, along with the design tokens, themes and density ([sdk-core ADR 0036](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0036-ui-as-a-dependency-of-the-sdks.md)). The SDK's stylesheet never includes it, so a page with several SDKs loads it once. Every value is also a `--hm-pdf-*` property you can set on any ancestor.
 
-**One copy of ui.** The SDK depends on `@hussmartinez/ui` `^0.3.0`. If your application uses ui itself, depend on the same minor version, and check that `npm ls @hussmartinez/ui` lists one version: a second copy doesn't share providers with the first, so text falls back to English and announcements are lost.
+**One copy of ui.** The SDK depends on `@hussmartinez/ui` `^0.5.0`. If your application uses ui itself, depend on the same minor version, and check that `npm ls @hussmartinez/ui` lists one version: a second copy doesn't share providers with the first, so text falls back to English and announcements are lost.
 
 **A bounded height.** `PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own.
+
+**Text.** `messages` overrides any text the editor shows, by key, including ui's, such as `"spinner.label"`. The editor builds one set of text from them and your `locale`, for its own components and for ui's ([sdk-core ADR 0046](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0046-ui-text-through-the-sdk.md)). `pdfEditorMessages` is the English catalogue, and `MessageOverrides<PdfEditorMessageCatalogue>` types your overrides.
 
 `file` opens a document, and a different one replaces it; `null` closes it. Users can also open one with the editor's button or by dropping it on the editor. `onChange` reports each `open`, `edit` and `close`, and the ref's `PdfEditorHandle` exports, undoes, redoes and closes.
 

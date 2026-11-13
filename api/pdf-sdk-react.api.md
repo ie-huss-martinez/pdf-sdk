@@ -40,14 +40,130 @@ export interface PdfEditorHandle {
 }
 
 // @public
+export type PdfEditorMessageCatalogue = typeof pdfEditorMessages;
+
+// @public
+export const pdfEditorMessages: {
+    readonly "dialog.close": "Close";
+    readonly "fileDropZone.choose": "Choose a file";
+    readonly "fileDropZone.chooseMultiple": "Choose files";
+    readonly "fileDropZone.hint": "or drop it here";
+    readonly "fileDropZone.hintMultiple": "or drop them here";
+    readonly "progress.label": "Progress";
+    readonly "spinner.label": "Loading";
+    readonly "errors.INVALID_THEME_TOKEN": "The theme setting {token} has a value that can't be used.";
+    readonly "errors.INVALID_THEME_SELECTOR": "The theme can't be applied to the selector {selector}.";
+    readonly "errors.INVALID_PDF": "This file isn't a PDF, or it's too damaged to open.";
+    readonly "errors.PASSWORD_REQUIRED": "This PDF is protected with a password.";
+    readonly "errors.PROCESSING_FAILED": "Something went wrong while processing this PDF. Please try again.";
+    readonly "errors.TOO_MANY_PAGES": "This document has {actual, number} pages, which is over the {maximum, number}-page limit.";
+    readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
+    readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
+    readonly "warnings.maxPages": {
+        readonly $plural: "actual";
+    } & {
+        readonly one: "This document has {actual} page. Large documents may be slow.";
+        readonly other: "This document has {actual} pages. Large documents may be slow.";
+    };
+    readonly "warnings.maxSessionSize": "The open documents use {actual, fileSize}. Clearing the undo history frees memory.";
+    readonly "warnings.maxImagePixels": "Some images are very large and may be slow to show.";
+    readonly "viewer.label": "Document";
+    readonly "viewer.empty": "No document is open.";
+    readonly "viewer.page": "Page {page} of {count}";
+    readonly "viewer.webLink": "Link to {destination}, opens in a new tab";
+    readonly "viewer.emailLink": "Email {destination}";
+    readonly "thumbnails.label": "Pages";
+    readonly "thumbnails.page": "Page {page} of {count}";
+    readonly "thumbnails.number": "{page}";
+    readonly "editor.label": "PDF editor";
+    readonly "editor.start.title": "Open a PDF to get started";
+    readonly "editor.start.retryTitle": "Try another PDF";
+    readonly "editor.start.choose": "Choose a PDF";
+    readonly "editor.start.retry": "Choose another PDF";
+    readonly "editor.start.hint": "Or drop one here. Your file stays on this device and is never uploaded.";
+    readonly "editor.opening": "Opening the PDF…";
+    readonly "editor.opened": {
+        readonly $plural: "count";
+    } & {
+        readonly one: "Opened a PDF with {count} page.";
+        readonly other: "Opened a PDF with {count} pages.";
+    };
+    readonly "editor.closed": "The PDF was closed.";
+    readonly "editor.undone": "Undone.";
+    readonly "editor.redone": "Redone.";
+    readonly "editor.rotated": {
+        readonly $plural: "count";
+    } & {
+        readonly one: "Rotated {count} page.";
+        readonly other: "Rotated {count} pages.";
+    };
+    readonly "toolbar.label": "PDF tools";
+    readonly "toolbar.groups.file": "File";
+    readonly "toolbar.groups.history": "History";
+    readonly "toolbar.groups.pages": "Pages";
+    readonly "toolbar.groups.other": "More tools";
+    readonly "tools.open": "Open a PDF";
+    readonly "tools.undo": "Undo";
+    readonly "tools.redo": "Redo";
+    readonly "tools.rotate-left": "Rotate left";
+    readonly "tools.rotate-right": "Rotate right";
+    readonly "errors.UNKNOWN": "Something went wrong. Please try again.";
+    readonly "errors.ABORTED": "The operation was cancelled.";
+    readonly "errors.TIMEOUT": "The operation took too long and was stopped.";
+    readonly "errors.WORKER_START_FAILED": "The file processor couldn't start. Reload the page and try again.";
+    readonly "errors.WORKER_PROTOCOL_MISMATCH": "The file processor is out of date. Reload the page to update it.";
+    readonly "errors.WORKER_CRASHED": "The file processor stopped unexpectedly. Please try again.";
+    readonly "errors.WORKER_TERMINATED": "The operation was stopped before it finished. Please try again.";
+    readonly "errors.WORKER_METHOD_NOT_FOUND": "This operation isn't available. Reload the page and try again.";
+    readonly "errors.WORKER_DATA_NOT_CLONEABLE": "Something went wrong while processing the file. Please try again.";
+    readonly "errors.UNSUPPORTED_ENVIRONMENT": "This browser doesn't support a feature this tool needs. Update your browser, or try another one.";
+    readonly "errors.FILE_TOO_LARGE": "This file is {actual, fileSize}, which is over the {maximum, fileSize} limit.";
+    readonly "errors.TOO_MANY_FILES": {
+        readonly $plural: "maximum";
+    } & {
+        readonly one: "You can add {maximum} file at a time.";
+        readonly other: "You can add up to {maximum} files at a time.";
+    };
+    readonly "errors.DECODED_SIZE_TOO_LARGE": "This file expands to more than {maximum, fileSize} when opened, which is over the limit.";
+    readonly "errors.PROCESSING_TIME_EXCEEDED": "Processing this file took too long and was stopped.";
+    readonly "warnings.maxFileSize": "This file is {actual, fileSize}. Large files may be slow to process.";
+    readonly "warnings.maxFiles": "Adding {actual} files at once may be slow.";
+    readonly "warnings.maxDecodedSize": "This file is very large once opened and may be slow to process.";
+    readonly "warnings.maxProcessingTime": "This is taking longer than usual.";
+    readonly "keys.control": "Ctrl";
+    readonly "keys.alt": "Alt";
+    readonly "keys.shift": "Shift";
+    readonly "keys.meta": "Meta";
+    readonly "keys.apple.control": "\u2303";
+    readonly "keys.apple.alt": "\u2325";
+    readonly "keys.apple.shift": "\u21E7";
+    readonly "keys.apple.meta": "\u2318";
+    readonly "keys.space": "Space";
+    readonly "keys.enter": "Enter";
+    readonly "keys.escape": "Esc";
+    readonly "keys.tab": "Tab";
+    readonly "keys.delete": "Delete";
+    readonly "keys.backspace": "Backspace";
+    readonly "keys.arrowUp": "\u2191";
+    readonly "keys.arrowDown": "\u2193";
+    readonly "keys.arrowLeft": "\u2190";
+    readonly "keys.arrowRight": "\u2192";
+    readonly "keys.home": "Home";
+    readonly "keys.end": "End";
+    readonly "keys.pageUp": "Page Up";
+    readonly "keys.pageDown": "Page Down";
+};
+
+// @public
 export type PdfEditorPart = "root" | "header" | "toolbar" | "body" | "sidebar" | "start" | "status" | "alert";
 
 // @public
-export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"> {
+export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children" | "messages"> {
     readonly className?: string;
     readonly classNames?: Readonly<Partial<Record<PdfEditorPart, string>>>;
     readonly file?: Blob | PdfBytes | null;
     readonly icons?: Readonly<Record<string, IconComponent>>;
+    readonly messages?: MessageOverrides<PdfEditorMessageCatalogue>;
     readonly onChange?: (change: PdfEditorChange) => void;
     readonly toolbar?: readonly (readonly string[])[];
     readonly tools?: readonly string[];

@@ -1,6 +1,8 @@
+import type { MessageOverrides } from "@hussmartinez/sdk-core";
 import type { IconComponent } from "@hussmartinez/ui/react";
 import type { PdfBytes } from "../../core/model/document.js";
 import type { PdfExportOptions, PdfSession } from "../../core/session/session.js";
+import type { PdfEditorMessageCatalogue } from "../editor-messages.js";
 import type { PdfSessionProviderProps } from "../PdfSessionProvider.js";
 
 /**
@@ -41,7 +43,12 @@ export interface PdfEditorChange {
  *
  * @public
  */
-export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"> {
+export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children" | "messages"> {
+  /**
+   * Text overrides, typed against the editor's English catalogue, which
+   * includes ui's text for the ui components it renders (sdk-core ADR 0046).
+   */
+  readonly messages?: MessageOverrides<PdfEditorMessageCatalogue>;
   /**
    * A document to open. The editor opens it on mount, and again whenever a
    * different file or buffer is passed; `null` closes the document. Files

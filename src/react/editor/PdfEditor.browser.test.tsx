@@ -1,3 +1,4 @@
+import { useUiMessages } from "@hussmartinez/ui/react";
 import { act, createRef, type ReactNode, type RefObject, useState } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
@@ -115,6 +116,11 @@ const announced = async (container: HTMLElement, text: string) => {
 /** A host's icon, for the icons prop. */
 function Star() {
   return <svg data-testid="star" />;
+}
+
+/** A host's icon that shows ui's text, as ui's components read it. */
+function Labelled() {
+  return <svg data-testid="labelled" aria-label={useUiMessages().t("spinner.label")} />;
 }
 
 describe("PdfEditor", () => {
@@ -478,6 +484,19 @@ describe("PdfEditor", () => {
       const container = await mounted;
       expect(tool(container, "pdf.undo").querySelector('[data-testid="star"]')).not.toBeNull();
     });
+  });
+
+  it("gives its own components and ui's one set of text, with the host's overrides (sdk-core ADR 0046)", async () => {
+    const { mounted } = setUp({
+      icons: { undo: Labelled },
+      locale: "de",
+      messages: { "editor.start.choose": "PDF auswählen", "spinner.label": "Wird geladen" },
+    });
+    const container = await mounted;
+    expect(button(container)?.textContent).toBe("PDF auswählen");
+    expect(container.querySelector('[data-testid="labelled"]')?.getAttribute("aria-label")).toBe(
+      "Wird geladen",
+    );
   });
 
   it("renders on a server and hydrates without warnings (ADR 0007)", async () => {

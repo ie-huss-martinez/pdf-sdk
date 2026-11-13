@@ -20,6 +20,8 @@ export type {
   PdfEditorPart,
   PdfEditorProps,
 } from "./react/editor/types.js";
+export type { PdfEditorMessageCatalogue } from "./react/editor-messages.js";
+export { pdfEditorMessages } from "./react/editor-messages.js";
 export { usePdfDocument, usePdfMessages, usePdfSession } from "./react/hooks.js";
 export type { PdfSessionProviderProps } from "./react/PdfSessionProvider.js";
 export { PdfSessionProvider } from "./react/PdfSessionProvider.js";

@@ -2,16 +2,14 @@ import {
   createMessages,
   createShortcutRegistry,
   createToolRegistry,
-  defineMessages,
   type Messages,
-  sdkCoreMessages,
 } from "@hussmartinez/sdk-core";
 import {
   type Announce,
   AnnouncerProvider,
   UiMessagesProvider,
-  uiMessages,
   useAnnounce,
+  usePlatform,
 } from "@hussmartinez/ui/react";
 import {
   type ForwardedRef,
@@ -30,12 +28,13 @@ import { targetPages } from "../../features/pages/rotate-tools.js";
 import type { PdfTool, PdfToolContext } from "../../features/tool-types.js";
 import { DEFAULT_TOOLBAR, pdfTools } from "../../features/tools.js";
 import type { PdfMessageCatalogue } from "../../messages/en.js";
+import { PdfContext } from "../context.js";
+import { pdfEditorMessages } from "../editor-messages.js";
 import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
-import { PdfSessionProvider } from "../PdfSessionProvider.js";
+import { useProvidedSession } from "../PdfSessionProvider.js";
 import { PdfThumbnails } from "../thumbnails/PdfThumbnails.js";
 import { pdfIcons } from "../toolbar/icons.js";
 import { PdfToolbar } from "../toolbar/PdfToolbar.js";
-import { usePlatform } from "../toolbar/use-platform.js";
 import { PdfViewer } from "../viewer/PdfViewer.js";
 import { PdfEditorStart } from "./PdfEditorStart.js";
 import type { PdfEditorChange, PdfEditorHandle, PdfEditorProps } from "./types.js";
@@ -50,9 +49,6 @@ function warningText(messages: Messages<PdfMessageCatalogue>, warning: PdfWarnin
 }
 
 const join = (...names: (string | undefined)[]) => names.filter(Boolean).join(" ");
-
-/** ui's own text, for the ui components the editor renders. */
-const UI_CATALOGUE = /* @__PURE__ */ defineMessages({ ...sdkCoreMessages, ...uiMessages });
 
 /**
  * What to announce after a tool ran from the toolbar or a shortcut, so a
@@ -366,13 +362,36 @@ export const PdfEditor = /* @__PURE__ */ forwardRef(function PdfEditor(
   props: PdfEditorProps,
   handle: ForwardedRef<PdfEditorHandle>,
 ): ReactNode {
-  const { file, onChange, className, classNames, unstyled, tools, toolbar, icons, ...provider } =
-    props;
-  const locale = provider.locale ?? "en";
-  const uiText = useMemo(() => createMessages(UI_CATALOGUE, { locale }), [locale]);
+  const {
+    file,
+    onChange,
+    className,
+    classNames,
+    unstyled,
+    tools,
+    toolbar,
+    icons,
+    messages: overrides,
+    locale = "en",
+    ...source
+  } = props;
+  const session = useProvidedSession(source);
+  // One Messages object, with the host's locale and overrides, for the
+  // editor's components and for ui's (sdk-core ADR 0046).
+  const messages = useMemo(
+    () =>
+      createMessages(pdfEditorMessages, {
+        locale,
+        // sdk-core 0.4.1 accepts typed overrides without this cast; it goes
+        // once ui depends on sdk-core 0.4, so an application keeps one copy.
+        ...(overrides ? { overrides: overrides as never } : {}),
+      }),
+    [locale, overrides],
+  );
+  const value = useMemo(() => ({ session, messages }), [session, messages]);
   return (
-    <PdfSessionProvider {...provider}>
-      <UiMessagesProvider messages={uiText}>
+    <PdfContext.Provider value={value}>
+      <UiMessagesProvider messages={messages}>
         <PdfEditorBody
           handle={handle}
           {...(file !== undefined ? { file } : {})}
@@ -385,6 +404,6 @@ export const PdfEditor = /* @__PURE__ */ forwardRef(function PdfEditor(
           {...(icons ? { icons } : {})}
         />
       </UiMessagesProvider>
-    </PdfSessionProvider>
+    </PdfContext.Provider>
   );
 });
