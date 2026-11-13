@@ -197,6 +197,48 @@ describe("PdfViewer", () => {
     expect(renderPage.mock.calls.length).toBeLessThan(10);
   });
 
+  it("keeps showing a page while it redraws, until the new drawing is ready", async () => {
+    // Like a real engine, this one sizes the canvas when it starts, which
+    // clears it, and draws later. The redraw is held at that point.
+    const { session, bytes } = fakeSession(1);
+    await session.open(bytes);
+    let hold: Promise<void> | undefined;
+    let release = () => {};
+    const renderPage = session.renderPage.bind(session);
+    vi.spyOn(session, "renderPage").mockImplementation(async (key, canvas, options) => {
+      await renderPage(key, canvas, options);
+      if (hold) await hold;
+      const context = canvas.getContext("2d") as CanvasRenderingContext2D;
+      context.fillStyle = "#ff0000";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    });
+    const container = await mount(viewer(session));
+    const visible = () => container.querySelector("canvas") as HTMLCanvasElement;
+    const centre = () => {
+      const canvas = visible();
+      const context = canvas.getContext("2d") as CanvasRenderingContext2D;
+      return [...context.getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data];
+    };
+    await vi.waitFor(() => expect(centre()).toEqual([255, 0, 0, 255]));
+    const before = visible().width;
+
+    hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await act(async () => {
+      container.style.width = "600px";
+    });
+    await frames(3);
+    // The redraw has started and is held, and the page still shows.
+    expect(session.renderPage).toHaveBeenCalledTimes(2);
+    expect(visible().width).toBe(before);
+    expect(centre()).toEqual([255, 0, 0, 255]);
+
+    release();
+    await vi.waitFor(() => expect(visible().width).toBeLessThan(before));
+    expect(centre()).toEqual([255, 0, 0, 255]);
+  });
+
   it("lands on the requested page however late page sizes arrive", async () => {
     // Pages are laid out with an estimate until the first is measured. A
     // navigation that runs before then must stay on its page when the real
