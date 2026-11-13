@@ -1,0 +1,19 @@
+{
+  "name": "@hussmartinez/pdf-sdk-e2e",
+  "private": true,
+  "description": "End-to-end tests of the built @hussmartinez/pdf-sdk in its Next.js and Vite examples: server rendering and hydration, accessibility, no foreign requests, and both asset modes under the README's Content Security Policies (ADR 0039 in sdk-core).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "tsc --noEmit && playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "catalog:",
+    "@cantoo/pdf-lib": "catalog:",
+    "@hussmartinez/sdk-config": "catalog:",
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

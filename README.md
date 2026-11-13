@@ -72,7 +72,7 @@ The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib
 
 ## Development
 
-The repository root is the published package, laid out as in the family's [standard layout](https://github.com/ie-huss-martinez/sdk-core/blob/main/STANDARDS.md#repository-layout): the source is in [`src`](src), and the examples and end-to-end tests will join the pnpm workspace as `examples/` and `e2e/`.
+The repository root is the published package, laid out as in the family's [standard layout](https://github.com/ie-huss-martinez/sdk-core/blob/main/STANDARDS.md#repository-layout): the source is in [`src`](src), and the pnpm workspace adds the examples in [`examples`](examples) and the end-to-end tests in [`e2e`](e2e) ([sdk-core ADR 0039](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0039-test-applications-in-each-repository.md)).
 
 You need Node 24 (see [`.node-version`](.node-version)) and pnpm. The exact pnpm version is pinned in `package.json`, and pnpm switches to it automatically.
 
@@ -81,6 +81,8 @@ pnpm install       # also installs the git hooks
 pnpm verify        # everything CI runs
 pnpm verify:fast   # the subset the pre-push hook runs
 ```
+
+The examples use the built package as an application would: [`examples/next`](examples/next) renders the editor in a Next.js App Router Server Component, and [`examples/vite`](examples/vite) has one page per asset mode, each under the Content Security Policy this README gives for it. The plain HTML example joins them with the standalone script.
 
 Browser tests need Playwright's browsers once: `pnpm exec playwright install chromium`, plus `firefox webkit` to run all three engines with `CI=1` or `pnpm test:browser:all`.
 
@@ -95,6 +97,8 @@ Browser tests need Playwright's browsers once: `pnpm exec playwright install chr
 | Build | `build` | Vite, then api-extractor for the type declarations |
 | Unit tests | `test` | Vitest |
 | Browser tests | `test:browser` | Vitest in Chromium, and in Firefox and WebKit too in CI |
+| Examples | `build:examples` | Production builds of the Next.js and Vite examples, against the built package |
+| End-to-end tests | `test:e2e` | Playwright against the examples: server rendering and hydration, axe, no foreign requests, and both asset modes under the Content Security Policies above |
 | Size budgets | `check:size` | size-limit, brotli size of each entry point |
 | API reports | `check:api` | api-extractor, one report per entry point in [`api`](api), and `hm-check-api-reports` across them |
 | Package checks | `check:package` | publint and Are the Types Wrong? |

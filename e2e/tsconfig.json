@@ -1,0 +1,9 @@
+{
+  "extends": "@hussmartinez/sdk-config/tsconfig/node",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["es2023", "dom"],
+    "types": ["node"]
+  },
+  "include": ["*.ts", "tests", "../test/fixtures/pdfs.ts"]
+}
