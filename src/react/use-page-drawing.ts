@@ -18,6 +18,18 @@ export interface PageDrawingOptions {
   readonly onMeasured?: (info: PdfPageInfo) => void;
 }
 
+/**
+ * Shows a finished drawing: the visible canvas takes the buffer's size and
+ * pixels in one task, so the browser never paints it cleared.
+ */
+function present(buffer: HTMLCanvasElement, target: HTMLCanvasElement): void {
+  target.width = buffer.width;
+  target.height = buffer.height;
+  target.style.width = buffer.style.width;
+  target.style.height = buffer.style.height;
+  target.getContext("2d")?.drawImage(buffer, 0, 0);
+}
+
 /** A page's drawing state. */
 export interface PageDrawing {
   readonly canvas: RefObject<HTMLCanvasElement | null>;
@@ -64,18 +76,27 @@ export function usePageDrawing(options: PageDrawingOptions): PageDrawing {
     const turned = info.rotation === 90 || info.rotation === 270;
     const scale = displayWidth / (turned ? info.height : info.width);
     const render = queue.schedule(async (signal) => {
+      // Drawn off screen, then copied in at once: an engine sizes its canvas
+      // when it starts, which clears it, so drawing on screen would show a
+      // blank page until the redraw finishes, as when the width settles.
+      const buffer = document.createElement("canvas");
       try {
-        await session.renderPage(pageKey, target, {
+        await session.renderPage(pageKey, buffer, {
           scale,
           pixelRatio: globalThis.devicePixelRatio || 1,
           signal,
         });
         if (!signal.aborted) {
+          present(buffer, target);
           setDrawn(true);
           setFailure(undefined);
         }
       } catch (reason) {
         if (!signal.aborted) setFailure(reason);
+      } finally {
+        // Its pixels are copied or not needed; give them back now.
+        buffer.width = 0;
+        buffer.height = 0;
       }
     });
     return () => render.cancel();
