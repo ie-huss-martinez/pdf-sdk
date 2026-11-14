@@ -1,9 +1,8 @@
-import { createWorkerClient, type WorkerClient } from "@hussmartinez/sdk-core";
+import { createWorkerClient, resolveAssetsBase, type WorkerClient } from "@hussmartinez/sdk-core";
 import { asPdfError } from "../../core/errors/abort.js";
 import { PdfError } from "../../core/errors/pdf-error.js";
 import type { PdfBuildJob } from "../../core/model/build-job.js";
 import type { PdfBuildOptions, PdfProcessor } from "../../core/ports/pdf-processor.js";
-import { assetsBase } from "../assets-url.js";
 import type { ProcessingContract } from "./contract.js";
 
 /**
@@ -46,7 +45,9 @@ export interface PdfProcessorOptions {
  * @public
  */
 export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProcessor {
-  const base = assetsBase(options.assetsUrl);
+  // Throws TypeError now for a URL that can't be resolved, such as a relative
+  // one during server rendering, rather than on the first build.
+  const base = options.assetsUrl === undefined ? undefined : resolveAssetsBase(options.assetsUrl);
   let client: WorkerClient<ProcessingContract> | undefined;
   let destroyed = false;
 
@@ -66,6 +67,10 @@ export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProces
         return inlineWorker();
       },
       errorClasses: { PdfError },
+      // A worker from another version of the package is refused with
+      // WORKER_START_FAILED, naming the file to copy again (sdk-core ADR 0038).
+      packageVersion: __PDF_SDK_VERSION__,
+      ...(base ? { workerAsset: `${base}processing/processing.worker.js` } : {}),
     });
     return client;
   };

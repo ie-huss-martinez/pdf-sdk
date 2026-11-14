@@ -2,6 +2,7 @@ import { playwright } from "@vitest/browser-playwright";
 import type { Page, Request } from "playwright";
 import { defineConfig } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
+import { versionDefine } from "./tools/package-version.js";
 import { pdfJsData } from "./tools/pdfjs-data-plugin.js";
 import { qpdfWasm } from "./tools/qpdf-wasm-plugin.js";
 import { testAssets } from "./tools/test-assets-plugin.js";
@@ -54,6 +55,7 @@ export default defineConfig(({ mode }) => {
   return {
     // Serves pdf.js's data files to the SDK, as in the build (docs/adr/0002).
     plugins: [pdfJsData(), qpdfWasm(), testAssets()],
+    define: versionDefine(),
     // The processing worker inlines qpdf's WebAssembly, as in the build.
     worker: { format: "es", plugins: () => [qpdfWasm()] },
     test: {

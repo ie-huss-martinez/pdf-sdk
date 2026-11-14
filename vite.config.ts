@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
+import { versionDefine } from "./tools/package-version.js";
 import { pdfJsData } from "./tools/pdfjs-data-plugin.js";
 import { qpdfWasm, selfHostedProcessing } from "./tools/qpdf-wasm-plugin.js";
 
@@ -53,6 +54,9 @@ const dropWorkerSourceMaps: Plugin = {
 
 export default defineConfig({
   plugins: [dropWorkerSourceMaps, pdfJsData(), selfHostedProcessing()],
+  // The version the processing worker announces and the page checks, in
+  // both, and in the inlined workers (sdk-core ADR 0038).
+  define: versionDefine(),
   // The production JSX runtime, whatever NODE_ENV the build runs with.
   // Otherwise a build under NODE_ENV=development or test ships jsxDEV and
   // the absolute path of every source file.

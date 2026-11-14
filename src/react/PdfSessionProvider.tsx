@@ -10,6 +10,7 @@ import { createPdfSession } from "../core/session/session.js";
 import type { PdfMessageCatalogue } from "../messages/en.js";
 import { pdfMessages } from "../messages/en.js";
 import { PdfContext } from "./context.js";
+import { checkAssetsUrl, lazyEngine, lazyProcessor } from "./lazy-ports.js";
 
 /**
  * Props for {@link PdfSessionProvider}.
@@ -55,8 +56,13 @@ interface Owned {
  */
 function own(props: PdfSessionSource): Owned {
   const assets = props.assetsUrl === undefined ? {} : { assetsUrl: props.assetsUrl };
-  const engine = props.engine ?? createPdfJsEngine(assets);
-  const processor = props.processor ?? createPdfProcessor(assets);
+  // A host's relative assetsUrl, such as "/pdf-sdk/", has no page to resolve
+  // against during server rendering. So the default engine and processor are
+  // created on first use, which is only ever in the browser, and only what
+  // can be checked without a page is checked now.
+  checkAssetsUrl(props.assetsUrl);
+  const engine = props.engine ?? lazyEngine(() => createPdfJsEngine(assets));
+  const processor = props.processor ?? lazyProcessor(() => createPdfProcessor(assets));
   const session = createPdfSession({
     engine,
     processor,
