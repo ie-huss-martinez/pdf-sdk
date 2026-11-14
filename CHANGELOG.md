@@ -1,5 +1,33 @@
 # @hussmartinez/pdf-sdk
 
+## 0.2.0
+
+### Minor Changes
+
+- [#35](https://github.com/ie-huss-martinez/pdf-sdk/pull/35) [`c81403b`](https://github.com/ie-huss-martinez/pdf-sdk/commit/c81403b0b50607a6ee1c8cb733276d3285c35d93) Thanks [@hussmartinez](https://github.com/hussmartinez)! - Requires `@hussmartinez/ui` `^0.5.0`. If your application uses ui itself, move it to `^0.5.0` too, and check that `npm ls @hussmartinez/ui` lists one version.
+  
+  `PdfEditor`'s `messages` prop now also translates ui's text inside the editor, such as `"spinner.label"`. The editor builds one set of text from your `locale` and overrides, for its own components and for ui's. Before, ui's text inside the editor followed your locale but ignored your overrides. The prop is typed with the new `PdfEditorMessageCatalogue`, and `pdfEditorMessages`, exported from `@hussmartinez/pdf-sdk/react`, is the English catalogue it overrides. `pdfMessages` from the headless entry is unchanged and doesn't include ui's text.
+  
+  Shortcut labels come from ui's `usePlatform()`: `Control` on the server and during hydration, then `Meta` (⌘) on Apple devices, as before.
+
+- [#29](https://github.com/ie-huss-martinez/pdf-sdk/pull/29) [`f849bda`](https://github.com/ie-huss-martinez/pdf-sdk/commit/f849bdab5dc0fb70887abdf79271ce56f5355a88) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfEditor` has a toolbar, built from `@hussmartinez/ui` 0.3's components, and keyboard shortcuts.
+  
+  - **Tools:** open a PDF, undo, redo, and rotate the selected pages, or the current one, left or right. `pdfTools` lists them; choose which are present with the new `tools` prop, such as `tools={["pdf.undo", "pdf.redo"]}`, and arrange the toolbar with `toolbar`, as groups of tool ids. `toolbar={[]}` hides the toolbar and keeps the shortcuts. An unknown tool id throws when the editor renders. `icons` replaces any icon by name.
+  - **Shortcuts:** `Ctrl+Z` and `Ctrl+Shift+Z` or `Ctrl+Y` (`⌘Z` and `⇧⌘Z` on Apple platforms) undo and redo, and `[` and `]` rotate. They work only while focus is inside the editor, never while typing in a field, and each toolbar button names its shortcut in `aria-keyshortcuts`.
+  - **Announcements:** undoing, redoing and rotating are announced to screen readers, as opening and closing already were, through ui's announcer.
+  - **Building blocks:** `PdfToolbar` renders a toolbar for your own layout, and `pdfIcons` is the icon set the tools use.
+  - **Thumbnails:** a fix: thumbnails no longer shrink to the minimum target size when ui's stylesheet is loaded, and the sidebar is five control heights wide, so it follows ui's density.
+  
+  **`@hussmartinez/ui` is now a dependency, and its stylesheet is required.** Import `@hussmartinez/ui/styles.css` once, before `@hussmartinez/pdf-sdk/styles.css`: the toolbar's focus rings and target sizes are in it. If your application uses ui itself, depend on the same minor version, `^0.3.0`, and check that `npm ls @hussmartinez/ui` lists a single version. The headless `.` entry doesn't import ui or React.
+
+### Patch Changes
+
+- [#33](https://github.com/ie-huss-martinez/pdf-sdk/pull/33) [`b64b9f7`](https://github.com/ie-huss-martinez/pdf-sdk/commit/b64b9f7fe42e83c7153b6efbd75964829b5bc8b3) Thanks [@hussmartinez](https://github.com/hussmartinez)! - Pages no longer flash blank while they redraw. When the viewer's or thumbnails' width changes, for example as a scrollbar appears or the window is resized, each page keeps showing its previous drawing until the new one is ready, and then switches to it at once.
+
+- [#37](https://github.com/ie-huss-martinez/pdf-sdk/pull/37) [`988433d`](https://github.com/ie-huss-martinez/pdf-sdk/commit/988433d69078d32c2625b65808295dcc0d966be8) Thanks [@hussmartinez](https://github.com/hussmartinez)! - Self-hosted assets left over from another version now fail clearly. If you upgrade without copying `dist/assets/` again, opening or exporting fails with `WORKER_START_FAILED`, and its `details`, `{ asset, expected, actual }`, name the file and both versions. Before, the processing worker from another version ran anyway, and pdf.js's worker from another version made every document fail to open with `PROCESSING_FAILED`, as if the file were at fault.
+  
+  `createPdfJsEngine` and `createPdfProcessor` check `assetsUrl` when you call them: a relative URL with no page to resolve it against, or a URL with a query or fragment, throws `TypeError` there instead of failing later. `PdfEditor` and `PdfSessionProvider` still render on a server with a relative `assetsUrl`, such as `"/pdf-sdk/"`, because they create their engine and processor only on first use, in the browser; a query or fragment throws `TypeError` as they render.
+
 ## 0.1.0
 
 ### Minor Changes
