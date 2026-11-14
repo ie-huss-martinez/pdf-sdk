@@ -7,6 +7,7 @@ import { userEvent } from "vitest/browser";
 import { createFakeEngine } from "../../../test/fakes/fake-engine.js";
 import { encodeFakePdf } from "../../../test/fakes/fake-pdf.js";
 import { createFakeProcessor } from "../../../test/fakes/fake-processor.js";
+import { jpxPdf } from "../../../test/fixtures/pdfs.js";
 import { cleanUp, loadStyles, mount, type StyleOptions } from "../../../test/react.js";
 import type { PdfEngine } from "../../core/ports/pdf-engine.js";
 import { PdfEditor } from "./PdfEditor.js";
@@ -497,6 +498,38 @@ describe("PdfEditor", () => {
     expect(container.querySelector('[data-testid="labelled"]')?.getAttribute("aria-label")).toBe(
       "Wird geladen",
     );
+  });
+
+  it("opens and exports with a relative assetsUrl, served by this origin", async () => {
+    const handle = createRef<PdfEditorHandle>();
+    const container = await mount(<PdfEditor ref={handle} assetsUrl="/hm-test-assets/" />);
+    await act(() => handle.current?.open(fakePdf(1)).catch(() => {}));
+    // A fake PDF isn't a real one: pdf.js, loaded from /hm-test-assets/,
+    // says so, which proves the relative URL resolved in the browser.
+    expect(editor(container)?.dataset["hmStatus"]).toBe("error");
+    await act(() => handle.current?.open(jpxPdf()));
+    await settle(container, "ready");
+    const [first] = handle.current?.session.getSnapshot().plan.pages ?? [];
+    await act(async () =>
+      handle.current?.session.execute({
+        type: "pdf.rotatePages",
+        pages: [first?.key ?? ""],
+        angle: 90,
+      }),
+    );
+    const bytes = await handle.current?.export();
+    expect(new TextDecoder().decode(bytes?.slice(0, 5))).toBe("%PDF-");
+  });
+
+  it("refuses an assetsUrl with a query as soon as it renders in the browser", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await expect(mount(<PdfEditor assetsUrl="/hm-test-assets/?v=2" />)).rejects.toThrow(
+        TypeError,
+      );
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("renders on a server and hydrates without warnings (ADR 0007)", async () => {

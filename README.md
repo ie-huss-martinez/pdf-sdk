@@ -72,7 +72,7 @@ The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib
 
 **In self-hosted mode, copy the whole directory again whenever you upgrade the package.** A worker left over from another version is refused with `WORKER_START_FAILED`, whose `details` name the file and both versions, `{ asset, expected, actual }`: the processing worker checks the package's version, pdf.js checks its own, and the processing worker also refuses a `qpdf.wasm` from another version.
 
-`assetsUrl` can be absolute or relative to the page. A relative URL needs a page, so on a server, such as during server rendering, pass an absolute one, or create the engine and processor in the browser. A URL with a query or a fragment is refused too, because the files resolved from it would lose them. Both fail with `TypeError` when you create the engine or processor, not on the first document.
+`assetsUrl` can be absolute or relative to the page, such as `/pdf-sdk/`. `PdfEditor` and `PdfSessionProvider` render on a server with a relative one: they create their engine and processor only when they're first used, in the browser. A URL with a query or a fragment is refused, because the files resolved from it would lose them: the components throw `TypeError` as they render, and `createPdfJsEngine` and `createPdfProcessor`, called directly, throw it when you call them, as they do for a relative URL where there's no page to resolve it against.
 
 ## Development
 

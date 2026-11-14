@@ -34,6 +34,23 @@ describe("the React layer on a server (ADR 0007)", () => {
     expect(html).toContain("Choose a PDF");
   });
 
+  it("renders with a relative assetsUrl, which only the browser resolves (sdk-core ADR 0038)", () => {
+    // The usual host setup: the package's dist/assets/ served under /pdf-sdk/.
+    expect(() => renderToString(<PdfEditor assetsUrl="/pdf-sdk/" />)).not.toThrow();
+    expect(() =>
+      renderToString(
+        <PdfSessionProvider assetsUrl="pdf-sdk/">
+          <PdfViewer />
+        </PdfSessionProvider>,
+      ),
+    ).not.toThrow();
+  });
+
+  it("still refuses an assetsUrl with a query or a fragment on the server", () => {
+    expect(() => renderToString(<PdfEditor assetsUrl="/pdf-sdk/?v=2" />)).toThrow(TypeError);
+    expect(() => renderToString(<PdfEditor assetsUrl="/pdf-sdk/#assets" />)).toThrow(TypeError);
+  });
+
   it("uses the locale and message overrides", () => {
     const html = renderToString(
       <PdfSessionProvider locale="de" messages={{ "viewer.empty": "Kein Dokument geöffnet." }}>
