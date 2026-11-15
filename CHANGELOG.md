@@ -1,5 +1,43 @@
 # @hussmartinez/pdf-sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- [#44](https://github.com/ie-huss-martinez/pdf-sdk/pull/44) [`c9614c5`](https://github.com/ie-huss-martinez/pdf-sdk/commit/c9614c5b4284ef17c6491b43f7a65e06158fbe72) Thanks [@hussmartinez](https://github.com/hussmartinez)! - Edit commands are now checked strictly, and refused with a stable code and reason (sdk-core ADR 0045).
+  
+  **Breaking:** `session.execute`, `undo` and `redo` throw `PdfError` with the new code `INVALID_COMMAND` for a command that doesn't fit the plan, instead of `TypeError` or `RangeError`. `details.reason` says why, as one of the `PdfCommandRejection` tokens, such as `unknown-page`, `last-page`, `invalid-position` or `invalid-color`. The session still changes nothing when a command is refused. To migrate, replace `instanceof TypeError` or `RangeError` checks with `isPdfError(error, "INVALID_COMMAND")`, and branch on `error.details.reason` instead of the message. `pdfMessages` has text for the new code.
+  
+  Commands are also stricter:
+  
+  - A field a command's type doesn't have, or a field of the wrong type, is refused as `malformed-command`.
+  - Annotation positions, stroke widths and text sizes are snapped to millionths of the page (`PDF_POSITION_GRID`), so the session only stores values on that grid. Positions outside 0 to 1 are refused.
+  - Colours must be `#rrggbb` in lowercase.
+  - Lengths are counted in Unicode code points: ids and page keys have 1 to `PDF_MAX_ID_LENGTH` (128), field names up to `PDF_MAX_FIELD_NAME_LENGTH` (1,000), and text notes and text field values up to `PDF_MAX_TEXT_LENGTH` (10,000). Strokes have up to `PDF_MAX_STROKE_POINTS` (10,000) points.
+  - `pdf.insertPages` and `pdf.setFieldValue` refuse a source the session doesn't hold, and `pdf.insertPages` refuses a page index the source doesn't have.
+  - Signature annotations (`type: "signature"`) are refused with `unsupported-annotation` until the editor's signature tool lands. If you add them yourself today, keep them outside the session until then.
+  
+  A form field named `__proto__` is now stored like any other field. Before, setting it changed the values object's prototype instead.
+
+- [#45](https://github.com/ie-huss-martinez/pdf-sdk/pull/45) [`c0c8454`](https://github.com/ie-huss-martinez/pdf-sdk/commit/c0c84548c22dae4da0e415229a5b26aa700da25e) Thanks [@hussmartinez](https://github.com/hussmartinez)! - Plans and edit commands have a portable JSON format, `hm-pdf-plan` and `hm-pdf-command` version 1 (sdk-core ADR 0045), so a project can be saved and opened again, here or by a port of the SDK in another language.
+  
+  - `toPdfPlanDocument(plan, sources)` writes a plan, with each source's page count, and `readPdfPlanDocument(json)` reads one back as `{ plan, sources }`. Documents hold positions and sizes as whole millionths of the page, and no PDF bytes or file names.
+  - `toPdfCommandDocument(command)` and `readPdfCommandDocument(json)` do the same for a command.
+  - A document of another format, or a later version, is refused with the new code `UNSUPPORTED_FORMAT`, and any other invalid document with the new code `INVALID_DOCUMENT`. Both have a `details.reason` from `PdfDocumentRejection`, and text in `pdfMessages`.
+  - `pdf.rotatePages` now takes an `angle` from -360 to 360. A larger one is refused with `INVALID_COMMAND` and `invalid-rotation`, as the format's schema refuses it.
+  
+  `docs/formats/hm-pdf-plan.md` describes the formats. Their JSON Schemas are in `formats/`, and the conformance vectors in `conformance/`.
+
+### Patch Changes
+
+- [#40](https://github.com/ie-huss-martinez/pdf-sdk/pull/40) [`18283c5`](https://github.com/ie-huss-martinez/pdf-sdk/commit/18283c5fa2e993cac9021af09d98f295b9ce55e9) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `createPdfJsEngine` and `createPdfProcessor` now accept an `assetsUrl` relative to the page, such as `"/pdf-sdk/"`, when you call them on a server. They resolve it when their worker first starts, in the browser, as `PdfEditor` and `PdfSessionProvider` already did. Before, they threw `TypeError` there. A URL with a query or a fragment still throws `TypeError` at once.
+
+- [#43](https://github.com/ie-huss-martinez/pdf-sdk/pull/43) [`eea6a0b`](https://github.com/ie-huss-martinez/pdf-sdk/commit/eea6a0bf1539428201b1b18f7a0b0911e1501726) Thanks [@hussmartinez](https://github.com/hussmartinez)! - The session's snapshot store and undo history now come from `@hussmartinez/sdk-core`, shared with the other SDKs. Editing, undo, redo and memory trimming behave as before. One difference for code that calls `session.subscribe` directly: a listener that throws no longer stops the other listeners, or the edit that notified them. Its error is reported with `reportError` instead.
+
+- [#48](https://github.com/ie-huss-martinez/pdf-sdk/pull/48) [`fd86a81`](https://github.com/ie-huss-martinez/pdf-sdk/commit/fd86a8167432946e3f4fe8d419b21c9fb26fb193) Thanks [@hussmartinez](https://github.com/hussmartinez)! - The JSON Schemas of the portable formats now ship with the package, so you can validate documents against the version that matches your installed reader, such as on a server that stores them: `@hussmartinez/pdf-sdk/formats/hm-pdf-plan/v1.schema.json` and `@hussmartinez/pdf-sdk/formats/hm-pdf-command/v1.schema.json`. `docs/formats/hm-pdf-plan.md` shows how to load them with Ajv.
+
+- [#47](https://github.com/ie-huss-martinez/pdf-sdk/pull/47) [`b04102a`](https://github.com/ie-huss-martinez/pdf-sdk/commit/b04102acc682b32e9b92846136b59d1f06d9857c) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfViewer` no longer snaps back to where it was when you scroll just as page sizes change, such as while pages are still being measured after opening a document or jumping to a page. It used to restore its previous position over your scroll, and keep the page you scrolled away from as the current one.
+
 ## 0.2.0
 
 ### Minor Changes
