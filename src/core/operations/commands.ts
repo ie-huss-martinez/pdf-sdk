@@ -1,3 +1,4 @@
+import type { Applied } from "@hussmartinez/sdk-core";
 import type { PdfAnnotation } from "../model/annotations.js";
 import type { PdfFieldValue } from "../model/document.js";
 import { addRotation } from "../model/geometry.js";
@@ -137,16 +138,6 @@ export type PdfCommand =
   | PdfAddAnnotationCommand
   | PdfRemoveAnnotationCommand;
 
-/**
- * A command's result: the new plan, and the command that undoes it.
- *
- * @internal
- */
-export interface Applied {
-  readonly plan: PdfPlan;
-  readonly inverse: PdfCommand;
-}
-
 /** The positions of the given keys, in plan order, failing on unknown or repeated keys. */
 function positions(plan: PdfPlan, keys: readonly string[]): number[] {
   if (keys.length === 0) throw new TypeError("A command needs at least one page.");
@@ -182,9 +173,13 @@ function updatePage(
  * page the plan doesn't have, throw `TypeError` or `RangeError` and change
  * nothing.
  *
+ * It's the session's reducer: sdk-core's `applyCommands` applies a step of
+ * several commands with it, and returns their inverses in undo order
+ * (sdk-core ADR 0029).
+ *
  * @internal
  */
-export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
+export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied<PdfPlan, PdfCommand> {
   switch (command.type) {
     case "pdf.rotatePages": {
       const at = new Set(positions(plan, command.pages));
@@ -193,7 +188,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
         at.has(index) ? { ...page, rotation: addRotation(page.rotation, command.angle) } : page,
       );
       return {
-        plan: withPages(plan, pages),
+        state: withPages(plan, pages),
         inverse: { type: "pdf.rotatePages", pages: command.pages, angle: -command.angle },
       };
     }
@@ -205,7 +200,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
       }
       const removed = new Set(at);
       return {
-        plan: withPages(
+        state: withPages(
           plan,
           plan.pages.filter((_, index) => !removed.has(index)),
         ),
@@ -231,7 +226,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
       }
       if (command.entries.length === 0) throw new TypeError("A command needs at least one page.");
       return {
-        plan: withPages(plan, pages),
+        state: withPages(plan, pages),
         inverse: { type: "pdf.deletePages", pages: command.entries.map(({ page }) => page.key) },
       };
     }
@@ -245,7 +240,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
       }
       const pages = [...rest.slice(0, command.to), ...block, ...rest.slice(command.to)];
       return {
-        plan: withPages(plan, pages),
+        state: withPages(plan, pages),
         inverse: { type: "pdf.reorderPages", order: plan.pages.map((page) => page.key) },
       };
     }
@@ -260,7 +255,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
         throw new TypeError("A new order must list every page of the plan exactly once.");
       }
       return {
-        plan: withPages(
+        state: withPages(
           plan,
           command.order.map((key) => byKey.get(key) as PdfPlanPage),
         ),
@@ -290,7 +285,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
         }),
       );
       return {
-        plan: withPages(plan, [...plan.pages.slice(0, at), ...inserted, ...plan.pages.slice(at)]),
+        state: withPages(plan, [...plan.pages.slice(0, at), ...inserted, ...plan.pages.slice(at)]),
         inverse: { type: "pdf.deletePages", pages: keys },
       };
     }
@@ -308,7 +303,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
       };
       if (Object.keys(next).length === 0) delete formValues[source];
       return {
-        plan: { pages: plan.pages, formValues },
+        state: { pages: plan.pages, formValues },
         inverse: { type: "pdf.setFieldValue", source, field, value: previous },
       };
     }
@@ -328,7 +323,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
         return { ...page, annotations };
       });
       return {
-        plan: next,
+        state: next,
         inverse: { type: "pdf.removeAnnotation", page: command.page, id: annotation.id },
       };
     }
@@ -343,7 +338,7 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
       });
       const { annotation, index } = removed as { annotation: PdfAnnotation; index: number };
       return {
-        plan: next,
+        state: next,
         inverse: { type: "pdf.addAnnotation", page: command.page, annotation, index },
       };
     }
@@ -353,24 +348,4 @@ export function applyCommand(plan: PdfPlan, command: PdfCommand): Applied {
       throw new TypeError(`Unknown command ${(unknown as { type?: unknown }).type}.`);
     }
   }
-}
-
-/**
- * Applies several commands as one step, all or nothing, and returns the
- * inverse of the whole step: the inverses in reverse order.
- *
- * @internal
- */
-export function applyCommands(
-  plan: PdfPlan,
-  commands: readonly PdfCommand[],
-): { plan: PdfPlan; inverses: PdfCommand[] } {
-  let current = plan;
-  const inverses: PdfCommand[] = [];
-  for (const command of commands) {
-    const applied = applyCommand(current, command);
-    current = applied.plan;
-    inverses.unshift(applied.inverse);
-  }
-  return { plan: current, inverses };
 }

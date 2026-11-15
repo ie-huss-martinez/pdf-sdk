@@ -1,7 +1,11 @@
+import { applyCommands as applyAll } from "@hussmartinez/sdk-core";
 import { describe, expect, it } from "vitest";
 import type { PdfTextAnnotation } from "../model/annotations.js";
 import type { PdfPlan, PdfPlanPage } from "../model/plan.js";
-import { applyCommand, applyCommands, type PdfCommand } from "./commands.js";
+import { applyCommand, type PdfCommand } from "./commands.js";
+
+const applyCommands = (state: PdfPlan, commands: readonly PdfCommand[]) =>
+  applyAll(applyCommand, state, commands);
 
 const page = (key: string, pageIndex = 0, source = "s1"): PdfPlanPage => ({
   key,
@@ -29,8 +33,8 @@ const note = (id: string): PdfTextAnnotation => ({
 
 /** Applies a command, checks its inverse restores the plan exactly, and returns the result. */
 function roundTrip(state: PdfPlan, command: PdfCommand): PdfPlan {
-  const { plan: next, inverse } = applyCommand(state, command);
-  expect(applyCommand(next, inverse).plan).toEqual(state);
+  const { state: next, inverse } = applyCommand(state, command);
+  expect(applyCommand(next, inverse).state).toEqual(state);
   return next;
 }
 
@@ -45,7 +49,7 @@ describe("applyCommand", () => {
       type: "pdf.addAnnotation",
       page: "c",
       annotation: note("n1"),
-    }).plan;
+    }).state;
     const next = roundTrip(start, { type: "pdf.deletePages", pages: ["c", "b"] });
     expect(keys(next)).toEqual(["a", "d"]);
   });
@@ -154,7 +158,7 @@ describe("applyCommand", () => {
       type: "pdf.addAnnotation",
       page: "a",
       annotation: note("n0"),
-    }).plan;
+    }).state;
     expect(() => applyCommand(start, command)).toThrow(TypeError);
   });
 
@@ -181,16 +185,16 @@ describe("applyCommand", () => {
   });
 });
 
-describe("applyCommands", () => {
+describe("applyCommand with sdk-core's applyCommands", () => {
   it("applies a group as one step, and undoes it with the inverses in reverse order", () => {
     const start = plan("a", "b", "c");
-    const { plan: next, inverses } = applyCommands(start, [
+    const { state: next, inverses } = applyCommands(start, [
       { type: "pdf.movePages", pages: ["c"], to: 0 },
       { type: "pdf.rotatePages", pages: ["c"], angle: 90 },
       { type: "pdf.deletePages", pages: ["a"] },
     ]);
     expect(keys(next)).toEqual(["c", "b"]);
-    expect(applyCommands(next, inverses).plan).toEqual(start);
+    expect(applyCommands(next, inverses).state).toEqual(start);
   });
 
   it("changes nothing when any command in the group is invalid", () => {
@@ -243,11 +247,11 @@ describe("applyCommands", () => {
         if (chosen.length < pages.length)
           candidates.push({ type: "pdf.deletePages", pages: chosen });
         const command = candidates[random(candidates.length)] as PdfCommand;
-        const { plan: after, inverses } = applyCommands(state, [command]);
+        const { state: after, inverses } = applyCommands(state, [command]);
         steps.push(inverses);
         state = after;
       }
-      for (const inverses of steps.reverse()) state = applyCommands(state, inverses).plan;
+      for (const inverses of steps.reverse()) state = applyCommands(state, inverses).state;
       expect(state).toEqual(start);
     }
   });

@@ -1,4 +1,11 @@
-import { checkFile, withProcessingTime } from "@hussmartinez/sdk-core";
+import {
+  applyCommands,
+  checkFile,
+  createHistory,
+  createStore,
+  type HistoryStep,
+  withProcessingTime,
+} from "@hussmartinez/sdk-core";
 import { asPdfError, throwIfAborted } from "../errors/abort.js";
 import { PdfError } from "../errors/pdf-error.js";
 import { type PdfFilePolicyOverrides, type PdfLimitName, pdfLimits } from "../errors/pdf-limits.js";
@@ -13,11 +20,10 @@ import type {
 } from "../model/document.js";
 import { addRotation } from "../model/geometry.js";
 import { EMPTY_PLAN, type PdfPlan, type PdfPlanPage } from "../model/plan.js";
-import { applyCommands, type PdfCommand } from "../operations/commands.js";
+import { applyCommand, type PdfCommand } from "../operations/commands.js";
 import type { PdfCallOptions } from "../ports/options.js";
 import type { PdfDocumentHandle, PdfEngine, PdfRenderOptions } from "../ports/pdf-engine.js";
 import type { PdfBuildOptions, PdfProcessor } from "../ports/pdf-processor.js";
-import { History, type HistoryStep } from "./history.js";
 
 /**
  * A source document the session holds: opened or inserted, never changed.
@@ -267,8 +273,9 @@ interface Source extends PdfSourceInfo {
 export function createPdfSession(options: PdfSessionOptions): PdfSession {
   const { engine } = options;
   const policy = pdfLimits.resolve(options.filePolicy);
-  const history = new History();
-  const listeners = new Set<() => void>();
+  // Undo and redo stacks of command steps, which the memory policy below
+  // trims (ADR 0010 and ADR 0029 in sdk-core, docs/adr/0004).
+  const history = createHistory<PdfCommand>();
   const sources = new Map<string, Source>();
   let plan: PdfPlan = EMPTY_PLAN;
   let status: PdfSessionStatus = "empty";
@@ -286,7 +293,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
     [...sources.values()].reduce((total, source) => total + source.byteLength, 0);
 
   /** The sources the plan and the given history steps refer to: only pages need bytes. */
-  function referenced(steps: readonly HistoryStep[]): Set<string> {
+  function referenced(steps: readonly HistoryStep<PdfCommand>[]): Set<string> {
     const ids = new Set(plan.pages.map((page) => page.source));
     for (const { commands, inverses } of steps) {
       for (const command of [...commands, ...inverses]) {
@@ -326,7 +333,8 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
     return undefined;
   }
 
-  let snapshot = makeSnapshot();
+  // Each change makes a new frozen snapshot (ADR 0029 in sdk-core).
+  const store = createStore(makeSnapshot());
 
   /** The load warnings, and the session size warning, which follows every change. */
   function sessionWarnings(): PdfWarning[] {
@@ -371,8 +379,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
     }
     if (currentPage === undefined && plan.pages.length > 0) currentPage = plan.pages[0]?.key;
     if (navigation && !keys.has(navigation.page)) navigation = undefined;
-    snapshot = makeSnapshot();
-    for (const listener of [...listeners]) listener();
+    store.set(makeSnapshot());
   }
 
   function emit(event: PdfSessionEvent): void {
@@ -458,20 +465,17 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   }
 
   function step(commands: readonly PdfCommand[]): void {
-    const result = applyCommands(plan, commands);
-    plan = result.plan;
+    const result = applyCommands(applyCommand, plan, commands);
+    plan = result.state;
     history.push({ commands, inverses: result.inverses });
     // A new step drops the redo steps, and the documents only they held.
     collect();
   }
 
   return {
-    getSnapshot: () => snapshot,
+    getSnapshot: store.getSnapshot,
 
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    subscribe: store.subscribe,
 
     async open(file, callOptions = {}) {
       status = "opening";
@@ -590,7 +594,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       const entry = history.undo();
       if (!entry) return;
       try {
-        plan = applyCommands(plan, entry.inverses).plan;
+        plan = applyCommands(applyCommand, plan, entry.inverses).state;
       } catch (reason) {
         history.restore("undo");
         throw reason;
@@ -603,7 +607,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       const entry = history.redo();
       if (!entry) return;
       try {
-        plan = applyCommands(plan, entry.commands).plan;
+        plan = applyCommands(applyCommand, plan, entry.commands).state;
       } catch (reason) {
         history.restore("redo");
         throw reason;
