@@ -1,4 +1,8 @@
-import { createWorkerClient, resolveAssetsBase, type WorkerClient } from "@hussmartinez/sdk-core";
+import {
+  createAssetsResolver,
+  createWorkerClient,
+  type WorkerClient,
+} from "@hussmartinez/sdk-core";
 import { asPdfError } from "../../core/errors/abort.js";
 import { PdfError } from "../../core/errors/pdf-error.js";
 import type { PdfBuildJob } from "../../core/model/build-job.js";
@@ -45,9 +49,12 @@ export interface PdfProcessorOptions {
  * @public
  */
 export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProcessor {
-  // Throws TypeError now for a URL that can't be resolved, such as a relative
-  // one during server rendering, rather than on the first build.
-  const base = options.assetsUrl === undefined ? undefined : resolveAssetsBase(options.assetsUrl);
+  // Throws TypeError now for a URL with a query or fragment. A URL relative
+  // to the page is resolved on the first build, which only happens in a
+  // browser, so the processor can be created on a server (sdk-core ADR 0038).
+  const asset =
+    options.assetsUrl === undefined ? undefined : createAssetsResolver(options.assetsUrl);
+  const workerPath = "processing/processing.worker.js";
   let client: WorkerClient<ProcessingContract> | undefined;
   let destroyed = false;
 
@@ -55,8 +62,8 @@ export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProces
     client ??= createWorkerClient<ProcessingContract>({
       // The worker's chunk loads on the first build, not with this module.
       createWorker: () => {
-        if (base) {
-          return new Worker(`${base}processing/processing.worker.js`, {
+        if (asset) {
+          return new Worker(asset(workerPath), {
             type: "module",
             name: "hm-pdf-processing",
           });
@@ -70,7 +77,7 @@ export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProces
       // A worker from another version of the package is refused with
       // WORKER_START_FAILED, naming the file to copy again (sdk-core ADR 0038).
       packageVersion: __PDF_SDK_VERSION__,
-      ...(base ? { workerAsset: `${base}processing/processing.worker.js` } : {}),
+      ...(asset ? { workerAsset: asset(workerPath) } : {}),
     });
     return client;
   };
@@ -81,7 +88,7 @@ export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProces
       if (destroyed) {
         throw new PdfError("WORKER_TERMINATED", "The PDF processor was destroyed.");
       }
-      if (!base) {
+      if (!asset) {
         inlineWorker ??= (await import("./processing-worker.js")).createInlineWorker;
       }
       let outcome: Awaited<ReturnType<WorkerClient<ProcessingContract>["call"]>>;

@@ -8,8 +8,16 @@ import { createPdfProcessor } from "./qpdf/qpdf-processor.js";
  * a server renders, so there's no page to resolve a relative URL against.
  */
 describe("assetsUrl", () => {
+  it("takes a URL relative to the page on a server, to resolve in the browser", async () => {
+    for (const assetsUrl of ["/pdf-sdk/", "pdf-sdk"]) {
+      const engine = createPdfJsEngine({ assetsUrl });
+      const processor = createPdfProcessor({ assetsUrl });
+      await engine.destroy();
+      await processor.destroy();
+    }
+  });
+
   it.each([
-    ["a relative URL with no page", "/pdf-sdk/"],
     ["a query", "https://example.com/pdf-sdk/?v=1"],
     ["a fragment", "https://example.com/pdf-sdk/#assets"],
   ])("fails at once with TypeError for %s", (_, assetsUrl) => {
