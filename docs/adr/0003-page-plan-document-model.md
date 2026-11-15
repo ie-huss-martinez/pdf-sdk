@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-12
-- **Amended:** 2026-11-15, for sdk-core ADR 0045: the reducer refuses invalid commands with `INVALID_COMMAND` and a stable reason, positions and sizes are kept on a grid of millionths of the page, lengths count Unicode code points, and signature annotations are left out until their image can be stored as an asset (see [Strict commands and the grid](#strict-commands-and-the-grid))
+- **Amended:** 2026-11-15, for sdk-core ADR 0045: the reducer refuses invalid commands with `INVALID_COMMAND` and a stable reason, positions and sizes are kept on a grid of millionths of the page, lengths count Unicode code points, and signature annotations are left out until their image can be stored as an asset (see [Strict commands and the grid](#strict-commands-and-the-grid)); and the plan and the user-level commands have a portable JSON format, `hm-pdf-plan` and `hm-pdf-command` version 1 ([the format record](../formats/hm-pdf-plan.md))
 
 ## Context
 
@@ -54,6 +54,7 @@ Added on 2026-11-15, so that a port of the SDK in another language, or a saved d
 - **Positions and sizes are on a grid of millionths of the page** (`PDF_POSITION_GRID`): annotation positions, stroke widths and text sizes. The model's types stay fractions from 0 to 1, but the reducer snaps every value to the grid when it applies a command, so the plan only ever holds whole millionths. Snapping, rather than refusing values off the grid, lets the editor pass a pointer's position as it is. It uses `Math.round(v × 1,000,000) / 1,000,000`, which rounds a half up, toward positive infinity. A port must round the same way, as `floor(x + 0.5)` does, not away from zero. A size that snaps to 0 is refused as `invalid-size`, and a position outside 0 to 1 as `outside-page`.
 - **Lengths count Unicode code points,** as JSON Schema and every language count them, not UTF-16 units: ids and page keys have 1 to 128, form field names 1 to 1,000, and text notes and text field values up to 10,000. Strokes have 1 to 10,000 points. Colours are `#rrggbb` in lowercase.
 - **Keys are data:** form values keyed by a source or field named `__proto__`, `constructor` or `toString` are ordinary entries.
+- **The plan and the user-level commands have a portable JSON format,** `hm-pdf-plan` and `hm-pdf-command` version 1, with JSON Schemas in `formats/` and conformance vectors in `conformance/`. Documents hold positions and sizes as whole millionths, the same grid, so a document reads back exactly as the session that wrote it held it. [The format record](../formats/hm-pdf-plan.md) describes them.
 - **Signature annotations are refused** with `unsupported-annotation`. Their image is bytes, which a portable document stores as a content-addressed asset (sdk-core ADR 0045, section 2), and how assets travel with a document isn't decided yet. Nothing in the editor creates signatures today. The signature tool will bring them back, with the asset design, in a later version of the format.
 
 ### Exporting

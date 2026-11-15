@@ -29,6 +29,8 @@ const ALL_CODES: Record<PdfErrorCode, true> = {
   SESSION_TOO_LARGE: true,
   IMAGE_TOO_LARGE: true,
   INVALID_COMMAND: true,
+  INVALID_DOCUMENT: true,
+  UNSUPPORTED_FORMAT: true,
 };
 
 describe("pdfMessages", () => {

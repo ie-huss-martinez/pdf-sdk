@@ -46,6 +46,12 @@ export const PDF_MAX_STROKE_POINTS = 10000;
 export const PDF_MAX_TEXT_LENGTH = 10000;
 
 // @public
+export const PDF_PLAN_FORMAT = "hm-pdf-plan";
+
+// @public
+export const PDF_PLAN_VERSION = 1;
+
+// @public
 export const PDF_POSITION_GRID = 1000000;
 
 // @public
@@ -59,7 +65,29 @@ export interface PdfAddAnnotationCommand {
 }
 
 // @public
+export interface PdfAddAnnotationCommandDocument {
+    // (undocumented)
+    readonly annotation: PdfAnnotationDocument;
+    // (undocumented)
+    readonly index?: number;
+    // (undocumented)
+    readonly page: string;
+    // (undocumented)
+    readonly type: "pdf.addAnnotation";
+}
+
+// @public
 export type PdfAnnotation = PdfStrokeAnnotation | PdfTextAnnotation | PdfImageAnnotation;
+
+// @public
+export type PdfAnnotationDocument = PdfStrokeAnnotationDocument | PdfTextAnnotationDocument;
+
+// @public
+export interface PdfAssetReference {
+    readonly asset: string;
+    readonly mediaType: string;
+    readonly size: number;
+}
 
 // @public
 export interface PdfBuildJob {
@@ -120,6 +148,9 @@ export type PdfColor = `#${string}`;
 export type PdfCommand = PdfRotatePagesCommand | PdfDeletePagesCommand | PdfRestorePagesCommand | PdfMovePagesCommand | PdfReorderPagesCommand | PdfInsertPagesCommand | PdfSetFieldValueCommand | PdfAddAnnotationCommand | PdfRemoveAnnotationCommand;
 
 // @public
+export type PdfCommandDocument = Exclude<PdfCommand, PdfRestorePagesCommand | PdfAddAnnotationCommand> | PdfAddAnnotationCommandDocument;
+
+// @public
 export type PdfCommandRejection = "malformed-command" | "unknown-command" | "unknown-page" | "duplicate-page" | "last-page" | "invalid-position" | "invalid-rotation" | "invalid-order" | "invalid-keys" | "duplicate-key" | "unknown-source" | "page-out-of-range" | "field-name-too-long" | "text-too-long" | "unknown-annotation" | "duplicate-annotation" | "unsupported-annotation" | "outside-page" | "invalid-size" | "too-many-points" | "invalid-color";
 
 // @public
@@ -148,6 +179,17 @@ export interface PdfDocumentHandle {
 }
 
 // @public
+export interface PdfDocumentPoint {
+    // (undocumented)
+    readonly x: number;
+    // (undocumented)
+    readonly y: number;
+}
+
+// @public
+export type PdfDocumentRejection = "unknown-format" | "unknown-format-version" | "malformed-document" | "unknown-source" | "page-out-of-range" | "duplicate-key" | "duplicate-annotation" | "invalid-rotation" | "outside-page" | "invalid-size" | "too-many-points" | "invalid-color" | "unsupported-annotation" | "field-name-too-long" | "text-too-long";
+
+// @public
 export interface PdfEncryption {
     readonly ownerPassword?: string;
     readonly userPassword: string;
@@ -165,7 +207,7 @@ export class PdfError extends SdkError<PdfErrorCode> {
 }
 
 // @public
-export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE" | "INVALID_COMMAND";
+export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE" | "INVALID_COMMAND" | "INVALID_DOCUMENT" | "UNSUPPORTED_FORMAT";
 
 // @public
 export interface PdfExportOptions extends PdfCallOptions {
@@ -303,6 +345,8 @@ export const pdfMessages: {
     readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
     readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
     readonly "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.";
+    readonly "errors.INVALID_DOCUMENT": "This project is damaged, or it isn't a PDF project.";
+    readonly "errors.UNSUPPORTED_FORMAT": "This project was saved by a newer version, or by another app. Update the app, and try again.";
     readonly "warnings.maxPages": {
         readonly $plural: "actual";
     } & {
@@ -419,6 +463,42 @@ export interface PdfPlan {
     readonly formValues: Readonly<Record<string, Readonly<Record<string, PdfFieldValue>>>>;
     // (undocumented)
     readonly pages: readonly PdfPlanPage[];
+}
+
+// @public
+export interface PdfPlanDocument {
+    // (undocumented)
+    readonly format: typeof PDF_PLAN_FORMAT;
+    // (undocumented)
+    readonly formValues: Readonly<Record<string, Readonly<Record<string, PdfFieldValue>>>>;
+    // (undocumented)
+    readonly pages: readonly PdfPlanDocumentPage[];
+    // (undocumented)
+    readonly sources: Readonly<Record<string, PdfPlanDocumentSource>>;
+    // (undocumented)
+    readonly version: typeof PDF_PLAN_VERSION;
+}
+
+// @public
+export interface PdfPlanDocumentPage {
+    // (undocumented)
+    readonly annotations: readonly PdfAnnotationDocument[];
+    // (undocumented)
+    readonly key: string;
+    // (undocumented)
+    readonly pageIndex: number;
+    // (undocumented)
+    readonly rotation: PdfRotation;
+    // (undocumented)
+    readonly source: string;
+}
+
+// @public
+export interface PdfPlanDocumentSource {
+    // (undocumented)
+    readonly asset?: PdfAssetReference;
+    // (undocumented)
+    readonly pageCount: number;
 }
 
 // @public
@@ -623,6 +703,20 @@ export interface PdfStrokeAnnotation {
 }
 
 // @public
+export interface PdfStrokeAnnotationDocument {
+    // (undocumented)
+    readonly color: PdfColor;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly points: readonly PdfDocumentPoint[];
+    // (undocumented)
+    readonly type: "pen" | "highlight";
+    // (undocumented)
+    readonly width: number;
+}
+
+// @public
 export interface PdfTextAnnotation {
     readonly at: PdfPoint;
     // (undocumented)
@@ -630,6 +724,22 @@ export interface PdfTextAnnotation {
     // (undocumented)
     readonly id: string;
     readonly size: number;
+    readonly text: string;
+    // (undocumented)
+    readonly type: "text";
+}
+
+// @public
+export interface PdfTextAnnotationDocument {
+    // (undocumented)
+    readonly at: PdfDocumentPoint;
+    // (undocumented)
+    readonly color: PdfColor;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly size: number;
+    // (undocumented)
     readonly text: string;
     // (undocumented)
     readonly type: "text";
@@ -663,6 +773,21 @@ export interface PdfWarning {
 }
 
 // @public
+export function readPdfCommandDocument(value: unknown): PdfCommand;
+
+// @public
+export function readPdfPlanDocument(value: unknown): {
+    readonly plan: PdfPlan;
+    readonly sources: Readonly<Record<string, PdfPlanDocumentSource>>;
+};
+
+// @public
 export function safeLinkUrl(url: string): string | undefined;
+
+// @public
+export function toPdfCommandDocument(command: PdfCommand): PdfCommandDocument;
+
+// @public
+export function toPdfPlanDocument(plan: PdfPlan, sources: Readonly<Record<string, PdfPlanDocumentSource>>): PdfPlanDocument;
 
 ```

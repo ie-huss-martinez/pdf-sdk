@@ -27,7 +27,10 @@ export interface PdfRotatePagesCommand {
   readonly type: "pdf.rotatePages";
   /** The keys of the pages to rotate. */
   readonly pages: readonly string[];
-  /** Degrees, clockwise, in multiples of 90. Negative turns anticlockwise. */
+  /**
+   * Degrees, clockwise, in multiples of 90 from -360 to 360. Negative turns
+   * anticlockwise.
+   */
   readonly angle: number;
 }
 
@@ -166,8 +169,8 @@ export type PdfCommand =
  * - `last-page`: deleting every page; a document keeps at least one.
  * - `invalid-position`: a position outside the plan, or outside a page's
  *   annotations.
- * - `invalid-rotation`: an angle that isn't a multiple of 90 degrees, or a
- *   page rotation other than 0, 90, 180 or 270.
+ * - `invalid-rotation`: an angle that isn't a multiple of 90 degrees from
+ *   -360 to 360, or a page rotation other than 0, 90, 180 or 270.
  * - `invalid-order`: a new order that doesn't list every page exactly once.
  * - `invalid-keys`: an insert without one key per page.
  * - `duplicate-key`: a new page key the plan already has, or one given twice.
@@ -227,7 +230,7 @@ export class Invalid extends Error {
   }
 }
 
-function invalid(reason: PdfCommandRejection, message: string): never {
+export function invalid(reason: PdfCommandRejection, message: string): never {
   throw new Invalid(reason, message);
 }
 
@@ -369,6 +372,8 @@ function checkPageOf(source: string, pageIndex: number, pageCount: PdfSourcePage
 }
 
 const ROTATIONS: readonly number[] = [0, 90, 180, 270];
+/** The angles a rotation command takes: a whole list, so a schema's `enum` can match it exactly. */
+const ANGLES: readonly number[] = [-360, -270, -180, -90, 0, 90, 180, 270, 360];
 
 /** A whole plan page, as `pdf.restorePages` carries it. @internal */
 export function checkPage(value: unknown, pageCount: PdfSourcePageCount): PdfPlanPage {
@@ -453,8 +458,8 @@ function apply(
       const pages = checkKeys(command.pages, "pages");
       const { angle } = command;
       if (typeof angle !== "number") malformed("an angle is a number");
-      if (!Number.isSafeInteger(angle) || angle % 90 !== 0) {
-        invalid("invalid-rotation", "an angle is a multiple of 90 degrees");
+      if (!ANGLES.includes(angle)) {
+        invalid("invalid-rotation", "an angle is a multiple of 90 degrees, from -360 to 360");
       }
       const at = new Set(positions(plan, pages));
       return {

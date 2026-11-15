@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-command/v1.schema.json",
+  "title": "hm-pdf-command, version 1",
+  "description": "One user-level edit to an hm-pdf-plan (docs/formats/hm-pdf-plan.md, sdk-core ADR 0045). Beyond this schema, the reducer checks the command against the plan and its sources: the pages, keys, positions and annotations it names.",
+  "oneOf": [
+    {
+      "description": "Rotates pages by an angle, added to their rotation.",
+      "type": "object",
+      "required": ["type", "pages", "angle"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.rotatePages"
+        },
+        "pages": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/keys"
+        },
+        "angle": {
+          "description": "Degrees, clockwise; negative turns anticlockwise.",
+          "enum": [-360, -270, -180, -90, 0, 90, 180, 270, 360]
+        }
+      }
+    },
+    {
+      "description": "Removes pages; a plan keeps at least one.",
+      "type": "object",
+      "required": ["type", "pages"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.deletePages"
+        },
+        "pages": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/keys"
+        }
+      }
+    },
+    {
+      "description": "Moves pages as a block, in plan order, so the first is at position to of the result.",
+      "type": "object",
+      "required": ["type", "pages", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.movePages"
+        },
+        "pages": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/keys"
+        },
+        "to": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/index"
+        }
+      }
+    },
+    {
+      "description": "Puts every page in a new order, given as every key exactly once.",
+      "type": "object",
+      "required": ["type", "order"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.reorderPages"
+        },
+        "order": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/keys"
+        }
+      }
+    },
+    {
+      "description": "Inserts pages of a source, with one new key each, so the first is at position at of the result.",
+      "type": "object",
+      "required": ["type", "source", "pageIndexes", "at", "keys"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.insertPages"
+        },
+        "source": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/id"
+        },
+        "pageIndexes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/index"
+          }
+        },
+        "at": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/index"
+        },
+        "keys": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/keys"
+        }
+      }
+    },
+    {
+      "description": "Sets a form field's value in one source, or clears it with null.",
+      "type": "object",
+      "required": ["type", "source", "field", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.setFieldValue"
+        },
+        "source": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/id"
+        },
+        "field": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/fieldName"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/fieldValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Adds an annotation to a page, at index among its annotations, or at the end.",
+      "type": "object",
+      "required": ["type", "page", "annotation"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.addAnnotation"
+        },
+        "page": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/id"
+        },
+        "annotation": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/annotation"
+        },
+        "index": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/index"
+        }
+      }
+    },
+    {
+      "description": "Removes an annotation from a page.",
+      "type": "object",
+      "required": ["type", "page", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pdf.removeAnnotation"
+        },
+        "page": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/id"
+        },
+        "id": {
+          "$ref": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json#/$defs/id"
+        }
+      }
+    }
+  ]
+}

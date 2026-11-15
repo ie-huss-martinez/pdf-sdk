@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/hm-pdf-plan/v1.schema.json",
+  "title": "hm-pdf-plan, version 1",
+  "description": "A pdf-sdk page plan: the pages in order, each a page of a source with an added rotation and its annotations, and form values per source (docs/formats/hm-pdf-plan.md, sdk-core ADR 0045). Positions and sizes are whole millionths of the page. Beyond this schema, readers check that each page's source is listed and has the page, that page keys are unique, that each page's annotation ids are unique, and that form values name listed sources.",
+  "type": "object",
+  "required": ["format", "version", "sources", "pages", "formValues"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "hm-pdf-plan"
+    },
+    "version": {
+      "const": 1
+    },
+    "sources": {
+      "description": "The sources by id.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "formValues": {
+      "description": "Form values set in the editor, by source id, then field name.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "minProperties": 1,
+        "propertyNames": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "additionalProperties": {
+          "$ref": "#/$defs/fieldValue"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "description": "A page key, source id or annotation id: 1 to 128 Unicode code points.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "index": {
+      "description": "A zero-based position or page index.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "keys": {
+      "description": "Page keys, at least one.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "millionths": {
+      "description": "A position on the page, in whole millionths of its width or height, from 0 to 1,000,000.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "size": {
+      "description": "A stroke width or text size, in whole millionths of the page's height, from 1 to 1,000,000.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "point": {
+      "description": "A point on the page's unrotated media box: x from the left edge, y from the top edge.",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/millionths"
+        },
+        "y": {
+          "$ref": "#/$defs/millionths"
+        }
+      }
+    },
+    "color": {
+      "description": "#rrggbb, in lowercase.",
+      "type": "string",
+      "pattern": "^#[0-9a-f]{6}$"
+    },
+    "stroke": {
+      "description": "A pen stroke, or a highlighter stroke, which is drawn translucent.",
+      "type": "object",
+      "required": ["id", "type", "points", "color", "width"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": ["pen", "highlight"]
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/point"
+          }
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "width": {
+          "$ref": "#/$defs/size"
+        }
+      }
+    },
+    "textNote": {
+      "description": "A text note, drawn as text and never interpreted as markup. at is its top-left corner.",
+      "type": "object",
+      "required": ["id", "type", "at", "text", "size", "color"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "const": "text"
+        },
+        "at": {
+          "$ref": "#/$defs/point"
+        },
+        "text": {
+          "$ref": "#/$defs/textValue"
+        },
+        "size": {
+          "$ref": "#/$defs/size"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
+      }
+    },
+    "annotation": {
+      "description": "An annotation drawn on a page. Version 1 has no signatures.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/stroke"
+        },
+        {
+          "$ref": "#/$defs/textNote"
+        }
+      ]
+    },
+    "textValue": {
+      "description": "Text of up to 10,000 Unicode code points.",
+      "type": "string",
+      "maxLength": 10000
+    },
+    "fieldName": {
+      "description": "A form field's name: 1 to 1,000 Unicode code points.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "fieldValue": {
+      "description": "A text field's value, or whether a checkbox is checked.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/textValue"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "asset": {
+      "description": "A content-addressed reference to a source's bytes. Documents never inline them.",
+      "type": "object",
+      "required": ["asset", "mediaType", "size"],
+      "additionalProperties": false,
+      "properties": {
+        "asset": {
+          "description": "sha256: and the lowercase hex SHA-256 of the bytes.",
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "mediaType": {
+          "description": "The bytes' media type, such as application/pdf, in lowercase.",
+          "type": "string",
+          "maxLength": 255,
+          "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+        },
+        "size": {
+          "description": "The size of the bytes.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "source": {
+      "description": "A source document: its page count, and, once documents travel with their files, its content.",
+      "type": "object",
+      "required": ["pageCount"],
+      "additionalProperties": false,
+      "properties": {
+        "pageCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "asset": {
+          "$ref": "#/$defs/asset"
+        }
+      }
+    },
+    "page": {
+      "description": "A page of a source, in plan order. Its key is stable while it moves.",
+      "type": "object",
+      "required": ["key", "source", "pageIndex", "rotation", "annotations"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/id"
+        },
+        "source": {
+          "$ref": "#/$defs/id"
+        },
+        "pageIndex": {
+          "$ref": "#/$defs/index"
+        },
+        "rotation": {
+          "description": "Degrees, clockwise, added to the page's own /Rotate.",
+          "enum": [0, 90, 180, 270]
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/annotation"
+          }
+        }
+      }
+    }
+  }
+}

@@ -60,6 +60,8 @@ export const pdfEditorMessages: {
     readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
     readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
     readonly "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.";
+    readonly "errors.INVALID_DOCUMENT": "This project is damaged, or it isn't a PDF project.";
+    readonly "errors.UNSUPPORTED_FORMAT": "This project was saved by a newer version, or by another app. Update the app, and try again.";
     readonly "warnings.maxPages": {
         readonly $plural: "actual";
     } & {

@@ -170,7 +170,10 @@ export const mutated = <T extends object>(value: fc.Arbitrary<T>) =>
   fc
     .tuple(value, fc.nat(), fc.string(), fc.jsonValue({ maxDepth: 2 }), fc.boolean())
     .map(([original, index, name, replacement, add]) => {
-      const copy: Record<string, unknown> = JSON.parse(JSON.stringify(original));
+      const parsed: unknown = JSON.parse(JSON.stringify(original));
+      // A list becomes an object of its items, whose callers turn it back
+      // with Object.values, so `length` is never redefined.
+      const copy = (Array.isArray(parsed) ? { ...parsed } : parsed) as Record<string, unknown>;
       const fields = Object.keys(copy);
       const field = add || fields.length === 0 ? name : (fields[index % fields.length] as string);
       Object.defineProperty(copy, field, {
