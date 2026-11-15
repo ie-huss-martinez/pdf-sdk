@@ -34,6 +34,21 @@ export function linkDestination(url: string): string | undefined;
 export const PDF_MAX_CANVAS_PIXELS = 16777216;
 
 // @public
+export const PDF_MAX_FIELD_NAME_LENGTH = 1000;
+
+// @public
+export const PDF_MAX_ID_LENGTH = 128;
+
+// @public
+export const PDF_MAX_STROKE_POINTS = 10000;
+
+// @public
+export const PDF_MAX_TEXT_LENGTH = 10000;
+
+// @public
+export const PDF_POSITION_GRID = 1000000;
+
+// @public
 export interface PdfAddAnnotationCommand {
     // (undocumented)
     readonly annotation: PdfAnnotation;
@@ -105,6 +120,9 @@ export type PdfColor = `#${string}`;
 export type PdfCommand = PdfRotatePagesCommand | PdfDeletePagesCommand | PdfRestorePagesCommand | PdfMovePagesCommand | PdfReorderPagesCommand | PdfInsertPagesCommand | PdfSetFieldValueCommand | PdfAddAnnotationCommand | PdfRemoveAnnotationCommand;
 
 // @public
+export type PdfCommandRejection = "malformed-command" | "unknown-command" | "unknown-page" | "duplicate-page" | "last-page" | "invalid-position" | "invalid-rotation" | "invalid-order" | "invalid-keys" | "duplicate-key" | "unknown-source" | "page-out-of-range" | "field-name-too-long" | "text-too-long" | "unknown-annotation" | "duplicate-annotation" | "unsupported-annotation" | "outside-page" | "invalid-size" | "too-many-points" | "invalid-color";
+
+// @public
 export interface PdfCompression {
     // (undocumented)
     readonly images?: PdfImageCompression;
@@ -147,7 +165,7 @@ export class PdfError extends SdkError<PdfErrorCode> {
 }
 
 // @public
-export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE";
+export type PdfErrorCode = SdkCoreErrorCode | "INVALID_PDF" | "PASSWORD_REQUIRED" | "PROCESSING_FAILED" | "TOO_MANY_PAGES" | "SESSION_TOO_LARGE" | "IMAGE_TOO_LARGE" | "INVALID_COMMAND";
 
 // @public
 export interface PdfExportOptions extends PdfCallOptions {
@@ -284,6 +302,7 @@ export const pdfMessages: {
     readonly "errors.TOO_MANY_PAGES": "This document has {actual, number} pages, which is over the {maximum, number}-page limit.";
     readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
     readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
+    readonly "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.";
     readonly "warnings.maxPages": {
         readonly $plural: "actual";
     } & {

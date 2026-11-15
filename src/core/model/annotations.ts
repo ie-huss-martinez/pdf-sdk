@@ -1,7 +1,7 @@
 import type { PdfPoint } from "./geometry.js";
 
 /**
- * A colour as `#rrggbb`.
+ * A colour as `#rrggbb`, in lowercase.
  *
  * @public
  */
@@ -41,6 +41,10 @@ export interface PdfTextAnnotation {
 
 /**
  * A drawn signature, or another image, placed on the page.
+ *
+ * The session refuses it for now, with `INVALID_COMMAND` and
+ * `unsupported-annotation`: the portable format can't carry its image yet
+ * (docs/adr/0003). The editor's signature tool will bring it back.
  *
  * @public
  */

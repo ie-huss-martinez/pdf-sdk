@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-12
+- **Amended:** 2026-11-15, for sdk-core ADR 0045: the reducer refuses invalid commands with `INVALID_COMMAND` and a stable reason, positions and sizes are kept on a grid of millionths of the page, lengths count Unicode code points, and signature annotations are left out until their image can be stored as an asset (see [Strict commands and the grid](#strict-commands-and-the-grid))
 
 ## Context
 
@@ -42,6 +43,18 @@ Commands are plain, structured-cloneable data:
 - **Undo uses inverse commands.** Each command records its inverse when it runs, such as the positions that `pdf.movePages` took its pages from. Plan and overlay edits need no snapshots, so the history costs almost nothing beyond the sources it still refers to ([ADR 0004](0004-pdf-limits.md)).
 - **Grouping:** a drag that moves several pages, or a pen stroke made of many points, is one undoable step.
 - **Events:** each command emits an anonymous event with its type and outcome, for the host's `onEvent`. Events never carry file names, contents, field values or annotation text.
+
+### Strict commands and the grid
+
+Added on 2026-11-15, so that a port of the SDK in another language, or a saved document, reproduces a session exactly ([sdk-core ADR 0045](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0045-portable-formats-and-conformance-vectors.md)).
+
+- **The reducer is `sdk-core`'s `Reducer<PdfPlan, PdfCommand>`,** created with each source's page count, so it can check the pages a command names. The session applies steps with `applyCommands` ([sdk-core ADR 0029](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0029-session-store-and-history.md)).
+- **Invalid commands throw `PdfError` with `INVALID_COMMAND`,** and a stable `details.reason` such as `unknown-page`, `last-page` or `invalid-color`, listed by `PdfCommandRejection`. They change nothing. Before, they threw `TypeError` or `RangeError` with only a message.
+- **Commands are strict:** a field a command's type doesn't have, or one of the wrong type, fails as `malformed-command`. The reducer never drops or corrects a field.
+- **Positions and sizes are on a grid of millionths of the page** (`PDF_POSITION_GRID`): annotation positions, stroke widths and text sizes. The model's types stay fractions from 0 to 1, but the reducer snaps every value to the grid when it applies a command, so the plan only ever holds whole millionths. Snapping, rather than refusing values off the grid, lets the editor pass a pointer's position as it is. It uses `Math.round(v × 1,000,000) / 1,000,000`, which rounds a half up, toward positive infinity. A port must round the same way, as `floor(x + 0.5)` does, not away from zero. A size that snaps to 0 is refused as `invalid-size`, and a position outside 0 to 1 as `outside-page`.
+- **Lengths count Unicode code points,** as JSON Schema and every language count them, not UTF-16 units: ids and page keys have 1 to 128, form field names 1 to 1,000, and text notes and text field values up to 10,000. Strokes have 1 to 10,000 points. Colours are `#rrggbb` in lowercase.
+- **Keys are data:** form values keyed by a source or field named `__proto__`, `constructor` or `toString` are ordinary entries.
+- **Signature annotations are refused** with `unsupported-annotation`. Their image is bytes, which a portable document stores as a content-addressed asset (sdk-core ADR 0045, section 2), and how assets travel with a document isn't decided yet. Nothing in the editor creates signatures today. The signature tool will bring them back, with the asset design, in a later version of the format.
 
 ### Exporting
 

@@ -59,6 +59,7 @@ export const pdfEditorMessages: {
     readonly "errors.TOO_MANY_PAGES": "This document has {actual, number} pages, which is over the {maximum, number}-page limit.";
     readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
     readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
+    readonly "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.";
     readonly "warnings.maxPages": {
         readonly $plural: "actual";
     } & {

@@ -17,6 +17,9 @@ import { isSdkError, type SdkCoreErrorCode, SdkError } from "@hussmartinez/sdk-c
  * - `IMAGE_TOO_LARGE`: an image exceeds the `maxImagePixels` limit. It's
  *   reported as a warning, because the image is skipped rather than the
  *   document failing (ADR 0004).
+ * - `INVALID_COMMAND`: an edit command doesn't apply to the plan, such as
+ *   one naming a page the plan doesn't have. `details.reason` says why, as
+ *   a stable token (`PdfCommandRejection`, sdk-core ADR 0045).
  *
  * Limit codes carry `details` with the `limit`, its `maximum`, the `actual`
  * value and the `unit`.
@@ -30,7 +33,8 @@ export type PdfErrorCode =
   | "PROCESSING_FAILED"
   | "TOO_MANY_PAGES"
   | "SESSION_TOO_LARGE"
-  | "IMAGE_TOO_LARGE";
+  | "IMAGE_TOO_LARGE"
+  | "INVALID_COMMAND";
 
 /**
  * The error `@hussmartinez/pdf-sdk` throws and rejects with, with a stable
