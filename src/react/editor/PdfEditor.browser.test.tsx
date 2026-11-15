@@ -8,7 +8,7 @@ import { createFakeEngine } from "../../../test/fakes/fake-engine.js";
 import { encodeFakePdf } from "../../../test/fakes/fake-pdf.js";
 import { createFakeProcessor } from "../../../test/fakes/fake-processor.js";
 import { jpxPdf } from "../../../test/fixtures/pdfs.js";
-import { cleanUp, loadStyles, mount, type StyleOptions } from "../../../test/react.js";
+import { cleanUp, loadStyles, mount, type StyleOptions, waitFor } from "../../../test/react.js";
 import type { PdfEngine } from "../../core/ports/pdf-engine.js";
 import { PdfEditor } from "./PdfEditor.js";
 import type { PdfEditorChange, PdfEditorHandle, PdfEditorProps } from "./types.js";
@@ -86,8 +86,7 @@ function setUp(props: Partial<PdfEditorProps> = {}, css?: string, styles: StyleO
  * asynchronously, and some browsers take several tasks to do it.
  */
 const settle = async (container: HTMLElement, status: string) => {
-  await vi.waitFor(() => expect(editor(container)?.dataset["hmStatus"]).toBe(status));
-  await act(async () => {});
+  await waitFor(() => expect(editor(container)?.dataset["hmStatus"]).toBe(status));
 };
 
 const editor = (container: HTMLElement) =>
@@ -146,7 +145,7 @@ describe("PdfEditor", () => {
     const { mounted, changes } = setUp();
     const container = await mounted;
     (button(container) as HTMLButtonElement).focus();
-    await userEvent.upload(input(container), pdfFile(3));
+    await act(() => userEvent.upload(input(container), pdfFile(3)));
     await settle(container, "ready");
 
     expect(editor(container)?.dataset["hmStatus"]).toBe("ready");
@@ -162,7 +161,7 @@ describe("PdfEditor", () => {
     const { engine, release } = gatedEngine();
     const { mounted } = setUp({ engine });
     const container = await mounted;
-    await userEvent.upload(input(container), pdfFile(1));
+    await act(() => userEvent.upload(input(container), pdfFile(1)));
     await settle(container, "opening");
 
     expect(editor(container)?.dataset["hmStatus"]).toBe("opening");
@@ -180,7 +179,7 @@ describe("PdfEditor", () => {
     const { mounted, changes } = setUp();
     const container = await mounted;
     (button(container) as HTMLButtonElement).focus();
-    await userEvent.upload(input(container), notAPdf());
+    await act(() => userEvent.upload(input(container), notAPdf()));
     await settle(container, "error");
 
     expect(editor(container)?.dataset["hmStatus"]).toBe("error");
@@ -192,7 +191,7 @@ describe("PdfEditor", () => {
     expect(document.activeElement).toBe(retry);
     expect(changes).toEqual([]);
 
-    await userEvent.upload(input(container), pdfFile(2));
+    await act(() => userEvent.upload(input(container), pdfFile(2)));
     await settle(container, "ready");
     expect(editor(container)?.dataset["hmStatus"]).toBe("ready");
     expect(container.querySelector(".hm-pdf-editor-alert")).toBeNull();
@@ -240,7 +239,7 @@ describe("PdfEditor", () => {
     expect(changes).toEqual([{ reason: "open", pageCount: 1 }]);
 
     await setFile(pdfFile(4));
-    await vi.waitFor(() => expect(container.querySelectorAll(".hm-pdf-page")).toHaveLength(4));
+    await waitFor(() => expect(container.querySelectorAll(".hm-pdf-page")).toHaveLength(4));
     await settle(container, "ready");
 
     await setFile(null);
@@ -268,7 +267,7 @@ describe("PdfEditor", () => {
     await act(async () => editorHandle.redo());
     expect(changes.map((change) => change.reason)).toEqual(["open", "edit", "edit", "edit"]);
 
-    const bytes = await editorHandle.export();
+    const bytes = await act(() => editorHandle.export());
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.byteLength).toBeGreaterThan(0);
 
@@ -323,7 +322,7 @@ describe("PdfEditor", () => {
       expect(area.left).toBeGreaterThanOrEqual(sidebar.right);
       expect(area.width).toBeCloseTo(640, 0);
       expect(area.height).toBeCloseTo(body.height, 0);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const page = (
           container.querySelector(".hm-pdf-page") as HTMLElement
         ).getBoundingClientRect();
@@ -384,16 +383,16 @@ describe("PdfEditor", () => {
       const container = await mounted;
       await act(() => handle.current?.open(fakePdf(2)));
 
-      await userEvent.click(tool(container, "pdf.rotate-right"));
+      await act(() => userEvent.click(tool(container, "pdf.rotate-right")));
       expect(rotations(handle)).toEqual([90, 0]);
       expect(changes.at(-1)).toEqual({ reason: "edit", pageCount: 2 });
       await announced(container, "Rotated 1 page.");
 
-      await userEvent.click(tool(container, "pdf.undo"));
+      await act(() => userEvent.click(tool(container, "pdf.undo")));
       expect(rotations(handle)).toEqual([0, 0]);
       await announced(container, "Undone.");
 
-      await userEvent.click(tool(container, "pdf.redo"));
+      await act(() => userEvent.click(tool(container, "pdf.redo")));
       expect(rotations(handle)).toEqual([90, 0]);
       await announced(container, "Redone.");
     });
@@ -403,7 +402,7 @@ describe("PdfEditor", () => {
       const container = await mounted;
       await act(() => handle.current?.open(fakePdf(3)));
       await act(async () => handle.current?.session.select(["p1", "p3"]));
-      await userEvent.click(tool(container, "pdf.rotate-left"));
+      await act(() => userEvent.click(tool(container, "pdf.rotate-left")));
       expect(rotations(handle)).toEqual([270, 0, 270]);
       await announced(container, "Rotated 2 pages.");
     });
@@ -416,16 +415,16 @@ describe("PdfEditor", () => {
       try {
         await act(() => handle.current?.open(fakePdf(2)));
         (container.querySelector(".hm-pdf-viewer") as HTMLElement).focus();
-        await userEvent.keyboard("]");
+        await act(() => userEvent.keyboard("]"));
         expect(rotations(handle)).toEqual([90, 0]);
-        await userEvent.keyboard("{Control>}z{/Control}");
+        await act(() => userEvent.keyboard("{Control>}z{/Control}"));
         expect(rotations(handle)).toEqual([0, 0]);
         // "[[" types "[": a single one starts a key descriptor.
-        await userEvent.keyboard("[[");
+        await act(() => userEvent.keyboard("[["));
         expect(rotations(handle)).toEqual([270, 0]);
 
         outside.focus();
-        await userEvent.keyboard("]");
+        await act(() => userEvent.keyboard("]"));
         expect(rotations(handle)).toEqual([270, 0]);
       } finally {
         outside.remove();
@@ -444,9 +443,9 @@ describe("PdfEditor", () => {
         event.preventDefault();
         clicked();
       });
-      await userEvent.click(tool(container, "pdf.open"));
+      await act(() => userEvent.click(tool(container, "pdf.open")));
       expect(clicked).toHaveBeenCalledOnce();
-      await userEvent.upload(picker, pdfFile(2));
+      await act(() => userEvent.upload(picker, pdfFile(2)));
       await settle(container, "ready");
       expect(changes).toEqual([{ reason: "open", pageCount: 2 }]);
     });
@@ -467,7 +466,7 @@ describe("PdfEditor", () => {
       // The shortcuts stay.
       await act(() => hidden.handle.current?.open(fakePdf(1)));
       (bare.querySelector(".hm-pdf-viewer") as HTMLElement).focus();
-      await userEvent.keyboard("]");
+      await act(() => userEvent.keyboard("]"));
       expect(rotations(hidden.handle)).toEqual([90]);
     });
 
@@ -517,7 +516,7 @@ describe("PdfEditor", () => {
         angle: 90,
       }),
     );
-    const bytes = await handle.current?.export();
+    const bytes = await act(() => handle.current?.export());
     expect(new TextDecoder().decode(bytes?.slice(0, 5))).toBe("%PDF-");
   });
 

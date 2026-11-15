@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeEngine } from "../../../test/fakes/fake-engine.js";
 import { encodeFakePdf } from "../../../test/fakes/fake-pdf.js";
 import { LINKS, reportPdf, SAFE_LINKS } from "../../../test/fixtures/pdfs.js";
+import { waitFor } from "../../../test/react.js";
 import { createPdfJsEngine } from "../../adapters/pdfjs/pdfjs-engine.js";
 import type { PdfEngine } from "../../core/ports/pdf-engine.js";
 import { createPdfSession, type PdfSession } from "../../core/session/session.js";
@@ -100,7 +101,7 @@ describe("PdfViewer", () => {
       "Page 2 of 3",
       "Page 3 of 3",
     ]);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(pages[0]?.getAttribute("aria-busy")).toBe("false");
       expect(pages[0]?.querySelector("canvas")?.width).toBeGreaterThan(0);
       expect(pages[0]?.querySelector(".hm-pdf-text-layer")?.textContent).toContain(
@@ -114,7 +115,7 @@ describe("PdfViewer", () => {
     const { session, bytes } = fakeSession(1);
     const container = await mount(viewer(session));
     await act(() => session.open(bytes));
-    await vi.waitFor(() => expect(container.querySelectorAll("a").length).toBeGreaterThan(0));
+    await waitFor(() => expect(container.querySelectorAll("a").length).toBeGreaterThan(0));
     const anchors = [...container.querySelectorAll("a")];
     expect(anchors.map((anchor) => anchor.href).sort()).toEqual(
       SAFE_LINKS.map((url) => new URL(url).href).sort(),
@@ -157,7 +158,7 @@ describe("PdfViewer", () => {
     const session = createPdfSession({ engine: careless });
     const container = await mount(viewer(session));
     await act(() => session.open(encodeFakePdf({ pages: [{ width: 600, height: 800 }] })));
-    await vi.waitFor(() => expect(container.querySelectorAll("a")).toHaveLength(1));
+    await waitFor(() => expect(container.querySelectorAll("a")).toHaveLength(1));
     expect(container.querySelector("a")?.href).toBe("https://example.com/");
   });
 
@@ -166,13 +167,13 @@ describe("PdfViewer", () => {
     const container = await mount(viewer(session));
     await act(() => session.open(bytes));
     const page = () => container.querySelector<HTMLElement>(".hm-pdf-page");
-    await vi.waitFor(() => expect(page()?.querySelector(".hm-pdf-text-layer")).not.toBeNull());
+    await waitFor(() => expect(page()?.querySelector(".hm-pdf-text-layer")).not.toBeNull());
     const before = page()?.getBoundingClientRect();
     const [first] = session.getSnapshot().plan.pages;
     await act(() =>
       session.execute({ type: "pdf.rotatePages", pages: [first?.key as string], angle: 90 }),
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const after = page()?.getBoundingClientRect();
       expect(after?.width).toBeCloseTo(before?.width ?? 0, 0);
       expect(after?.height).toBeCloseTo(((before?.width ?? 0) * 600) / 800, 0);
@@ -191,7 +192,7 @@ describe("PdfViewer", () => {
     const getPage = vi.spyOn(session, "getPage");
     const renderPage = vi.spyOn(session, "renderPage");
     const container = await mount(viewer(session));
-    await vi.waitFor(() => expect(container.querySelector("canvas")?.width).toBeGreaterThan(0));
+    await waitFor(() => expect(container.querySelector("canvas")?.width).toBeGreaterThan(0));
     await frames(5);
     expect(getPage.mock.calls.length).toBeLessThan(10);
     expect(renderPage.mock.calls.length).toBeLessThan(10);
@@ -219,7 +220,7 @@ describe("PdfViewer", () => {
       const context = canvas.getContext("2d") as CanvasRenderingContext2D;
       return [...context.getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data];
     };
-    await vi.waitFor(() => expect(centre()).toEqual([255, 0, 0, 255]));
+    await waitFor(() => expect(centre()).toEqual([255, 0, 0, 255]));
     const before = visible().width;
 
     hold = new Promise<void>((resolve) => {
@@ -235,7 +236,7 @@ describe("PdfViewer", () => {
     expect(centre()).toEqual([255, 0, 0, 255]);
 
     release();
-    await vi.waitFor(() => expect(visible().width).toBeLessThan(before));
+    await waitFor(() => expect(visible().width).toBeLessThan(before));
     expect(centre()).toEqual([255, 0, 0, 255]);
   });
 
@@ -267,7 +268,7 @@ describe("PdfViewer", () => {
     expect(Math.abs(before)).toBeLessThan(40);
 
     release();
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect([...region.querySelectorAll("canvas")].some((canvas) => canvas.width > 0)).toBe(true),
     );
     await frames(5);
@@ -293,7 +294,7 @@ describe("PdfViewer", () => {
     const region = container.querySelector("section") as HTMLElement;
     const page = region.querySelector('[data-hm-page-key="p20"]') as HTMLElement;
     // The viewer lays its pages out once it knows its width.
-    await vi.waitFor(() => expect(page.offsetTop).toBeGreaterThan(0));
+    await waitFor(() => expect(page.offsetTop).toBeGreaterThan(0));
     await act(async () => {
       region.scrollTop = page.offsetTop + 100;
     });
@@ -301,7 +302,7 @@ describe("PdfViewer", () => {
     const before = page.getBoundingClientRect().top - region.getBoundingClientRect().top;
 
     release();
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect([...region.querySelectorAll("canvas")].some((canvas) => canvas.width > 0)).toBe(true),
     );
     await frames(5);
@@ -314,7 +315,7 @@ describe("PdfViewer", () => {
     const container = await mount(viewer(session));
     await act(() => session.open(bytes));
     const canvases = () => [...container.querySelectorAll<HTMLCanvasElement>("canvas")];
-    await vi.waitFor(() => expect(canvases()[0]?.width).toBeGreaterThan(0));
+    await waitFor(() => expect(canvases()[0]?.width).toBeGreaterThan(0));
     const drawn = () => canvases().filter((canvas) => canvas.width > 0).length;
     expect(drawn()).toBeLessThan(10);
 
@@ -322,7 +323,7 @@ describe("PdfViewer", () => {
     await act(async () => {
       region.scrollTop = region.scrollHeight;
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(canvases().at(-1)?.width).toBeGreaterThan(0);
       expect(canvases()[0]?.width).toBe(0);
     });
@@ -355,7 +356,7 @@ describe("PdfViewer", () => {
     const container = await mount(viewer(session));
     const file = new Blob([(await reportPdf()) as Uint8Array<ArrayBuffer>]);
     await act(() => session.open(file));
-    await vi.waitFor(
+    await waitFor(
       () => {
         expect(container.querySelector(".hm-pdf-text-layer")?.textContent).toContain(
           "Quarterly report",
