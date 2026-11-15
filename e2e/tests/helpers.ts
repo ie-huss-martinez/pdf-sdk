@@ -62,10 +62,15 @@ export async function openPdf(page: Page, bytes: Uint8Array, name = "document.pd
   });
   await expect(page.locator(".hm-pdf-editor")).toHaveAttribute("data-hm-status", "ready");
   // The visible canvas takes a size only when a finished drawing is copied
-  // in; aria-busy alone is also false before the page starts drawing.
+  // in; aria-busy alone is also false before the page starts drawing. The
+  // first drawing starts the render worker and pdf.js, and decodes images
+  // such as JPEG 2000 in WebAssembly, which takes well over the default 5 s
+  // in WebKit on a loaded machine; a page that never draws still fails.
   const first = page.locator(".hm-pdf-page").first();
   await expect
-    .poll(() => first.locator("canvas").evaluate((canvas) => (canvas as HTMLCanvasElement).width))
+    .poll(() => first.locator("canvas").evaluate((canvas) => (canvas as HTMLCanvasElement).width), {
+      timeout: 30_000,
+    })
     .toBeGreaterThan(0);
   await expect(first).toHaveAttribute("aria-busy", "false");
 }
