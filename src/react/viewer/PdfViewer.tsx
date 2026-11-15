@@ -63,6 +63,9 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
   // The scroll position the viewer set itself, so its own scrolls don't
   // move the anchor; only the user's do.
   const own = useRef<number>(undefined);
+  // The scroll position the anchor was taken at. A different one means the
+  // user scrolled since, and the anchor is out of date until it's measured.
+  const anchoredAt = useRef<number>(undefined);
 
   const findPage = useCallback(
     (key: string) =>
@@ -74,6 +77,7 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
   const scrollOwn = useCallback((element: HTMLElement, top: number) => {
     element.scrollTop = top;
     own.current = element.scrollTop;
+    anchoredAt.current = element.scrollTop;
   }, []);
 
   useEffect(() => {
@@ -86,6 +90,14 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
       const viewer = root.current;
       const held = anchor.current;
       if (!viewer || !held) return;
+      // A scroll since the anchor was taken, not yet measured, is the user's:
+      // restoring the anchor would undo it. Scrolling is measured once per
+      // frame, and a resize can be reported before that frame. A position the browser clamped because the pages got
+      // shorter isn't the user's, so the anchor still applies then.
+      const at = anchoredAt.current;
+      const bottom = viewer.scrollHeight - viewer.clientHeight;
+      const clamped = at !== undefined && at > bottom && Math.abs(viewer.scrollTop - bottom) < 1;
+      if (at !== undefined && Math.abs(viewer.scrollTop - at) >= 1 && !clamped) return;
       const page = findPage(held.key);
       if (!page) {
         anchor.current = undefined;
@@ -124,6 +136,7 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
           key: top.dataset["hmPageKey"] as string,
           offset: top.offsetTop - scrollTop,
         };
+        anchoredAt.current = scrollTop;
       }
       const key = current?.dataset["hmPageKey"];
       if (key) session.setCurrentPage(key);
