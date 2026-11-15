@@ -13,6 +13,9 @@ import { PdfThumbnails } from "./PdfThumbnails.js";
 
 afterEach(cleanUp);
 
+/** How long a wait for the viewer's scrolling to settle may take, in milliseconds. */
+const SETTLE = 10_000;
+
 async function opened(pageCount: number): Promise<PdfSession> {
   const session = createPdfSession({ engine: createFakeEngine() });
   await session.open(
@@ -116,26 +119,37 @@ describe("PdfThumbnails", () => {
     expect(session.getSnapshot().selection).toEqual(["p4", "p5"]);
   });
 
-  it("brings the chosen page into view in the viewer, and follows the viewer's scrolling", async () => {
+  it("brings the chosen page into view in the viewer, and follows the viewer's scrolling", {
+    timeout: 30_000,
+  }, async () => {
     const session = await opened(30);
     const container = await mount(layout(session, true), SIDE_BY_SIDE);
     const viewer = container.querySelector("section") as HTMLElement;
     options(container)[0]?.focus();
     await act(() => userEvent.keyboard("{End}"));
-    await waitFor(() => {
-      const last = viewer.querySelector<HTMLElement>('[data-hm-page-key="p30"]');
-      const top = (last?.getBoundingClientRect().top ?? 0) - viewer.getBoundingClientRect().top;
-      expect(Math.abs(top)).toBeLessThan(80);
-    });
+    // The viewer settles on scroll and resize notifications. In the test's
+    // frame under load, WebKit delivers them about three seconds late, so
+    // these waits allow ten, rather than vi.waitFor's default of one.
+    await waitFor(
+      () => {
+        const last = viewer.querySelector<HTMLElement>('[data-hm-page-key="p30"]');
+        const top = (last?.getBoundingClientRect().top ?? 0) - viewer.getBoundingClientRect().top;
+        expect(Math.abs(top)).toBeLessThan(80);
+      },
+      { timeout: SETTLE },
+    );
 
     // Scrolling the viewer to the top makes page 1 current, which the thumbnails show.
     await act(async () => {
       viewer.scrollTop = 0;
     });
-    await waitFor(() => {
-      expect(session.getSnapshot().currentPage).toBe("p1");
-      expect(options(container)[0]?.getAttribute("aria-current")).toBe("true");
-    });
+    await waitFor(
+      () => {
+        expect(session.getSnapshot().currentPage).toBe("p1");
+        expect(options(container)[0]?.getAttribute("aria-current")).toBe("true");
+      },
+      { timeout: SETTLE },
+    );
 
     // Only a new request scrolls: other changes leave the viewer where the user put it.
     await act(async () => session.select(["p2"]));
