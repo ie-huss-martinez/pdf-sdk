@@ -88,7 +88,7 @@ pnpm verify:fast   # the subset the pre-push hook runs
 
 The examples use the built package as an application would: [`examples/next`](examples/next) renders the editor in a Next.js App Router Server Component, and [`examples/vite`](examples/vite) has one page per asset mode, each under the Content Security Policy this README gives for it. The plain HTML example joins them with the standalone script.
 
-Browser tests need Playwright's browsers once: `pnpm exec playwright install chromium`, plus `firefox webkit` to run all three engines with `CI=1` or `pnpm test:browser:all`.
+The browser and end-to-end tests also need Docker. They run in the pinned browser test image from [`ci/Dockerfile`](ci/Dockerfile), as in CI, through `hm-in-image` from `@hussmartinez/sdk-config` ([sdk-core ADR 0049](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0049-local-browser-tests-in-the-pinned-image.md)). The first run builds the image and installs the dependencies into its volumes. `pnpm test:browser:all` runs all three engines, as CI does.
 
 `pnpm verify` runs, in order:
 
@@ -100,9 +100,9 @@ Browser tests need Playwright's browsers once: `pnpm exec playwright install chr
 | Dependency rules | `lint:deps` | dependency-cruiser, through `hm-lint-deps` |
 | Build | `build` | Vite, then api-extractor for the type declarations |
 | Unit tests | `test` | Vitest |
-| Browser tests | `test:browser` | Vitest in Chromium, and in Firefox and WebKit too in CI |
+| Browser tests | `test:browser` | Vitest in Chromium in the browser test image, and in Firefox and WebKit too in CI |
 | Examples | `build:examples` | Production builds of the Next.js and Vite examples, against the built package |
-| End-to-end tests | `test:e2e` | Playwright against the examples: server rendering and hydration, axe, no foreign requests, and both asset modes under the Content Security Policies above |
+| End-to-end tests | `test:e2e` | Playwright in the browser test image, against the examples: server rendering and hydration, axe, no foreign requests, and both asset modes under the Content Security Policies above |
 | Size budgets | `check:size` | size-limit, brotli size of each entry point |
 | API reports | `check:api` | api-extractor, one report per entry point in [`api`](api), and `hm-check-api-reports` across them |
 | Package checks | `check:package` | publint and Are the Types Wrong? |

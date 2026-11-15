@@ -20,11 +20,13 @@ catalog:
   "@changesets/changelog-github": ^1.0.1
   "@changesets/cli": ^3.0.3
   "@commitlint/cli": ^21.2.4
-  "@hussmartinez/sdk-config": ^0.7.0
+  "@hussmartinez/sdk-config": ^0.8.0
   "@hussmartinez/sdk-core": ^0.4.4
   "@hussmartinez/ui": ^0.7.0
   "@microsoft/api-extractor": ^7.60.1
-  "@playwright/test": ^1.64.1
+  # The browser test image's version (ci/Dockerfile), so the tests drive the
+  # browsers the image installed (sdk-core ADR 0049).
+  "@playwright/test": 1.65.0
   "@size-limit/file": ^14.3.0
   "@types/node": ^24.19.2
   "@types/react": ^19.3.0
@@ -36,7 +38,8 @@ catalog:
   next: ^16.4.0
   pdfjs-dist: 6.5.438
   pdfstudio: 0.4.0
-  playwright: ^1.64.1
+  # Pinned with @playwright/test, to the browser test image's version.
+  playwright: 1.65.0
   publint: ^0.3.25
   react: ^19.3.0
   react-dom: ^19.3.0
