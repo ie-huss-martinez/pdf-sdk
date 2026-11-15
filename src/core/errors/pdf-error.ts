@@ -20,6 +20,11 @@ import { isSdkError, type SdkCoreErrorCode, SdkError } from "@hussmartinez/sdk-c
  * - `INVALID_COMMAND`: an edit command doesn't apply to the plan, such as
  *   one naming a page the plan doesn't have. `details.reason` says why, as
  *   a stable token (`PdfCommandRejection`, sdk-core ADR 0045).
+ * - `INVALID_DOCUMENT`: a plan document, such as a saved project, isn't
+ *   valid in its format. `details.reason` says why (`PdfDocumentRejection`).
+ * - `UNSUPPORTED_FORMAT`: a plan document of another format, or of a later
+ *   version than this release reads, with `details.reason`
+ *   `unknown-format` or `unknown-format-version`.
  *
  * Limit codes carry `details` with the `limit`, its `maximum`, the `actual`
  * value and the `unit`.
@@ -34,7 +39,9 @@ export type PdfErrorCode =
   | "TOO_MANY_PAGES"
   | "SESSION_TOO_LARGE"
   | "IMAGE_TOO_LARGE"
-  | "INVALID_COMMAND";
+  | "INVALID_COMMAND"
+  | "INVALID_DOCUMENT"
+  | "UNSUPPORTED_FORMAT";
 
 /**
  * The error `@hussmartinez/pdf-sdk` throws and rejects with, with a stable

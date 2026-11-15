@@ -23,6 +23,27 @@ export type {
 } from "./core/errors/pdf-limits.js";
 export { pdfLimitDefinitions, pdfLimits } from "./core/errors/pdf-limits.js";
 export type {
+  PdfAddAnnotationCommandDocument,
+  PdfAnnotationDocument,
+  PdfAssetReference,
+  PdfCommandDocument,
+  PdfDocumentPoint,
+  PdfDocumentRejection,
+  PdfPlanDocument,
+  PdfPlanDocumentPage,
+  PdfPlanDocumentSource,
+  PdfStrokeAnnotationDocument,
+  PdfTextAnnotationDocument,
+} from "./core/format/plan-document.js";
+export {
+  PDF_PLAN_FORMAT,
+  PDF_PLAN_VERSION,
+  readPdfCommandDocument,
+  readPdfPlanDocument,
+  toPdfCommandDocument,
+  toPdfPlanDocument,
+} from "./core/format/plan-document.js";
+export type {
   PdfAnnotation,
   PdfColor,
   PdfImageAnnotation,

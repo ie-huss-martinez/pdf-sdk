@@ -32,6 +32,9 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
   "errors.IMAGE_TOO_LARGE":
     "Some images are too large to show. They're kept unchanged in the document.",
   "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.",
+  "errors.INVALID_DOCUMENT": "This project is damaged, or it isn't a PDF project.",
+  "errors.UNSUPPORTED_FORMAT":
+    "This project was saved by a newer version, or by another app. Update the app, and try again.",
   "warnings.maxPages": /* @__PURE__ */ plural("actual", {
     one: "This document has {actual} page. Large documents may be slow.",
     other: "This document has {actual} pages. Large documents may be slow.",

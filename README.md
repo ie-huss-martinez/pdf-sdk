@@ -55,6 +55,10 @@ Choose which tools are present with `tools`, and arrange the toolbar with `toolb
 
 Shortcuts work only while focus is inside the editor, never on the rest of your page, and never while typing in a field. The toolbar is one tab stop, with arrow keys between its buttons; each button names its shortcut in `aria-keyshortcuts`. Undoing, redoing and rotating are announced to screen readers.
 
+## Saving a project
+
+`toPdfPlanDocument(plan, sources)` writes the session's plan as portable JSON, `hm-pdf-plan` version 1: the pages in order, their rotations and annotations, and form values, with each source's page count. It holds no PDF bytes and no file names, so store the source files alongside it. `readPdfPlanDocument(json)` reads one back, refusing another format or a later version with `UNSUPPORTED_FORMAT`, and anything invalid with `INVALID_DOCUMENT`, each with a stable `details.reason`. [The format record](docs/formats/hm-pdf-plan.md) describes the format, its JSON Schemas and its conformance vectors ([sdk-core ADR 0045](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0045-portable-formats-and-conformance-vectors.md)).
+
 ## Assets and Content Security Policy
 
 The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib, which builds documents. Some documents also need extra data: CMaps for CJK text whose fonts aren't embedded, standard fonts, and decoders for JBIG2 and JPX images, which are common in scanned documents. The SDK never fetches any of them from another origin. Choose one of two modes ([ADR 0002](docs/adr/0002-workers-and-assets.md), [ADR 0006](docs/adr/0006-icc-colour-and-self-hosted-assets.md), [ADR 0007](docs/adr/0007-one-assets-directory.md)):
