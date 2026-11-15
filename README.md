@@ -57,7 +57,7 @@ Shortcuts work only while focus is inside the editor, never on the rest of your 
 
 ## Saving a project
 
-`toPdfPlanDocument(plan, sources)` writes the session's plan as portable JSON, `hm-pdf-plan` version 1: the pages in order, their rotations and annotations, and form values, with each source's page count. It holds no PDF bytes and no file names, so store the source files alongside it. `readPdfPlanDocument(json)` reads one back, refusing another format or a later version with `UNSUPPORTED_FORMAT`, and anything invalid with `INVALID_DOCUMENT`, each with a stable `details.reason`. [The format record](docs/formats/hm-pdf-plan.md) describes the format, its JSON Schemas and its conformance vectors ([sdk-core ADR 0045](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0045-portable-formats-and-conformance-vectors.md)).
+`toPdfPlanDocument(plan, sources)` writes the session's plan as portable JSON, `hm-pdf-plan` version 1: the pages in order, their rotations and annotations, and form values, with each source's page count. It holds no PDF bytes and no file names, so store the source files alongside it. `readPdfPlanDocument(json)` reads one back, refusing another format or a later version with `UNSUPPORTED_FORMAT`, and anything invalid with `INVALID_DOCUMENT`, each with a stable `details.reason`. The JSON Schemas ship with the package, under `@hussmartinez/pdf-sdk/formats/`, for validating documents elsewhere, such as on a server. [The format record](docs/formats/hm-pdf-plan.md) describes the format, how to load its schemas, and its conformance vectors ([sdk-core ADR 0045](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0045-portable-formats-and-conformance-vectors.md)).
 
 ## Assets and Content Security Policy
 

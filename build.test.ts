@@ -336,3 +336,23 @@ describe("importing on a server", () => {
     },
   );
 });
+
+describe("the format schemas (sdk-core ADR 0045)", () => {
+  it("ship with the package, each by its path under ./formats/, and the vectors don't", async () => {
+    const manifest = JSON.parse(await readFile(new URL("package.json", import.meta.url), "utf8"));
+    expect(manifest.files).toContain("formats");
+    expect(manifest.files).not.toContain("conformance");
+    expect(manifest.exports["./formats/*"]).toBe("./formats/*");
+    // The package resolves itself by name, as a host's import would.
+    const require = createRequire(import.meta.url);
+    const formats = readdirSync(new URL("formats", import.meta.url));
+    expect(formats.sort()).toEqual(["hm-pdf-command", "hm-pdf-plan"]);
+    for (const format of formats) {
+      const path = require.resolve(`@hussmartinez/pdf-sdk/formats/${format}/v1.schema.json`);
+      const schema = JSON.parse(await readFile(path, "utf8"));
+      expect(schema.$id).toBe(
+        `https://github.com/ie-huss-martinez/pdf-sdk/blob/main/formats/${format}/v1.schema.json`,
+      );
+    }
+  });
+});
