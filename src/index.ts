@@ -52,9 +52,17 @@ export type { PdfPoint, PdfRect, PdfRotation } from "./core/model/geometry.js";
 export { addRotation } from "./core/model/geometry.js";
 export { linkDestination, safeLinkUrl } from "./core/model/links.js";
 export type { PdfPlan, PdfPlanPage } from "./core/model/plan.js";
+export {
+  PDF_MAX_FIELD_NAME_LENGTH,
+  PDF_MAX_ID_LENGTH,
+  PDF_MAX_STROKE_POINTS,
+  PDF_MAX_TEXT_LENGTH,
+  PDF_POSITION_GRID,
+} from "./core/model/portable.js";
 export type {
   PdfAddAnnotationCommand,
   PdfCommand,
+  PdfCommandRejection,
   PdfDeletePagesCommand,
   PdfInsertPagesCommand,
   PdfMovePagesCommand,

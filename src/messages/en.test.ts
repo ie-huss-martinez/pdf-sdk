@@ -28,6 +28,7 @@ const ALL_CODES: Record<PdfErrorCode, true> = {
   TOO_MANY_PAGES: true,
   SESSION_TOO_LARGE: true,
   IMAGE_TOO_LARGE: true,
+  INVALID_COMMAND: true,
 };
 
 describe("pdfMessages", () => {

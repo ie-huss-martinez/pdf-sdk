@@ -31,6 +31,7 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
     "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.",
   "errors.IMAGE_TOO_LARGE":
     "Some images are too large to show. They're kept unchanged in the document.",
+  "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.",
   "warnings.maxPages": /* @__PURE__ */ plural("actual", {
     one: "This document has {actual} page. Large documents may be slow.",
     other: "This document has {actual} pages. Large documents may be slow.",

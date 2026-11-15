@@ -1,11 +1,30 @@
 import { applyCommands as applyAll } from "@hussmartinez/sdk-core";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { commandFor, mutated, reducer, START, steps } from "../../../test/arbitraries/pdf-plan.js";
+import { isPdfError } from "../errors/pdf-error.js";
 import type { PdfTextAnnotation } from "../model/annotations.js";
 import type { PdfPlan, PdfPlanPage } from "../model/plan.js";
-import { applyCommand, type PdfCommand } from "./commands.js";
+import { PDF_POSITION_GRID } from "../model/portable.js";
+import { createPdfReducer, type PdfCommand, type PdfCommandRejection } from "./commands.js";
+
+/** Sources s1, s2 and s, of ten pages each. */
+const applyCommand = createPdfReducer((id) => (["s1", "s2", "s"].includes(id) ? 10 : undefined));
 
 const applyCommands = (state: PdfPlan, commands: readonly PdfCommand[]) =>
   applyAll(applyCommand, state, commands);
+
+/** Expects the command to be refused with INVALID_COMMAND and the reason. */
+function expectRefused(run: () => unknown, reason: PdfCommandRejection): void {
+  let thrown: unknown;
+  try {
+    run();
+  } catch (error) {
+    thrown = error;
+  }
+  expect(isPdfError(thrown, "INVALID_COMMAND"), String(thrown)).toBe(true);
+  expect((thrown as { details?: { reason?: string } }).details?.reason).toBe(reason);
+}
 
 const page = (key: string, pageIndex = 0, source = "s1"): PdfPlanPage => ({
   key,
@@ -55,9 +74,10 @@ describe("applyCommand", () => {
   });
 
   it("refuses to delete every page", () => {
-    expect(() =>
-      applyCommand(plan("a", "b"), { type: "pdf.deletePages", pages: ["a", "b"] }),
-    ).toThrow(RangeError);
+    expectRefused(
+      () => applyCommand(plan("a", "b"), { type: "pdf.deletePages", pages: ["a", "b"] }),
+      "last-page",
+    );
   });
 
   it("moves pages as a block, in plan order, to a position in the result", () => {
@@ -90,7 +110,10 @@ describe("applyCommand", () => {
       ["a", "a", "b"],
       ["a", "b", "x"],
     ]) {
-      expect(() => applyCommand(start, { type: "pdf.reorderPages", order })).toThrow(TypeError);
+      expectRefused(
+        () => applyCommand(start, { type: "pdf.reorderPages", order }),
+        "invalid-order",
+      );
     }
   });
 
@@ -143,37 +166,43 @@ describe("applyCommand", () => {
     expect(removed.pages[0]?.annotations.map((annotation) => annotation.id)).toEqual(["n1", "n3"]);
   });
 
-  it.each<[string, PdfCommand]>([
-    ["an unknown page", { type: "pdf.rotatePages", pages: ["x"], angle: 90 }],
-    ["a repeated page", { type: "pdf.deletePages", pages: ["a", "a"] }],
-    ["no pages", { type: "pdf.movePages", pages: [], to: 0 }],
+  it.each<[string, PdfCommand, PdfCommandRejection]>([
+    ["an unknown page", { type: "pdf.rotatePages", pages: ["x"], angle: 90 }, "unknown-page"],
+    ["a repeated page", { type: "pdf.deletePages", pages: ["a", "a"] }, "duplicate-page"],
+    ["no pages", { type: "pdf.movePages", pages: [], to: 0 }, "malformed-command"],
     [
       "an existing key",
       { type: "pdf.insertPages", source: "s", pageIndexes: [0], at: 0, keys: ["a"] },
+      "duplicate-key",
     ],
-    ["an unknown annotation", { type: "pdf.removeAnnotation", page: "a", id: "x" }],
-    ["a duplicate annotation", { type: "pdf.addAnnotation", page: "a", annotation: note("n0") }],
-  ])("rejects %s with a TypeError", (_, command) => {
+    [
+      "an unknown annotation",
+      { type: "pdf.removeAnnotation", page: "a", id: "x" },
+      "unknown-annotation",
+    ],
+    [
+      "a duplicate annotation",
+      { type: "pdf.addAnnotation", page: "a", annotation: note("n0") },
+      "duplicate-annotation",
+    ],
+    [
+      "a rotation that isn't a multiple of 90",
+      { type: "pdf.rotatePages", pages: ["a"], angle: 45 },
+      "invalid-rotation",
+    ],
+    ["a move past the end", { type: "pdf.movePages", pages: ["a"], to: 2 }, "invalid-position"],
+    [
+      "an insert past the end",
+      { type: "pdf.insertPages", source: "s", pageIndexes: [0], at: 3, keys: ["x"] },
+      "invalid-position",
+    ],
+  ])("refuses %s, by its reason", (_, command, reason) => {
     const start = applyCommand(plan("a", "b"), {
       type: "pdf.addAnnotation",
       page: "a",
       annotation: note("n0"),
     }).state;
-    expect(() => applyCommand(start, command)).toThrow(TypeError);
-  });
-
-  it.each<[string, PdfCommand]>([
-    [
-      "a rotation that isn't a multiple of 90",
-      { type: "pdf.rotatePages", pages: ["a"], angle: 45 },
-    ],
-    ["a move past the end", { type: "pdf.movePages", pages: ["a"], to: 2 }],
-    [
-      "an insert past the end",
-      { type: "pdf.insertPages", source: "s", pageIndexes: [0], at: 3, keys: ["x"] },
-    ],
-  ])("rejects %s with a RangeError", (_, command) => {
-    expect(() => applyCommand(plan("a", "b"), command)).toThrow(RangeError);
+    expectRefused(() => applyCommand(start, command), reason);
   });
 
   it("never changes the plan it's given", () => {
@@ -204,7 +233,7 @@ describe("applyCommand with sdk-core's applyCommands", () => {
         { type: "pdf.rotatePages", pages: ["a"], angle: 90 },
         { type: "pdf.deletePages", pages: ["x"] },
       ]),
-    ).toThrow(TypeError);
+    ).toThrow(expect.objectContaining({ code: "INVALID_COMMAND" }));
     expect(start.pages[0]?.rotation).toBe(0);
   });
 
@@ -254,5 +283,239 @@ describe("applyCommand with sdk-core's applyCommands", () => {
       for (const inverses of steps.reverse()) state = applyCommands(state, inverses).state;
       expect(state).toEqual(start);
     }
+  });
+});
+
+/** Builds a value from JSON text, so `__proto__` is an own field, as any JSON parser makes it. */
+const fromJson = <T>(value: unknown, replace: Record<string, string>): T => {
+  let text = JSON.stringify(value);
+  for (const [from, to] of Object.entries(replace)) text = text.replaceAll(`"${from}"`, `"${to}"`);
+  return JSON.parse(text) as T;
+};
+
+describe("strict commands (sdk-core ADR 0045)", () => {
+  const start = plan("a", "b");
+  const refuse = (command: unknown, reason: PdfCommandRejection, state = start) =>
+    expectRefused(() => applyCommand(state, command as PdfCommand), reason);
+
+  it("refuses a value that isn't a command, an unknown type, and an unknown field", () => {
+    refuse(null, "malformed-command");
+    refuse([{ type: "pdf.deletePages", pages: ["a"] }], "malformed-command");
+    refuse({ type: "pdf.crop", pages: ["a"] }, "unknown-command");
+    refuse({ type: "toString" }, "unknown-command");
+    refuse({ type: "pdf.rotatePages", pages: ["a"], angle: 90, mode: "all" }, "malformed-command");
+    refuse({ type: "pdf.rotatePages", pages: ["a"] }, "malformed-command");
+    refuse({ type: "pdf.movePages", pages: ["a"], to: 0.5 }, "malformed-command");
+    refuse({ type: "pdf.movePages", pages: ["a"], to: "1" }, "malformed-command");
+  });
+
+  it("refuses an unknown field named __proto__, as JSON.parse makes it", () => {
+    refuse(
+      fromJson({ type: "pdf.deletePages", pages: ["a"], PROTO: {} }, { PROTO: "__proto__" }),
+      "malformed-command",
+    );
+  });
+
+  it("refuses signatures, which the portable format can't carry yet", () => {
+    refuse(
+      {
+        type: "pdf.addAnnotation",
+        page: "a",
+        annotation: {
+          id: "s",
+          type: "signature",
+          at: { x: 0, y: 0 },
+          width: 0.2,
+          height: 0.1,
+          png: new Uint8Array(),
+        },
+      },
+      "unsupported-annotation",
+    );
+  });
+
+  it("refuses colours other than #rrggbb in lowercase", () => {
+    for (const color of ["#FF0000", "#f00", "red", "#ff00001"]) {
+      refuse({ ...add("a", { ...note("n"), color }) }, "invalid-color");
+    }
+  });
+
+  it("snaps positions and sizes to millionths of the page, rounding halves up", () => {
+    const next = applyCommand(
+      start,
+      add("a", { ...note("n"), at: { x: 0.123_456_7, y: 0.000_000_5 }, size: 0.020_000_4 }),
+    ).state;
+    expect(next.pages[0]?.annotations[0]).toMatchObject({
+      at: { x: 0.123_457, y: 0.000_001 },
+      size: 0.02,
+    });
+    const stroke = applyCommand(
+      start,
+      add("a", {
+        id: "s",
+        type: "pen",
+        points: [{ x: 1 / 3, y: 2 / 3 }],
+        color: "#000000",
+        width: 0.004_999_9,
+      }),
+    ).state.pages[0]?.annotations[0];
+    expect(stroke).toMatchObject({ points: [{ x: 0.333_333, y: 0.666_667 }], width: 0.005 });
+  });
+
+  it("refuses positions off the page, and sizes the grid makes 0", () => {
+    refuse(add("a", { ...note("n"), at: { x: 1.000_1, y: 0 } }), "outside-page");
+    refuse(add("a", { ...note("n"), at: { x: -0.1, y: 0 } }), "outside-page");
+    refuse(add("a", { ...note("n"), size: 0.000_000_4 }), "invalid-size");
+    refuse(add("a", { ...note("n"), size: 1.5 }), "invalid-size");
+    refuse(
+      add("a", { id: "s", type: "pen", points: [], color: "#000000", width: 0.01 }),
+      "too-many-points",
+    );
+  });
+
+  it("refuses an insert from an unknown source, of a page it doesn't have, or with too few keys", () => {
+    const insert = (changes: Record<string, unknown>) => ({
+      type: "pdf.insertPages",
+      source: "s2",
+      pageIndexes: [0],
+      at: 0,
+      keys: ["x"],
+      ...changes,
+    });
+    refuse(insert({ source: "s9" }), "unknown-source");
+    refuse(insert({ source: "hasOwnProperty" }), "unknown-source");
+    refuse(insert({ pageIndexes: [10] }), "page-out-of-range");
+    refuse(insert({ pageIndexes: [0, 1] }), "invalid-keys");
+    refuse(insert({ pageIndexes: [-1] }), "malformed-command");
+  });
+
+  it("keeps form fields named __proto__, constructor and toString as ordinary fields", () => {
+    let state = start;
+    for (const field of ["__proto__", "constructor", "toString"]) {
+      state = roundTrip(state, { type: "pdf.setFieldValue", source: "s1", field, value: field });
+    }
+    const values = state.formValues["s1"] as Record<string, unknown>;
+    expect(Object.getPrototypeOf(values)).toBe(Object.prototype);
+    expect(Object.keys(values)).toEqual(["__proto__", "constructor", "toString"]);
+    expect(Object.hasOwn(values, "__proto__")).toBe(true);
+    const cleared = roundTrip(state, {
+      type: "pdf.setFieldValue",
+      source: "s1",
+      field: "__proto__",
+      value: null,
+    });
+    expect(Object.keys(cleared.formValues["s1"] as object)).toEqual(["constructor", "toString"]);
+  });
+
+  it("counts lengths in code points, so characters outside the BMP count once", () => {
+    const emoji = "📄";
+    // 10,000 code points, 20,000 UTF-16 units.
+    applyCommand(start, add("a", { ...note("n"), text: emoji.repeat(10_000) }));
+    refuse(add("a", { ...note("n"), text: emoji.repeat(10_001) }), "text-too-long");
+    const field = (name: string, value: unknown = "") =>
+      ({ type: "pdf.setFieldValue", source: "s1", field: name, value }) as PdfCommand;
+    applyCommand(start, field(emoji.repeat(1_000)));
+    refuse(field(emoji.repeat(1_001)), "field-name-too-long");
+    applyCommand(start, field("name", emoji.repeat(10_000)));
+    refuse(field("name", emoji.repeat(10_001)), "text-too-long");
+    refuse(field(""), "malformed-command");
+    applyCommand(start, add("a", note(emoji.repeat(128))));
+    refuse(add("a", note(emoji.repeat(129))), "malformed-command");
+  });
+
+  it("checks pages that a restore brings back", () => {
+    const restore = (page: unknown, index = 0) => ({
+      type: "pdf.restorePages",
+      entries: [{ index, page }],
+    });
+    refuse(restore({ ...page("x"), rotation: 45 }), "invalid-rotation");
+    refuse(restore({ ...page("x"), source: "s9" }), "unknown-source");
+    refuse(restore({ ...page("x"), extra: true }), "malformed-command");
+    refuse(restore(page("x"), 5), "invalid-position");
+    refuse(restore(page("a")), "duplicate-key");
+  });
+});
+
+/** An addAnnotation command for the page. */
+function add(key: string, annotation: unknown) {
+  return { type: "pdf.addAnnotation", page: key, annotation } as PdfCommand;
+}
+
+// Thousands of generated runs take about a second alone, and several times
+// that while the rest of verify runs in parallel.
+describe("the reducer's properties (sdk-core ADR 0045)", { timeout: 30_000 }, () => {
+  const onGrid = (value: number) =>
+    Math.round(value * PDF_POSITION_GRID) / PDF_POSITION_GRID === value;
+
+  it("undoes any sequence of valid commands exactly, and keeps every position on the grid", () => {
+    fc.assert(
+      fc.property(steps(8), ({ commands }) => {
+        const { state, inverses } = applyAll(reducer, START, commands);
+        expect(applyAll(reducer, state, inverses).state).toEqual(START);
+        for (const { annotations } of state.pages) {
+          for (const annotation of annotations) {
+            const numbers =
+              annotation.type === "text"
+                ? [annotation.at.x, annotation.at.y, annotation.size]
+                : annotation.type === "signature"
+                  ? []
+                  : [...annotation.points.flatMap(({ x, y }) => [x, y]), annotation.width];
+            expect(numbers.every(onGrid), JSON.stringify(annotation)).toBe(true);
+          }
+        }
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("stores what it's given back unchanged: applying the stored values again changes nothing", () => {
+    fc.assert(
+      fc.property(steps(6), ({ plan: state }) => {
+        for (const page of state.pages) {
+          for (const annotation of page.annotations) {
+            const removed = reducer(state, {
+              type: "pdf.removeAnnotation",
+              page: page.key,
+              id: annotation.id,
+            });
+            expect(reducer(removed.state, removed.inverse).state).toEqual(state);
+          }
+        }
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it("refuses any mutated command with INVALID_COMMAND, or applies it, and never changes its input", () => {
+    const mutatedCommand = steps(3).chain(({ plan: state }) =>
+      fc.tuple(
+        fc.constant(state),
+        fc.oneof(
+          mutated(commandFor(state)),
+          commandFor(state).chain((valid) => {
+            const [field, value] = Object.entries(valid).find(
+              ([, entry]) => typeof entry === "object" && entry !== null,
+            ) ?? [undefined, undefined];
+            if (field === undefined) return fc.constant(valid as unknown);
+            return mutated(fc.constant(value as object)).map((inner) => ({
+              ...valid,
+              [field]: inner,
+            }));
+          }),
+        ),
+      ),
+    );
+    fc.assert(
+      fc.property(mutatedCommand, ([state, command]) => {
+        const before = structuredClone(state);
+        try {
+          reducer(state, command as PdfCommand);
+        } catch (error) {
+          expect(isPdfError(error, "INVALID_COMMAND"), String(error)).toBe(true);
+        }
+        expect(state).toEqual(before);
+      }),
+      { numRuns: 2_000 },
+    );
   });
 });

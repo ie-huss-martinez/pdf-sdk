@@ -7,7 +7,7 @@ import {
   withProcessingTime,
 } from "@hussmartinez/sdk-core";
 import { asPdfError, throwIfAborted } from "../errors/abort.js";
-import { PdfError } from "../errors/pdf-error.js";
+import { isPdfError, PdfError } from "../errors/pdf-error.js";
 import { type PdfFilePolicyOverrides, type PdfLimitName, pdfLimits } from "../errors/pdf-limits.js";
 import type { PdfBuildJob, PdfCompression, PdfEncryption } from "../model/build-job.js";
 import { copyBytes } from "../model/bytes.js";
@@ -20,7 +20,7 @@ import type {
 } from "../model/document.js";
 import { addRotation } from "../model/geometry.js";
 import { EMPTY_PLAN, type PdfPlan, type PdfPlanPage } from "../model/plan.js";
-import { applyCommand, type PdfCommand } from "../operations/commands.js";
+import { createPdfReducer, type PdfCommand } from "../operations/commands.js";
 import type { PdfCallOptions } from "../ports/options.js";
 import type { PdfDocumentHandle, PdfEngine, PdfRenderOptions } from "../ports/pdf-engine.js";
 import type { PdfBuildOptions, PdfProcessor } from "../ports/pdf-processor.js";
@@ -208,9 +208,11 @@ export interface PdfSession {
    */
   insert(file: Blob | PdfBytes, options?: PdfInsertOptions): Promise<void>;
   /**
-   * Runs one command, or several as one undoable step. Throws `TypeError`
-   * or `RangeError` for a command that doesn't fit the plan, and changes
-   * nothing then.
+   * Runs one command, or several as one undoable step. Throws `PdfError`
+   * with `INVALID_COMMAND` for a command that doesn't fit the plan, with a
+   * `PdfCommandRejection` as `details.reason`, and changes nothing then.
+   * Positions and sizes are snapped to millionths of the page
+   * (`PDF_POSITION_GRID`).
    */
   execute(commands: PdfCommand | readonly PdfCommand[]): void;
   undo(): void;
@@ -277,6 +279,8 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   // trims (ADR 0010 and ADR 0029 in sdk-core, docs/adr/0004).
   const history = createHistory<PdfCommand>();
   const sources = new Map<string, Source>();
+  // Checks commands against the sources the session holds (sdk-core ADR 0045).
+  const reduce = createPdfReducer((id) => sources.get(id)?.pageCount);
   let plan: PdfPlan = EMPTY_PLAN;
   let status: PdfSessionStatus = "empty";
   let error: PdfError | undefined;
@@ -465,7 +469,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   }
 
   function step(commands: readonly PdfCommand[]): void {
-    const result = applyCommands(applyCommand, plan, commands);
+    const result = applyCommands(reduce, plan, commands);
     plan = result.state;
     history.push({ commands, inverses: result.inverses });
     // A new step drops the redo steps, and the documents only they held.
@@ -573,7 +577,15 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
           throw reason;
         }
       } catch (reason) {
-        if (reason instanceof TypeError || reason instanceof RangeError) throw reason;
+        // A mistake in the call, such as a position outside the plan, isn't
+        // the file's failure.
+        if (
+          reason instanceof TypeError ||
+          reason instanceof RangeError ||
+          isPdfError(reason, "INVALID_COMMAND")
+        ) {
+          throw reason;
+        }
         const failure = asPdfError(reason, "The PDF couldn't be inserted.");
         error = failure;
         changed();
@@ -594,7 +606,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       const entry = history.undo();
       if (!entry) return;
       try {
-        plan = applyCommands(applyCommand, plan, entry.inverses).state;
+        plan = applyCommands(reduce, plan, entry.inverses).state;
       } catch (reason) {
         history.restore("undo");
         throw reason;
@@ -607,7 +619,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       const entry = history.redo();
       if (!entry) return;
       try {
-        plan = applyCommands(applyCommand, plan, entry.commands).state;
+        plan = applyCommands(reduce, plan, entry.commands).state;
       } catch (reason) {
         history.restore("redo");
         throw reason;

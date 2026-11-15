@@ -137,9 +137,11 @@ describe("a PDF session", () => {
     const { session: s } = session();
     await s.open(pdf(2));
     const before = s.getSnapshot();
-    expect(() => s.execute({ type: "pdf.deletePages", pages: ["p1", "p2"] })).toThrow(RangeError);
+    expect(() => s.execute({ type: "pdf.deletePages", pages: ["p1", "p2"] })).toThrow(
+      expect.objectContaining({ code: "INVALID_COMMAND", details: { reason: "last-page" } }),
+    );
     expect(() => s.execute({ type: "pdf.rotatePages", pages: ["nope"], angle: 90 })).toThrow(
-      TypeError,
+      expect.objectContaining({ code: "INVALID_COMMAND", details: { reason: "unknown-page" } }),
     );
     expect(s.getSnapshot()).toBe(before);
   });
