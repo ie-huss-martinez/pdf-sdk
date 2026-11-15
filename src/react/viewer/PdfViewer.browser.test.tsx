@@ -310,6 +310,54 @@ describe("PdfViewer", () => {
     expect(Math.abs(after - before)).toBeLessThan(2);
   });
 
+  it("keeps a scroll the user made just before sizes changed, before it was measured", async () => {
+    // The viewer measures scrolling once per animation frame. Sizes can
+    // change between a scroll and that frame, which this test forces by
+    // holding the frames back. Restoring the place the viewer held before would undo the
+    // user's scroll, and leave the page they scrolled away from current.
+    const { session, bytes } = fakeSession(30);
+    await session.open(bytes);
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const getPage = session.getPage.bind(session);
+    vi.spyOn(session, "getPage").mockImplementation(async (key, options) => {
+      await gate;
+      return getPage(key, options);
+    });
+    const container = await mount(viewer(session));
+    const region = container.querySelector("section") as HTMLElement;
+    await act(async () => session.goToPage("p30"));
+    await frames(2);
+    expect(region.scrollTop).toBeGreaterThan(1_000);
+
+    // Hold the animation frames, so the scroll isn't measured yet.
+    const held: FrameRequestCallback[] = [];
+    const request = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => held.push(callback));
+    const first = region.querySelector('[data-hm-page-key="p1"]') as HTMLElement;
+    const estimated = first.offsetHeight;
+    const scrolled = new Promise((resolve) =>
+      region.addEventListener("scroll", resolve, { once: true }),
+    );
+    region.scrollTop = 0;
+    await scrolled;
+    // The real page sizes arrive, and every page's height changes.
+    release();
+    await waitFor(() => expect(first.offsetHeight).not.toBe(estimated));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    request.mockRestore();
+    await act(async () => {
+      for (const callback of held.splice(0)) callback(performance.now());
+    });
+    await frames(2);
+    expect(region.scrollTop).toBeLessThan(100);
+    expect(session.getSnapshot().currentPage).toBe("p1");
+  });
+
   it("draws only pages near the viewport, and gives back pixels of pages scrolled away", async () => {
     const { session, bytes } = fakeSession(40);
     const container = await mount(viewer(session));
