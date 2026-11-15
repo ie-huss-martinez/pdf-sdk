@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { createFakeEngine } from "../../../test/fakes/fake-engine.js";
 import { encodeFakePdf } from "../../../test/fakes/fake-pdf.js";
-import { cleanUp, loadStyles, mount } from "../../../test/react.js";
+import { cleanUp, loadStyles, mount, waitFor } from "../../../test/react.js";
 import { createPdfSession, type PdfSession } from "../../core/session/session.js";
 import { PdfSessionProvider } from "../PdfSessionProvider.js";
 import { PdfViewer } from "../viewer/PdfViewer.js";
@@ -72,28 +72,28 @@ describe("PdfThumbnails", () => {
     const snapshot = () => session.getSnapshot();
     options(container)[0]?.focus();
 
-    await userEvent.keyboard("{ArrowDown}");
+    await act(() => userEvent.keyboard("{ArrowDown}"));
     expect(snapshot()).toMatchObject({ selection: ["p2"], currentPage: "p2" });
     expect(document.activeElement).toBe(options(container)[1]);
     expect(options(container).map((option) => option.tabIndex)).toEqual([-1, 0, -1, -1]);
 
-    await userEvent.keyboard("{Shift>}{ArrowDown}{ArrowDown}{/Shift}");
+    await act(() => userEvent.keyboard("{Shift>}{ArrowDown}{ArrowDown}{/Shift}"));
     expect(snapshot().selection).toEqual(["p2", "p3", "p4"]);
 
-    await userEvent.keyboard("{Control>}{ArrowUp}{/Control}");
+    await act(() => userEvent.keyboard("{Control>}{ArrowUp}{/Control}"));
     expect(snapshot().selection).toEqual(["p2", "p3", "p4"]);
     expect(document.activeElement).toBe(options(container)[2]);
-    await userEvent.keyboard(" ");
+    await act(() => userEvent.keyboard(" "));
     expect(snapshot().selection).toEqual(["p2", "p4"]);
 
-    await userEvent.keyboard("{Control>}a{/Control}");
+    await act(() => userEvent.keyboard("{Control>}a{/Control}"));
     expect(snapshot().selection).toEqual(["p1", "p2", "p3", "p4"]);
-    await userEvent.keyboard("{Escape}");
+    await act(() => userEvent.keyboard("{Escape}"));
     expect(snapshot().selection).toEqual(["p3"]);
 
-    await userEvent.keyboard("{End}");
+    await act(() => userEvent.keyboard("{End}"));
     expect(snapshot()).toMatchObject({ selection: ["p4"], currentPage: "p4" });
-    await userEvent.keyboard("{Home}");
+    await act(() => userEvent.keyboard("{Home}"));
     expect(snapshot()).toMatchObject({ selection: ["p1"], currentPage: "p1" });
     expect(options(container)[0]?.getAttribute("aria-selected")).toBe("true");
   });
@@ -104,15 +104,15 @@ describe("PdfThumbnails", () => {
       layout(session),
       "width: 160px; height: 900px; display: grid; grid-template-rows: minmax(0, 1fr);",
     );
-    await userEvent.click(options(container)[1] as HTMLElement);
+    await act(() => userEvent.click(options(container)[1] as HTMLElement));
     expect(session.getSnapshot().selection).toEqual(["p2"]);
-    await userEvent.keyboard("{Control>}");
-    await userEvent.click(options(container)[3] as HTMLElement);
-    await userEvent.keyboard("{/Control}");
+    await act(() => userEvent.keyboard("{Control>}"));
+    await act(() => userEvent.click(options(container)[3] as HTMLElement));
+    await act(() => userEvent.keyboard("{/Control}"));
     expect(session.getSnapshot().selection).toEqual(["p2", "p4"]);
-    await userEvent.keyboard("{Shift>}");
-    await userEvent.click(options(container)[4] as HTMLElement);
-    await userEvent.keyboard("{/Shift}");
+    await act(() => userEvent.keyboard("{Shift>}"));
+    await act(() => userEvent.click(options(container)[4] as HTMLElement));
+    await act(() => userEvent.keyboard("{/Shift}"));
     expect(session.getSnapshot().selection).toEqual(["p4", "p5"]);
   });
 
@@ -121,8 +121,8 @@ describe("PdfThumbnails", () => {
     const container = await mount(layout(session, true), SIDE_BY_SIDE);
     const viewer = container.querySelector("section") as HTMLElement;
     options(container)[0]?.focus();
-    await userEvent.keyboard("{End}");
-    await vi.waitFor(() => {
+    await act(() => userEvent.keyboard("{End}"));
+    await waitFor(() => {
       const last = viewer.querySelector<HTMLElement>('[data-hm-page-key="p30"]');
       const top = (last?.getBoundingClientRect().top ?? 0) - viewer.getBoundingClientRect().top;
       expect(Math.abs(top)).toBeLessThan(80);
@@ -132,14 +132,14 @@ describe("PdfThumbnails", () => {
     await act(async () => {
       viewer.scrollTop = 0;
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(session.getSnapshot().currentPage).toBe("p1");
       expect(options(container)[0]?.getAttribute("aria-current")).toBe("true");
     });
 
     // Only a new request scrolls: other changes leave the viewer where the user put it.
     await act(async () => session.select(["p2"]));
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
     expect(viewer.scrollTop).toBeLessThan(100);
   });
 
@@ -156,7 +156,7 @@ describe("PdfThumbnails", () => {
       "width: 160px; height: 600px; display: grid; grid-template-rows: minmax(0, 1fr);",
     );
     const canvases = () => [...container.querySelectorAll("canvas")];
-    await vi.waitFor(() => expect(canvases()[0]?.width).toBeGreaterThan(0));
+    await waitFor(() => expect(canvases()[0]?.width).toBeGreaterThan(0));
     await frames(5);
     expect(getPage.mock.calls.length).toBeLessThan(20);
     expect(renderPage.mock.calls.length).toBeLessThan(20);
