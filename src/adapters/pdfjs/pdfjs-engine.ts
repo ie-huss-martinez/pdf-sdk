@@ -1,4 +1,4 @@
-import { resolveAssetsBase } from "@hussmartinez/sdk-core";
+import { type AssetsResolver, createAssetsResolver } from "@hussmartinez/sdk-core";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, PDFWorker } from "pdfjs-dist";
 import { abortError, throwIfAborted } from "../../core/errors/abort.js";
 import { PdfError } from "../../core/errors/pdf-error.js";
@@ -236,8 +236,8 @@ const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 class PdfJsEngine implements PdfEngine {
   #options: PdfJsEngineOptions;
-  /** pdf.js's directory under `assetsUrl`, if it's set. */
-  readonly #pdfJsBase: string | undefined;
+  /** Files under `assetsUrl`, if it's set. */
+  readonly #asset: AssetsResolver | undefined;
   #runtime: Promise<PdfJs> | undefined;
   #host: WorkerHost | undefined;
   #documents = new Set<PdfJsDocument>();
@@ -245,11 +245,12 @@ class PdfJsEngine implements PdfEngine {
 
   constructor(options: PdfJsEngineOptions) {
     this.#options = options;
-    // Resolved now, so a URL that can't be, such as a relative one during
-    // server rendering, throws TypeError here rather than on the first open
+    // Checked now, so a URL with a query or fragment throws TypeError here.
+    // A URL relative to the page is resolved on the first open, which only
+    // happens in a browser, so the engine can be created on a server
     // (sdk-core ADR 0038).
-    this.#pdfJsBase =
-      options.assetsUrl === undefined ? undefined : `${resolveAssetsBase(options.assetsUrl)}pdfjs/`;
+    this.#asset =
+      options.assetsUrl === undefined ? undefined : createAssetsResolver(options.assetsUrl);
   }
 
   async open(source: PdfBytes, options: PdfTransferOptions = {}): Promise<PdfDocumentHandle> {
@@ -341,7 +342,7 @@ class PdfJsEngine implements PdfEngine {
 
   /** pdf.js's directory under `assetsUrl`, if it's set. */
   #assetsBase(): string | undefined {
-    return this.#pdfJsBase;
+    return this.#asset?.("pdfjs/");
   }
 
   /** Stops a cancelled open, and terminates the worker if pdf.js doesn't stop in time. */
