@@ -7,7 +7,26 @@ pdf-sdk's portable formats ([sdk-core ADR 0045](https://github.com/ie-huss-marti
 | `hm-pdf-plan` 1 | [`formats/hm-pdf-plan/v1.schema.json`](../../formats/hm-pdf-plan/v1.schema.json) | A page plan ([ADR 0003](../adr/0003-page-plan-document-model.md)), with the sources it uses |
 | `hm-pdf-command` 1 | [`formats/hm-pdf-command/v1.schema.json`](../../formats/hm-pdf-command/v1.schema.json) | One user-level edit command |
 
-`readPdfPlanDocument(json)` reads a document, and `toPdfPlanDocument(plan, sources)` writes one. `readPdfCommandDocument(json)` and `toPdfCommandDocument(command)` do the same for a command. The schemas stay in the repository for now; the vectors are for ports and the SDK's own tests, not for hosts.
+`readPdfPlanDocument(json)` reads a document, and `toPdfPlanDocument(plan, sources)` writes one. `readPdfCommandDocument(json)` and `toPdfCommandDocument(command)` do the same for a command.
+
+## Loading the schemas
+
+The schemas ship with the package, under `@hussmartinez/pdf-sdk/formats/`, so a host validates against the version that matches its installed reader (sdk-core ADR 0045, section 8). `readPdfPlanDocument` already checks everything the schema does and more, so a host needs the schemas only to validate elsewhere, such as on a server that stores documents, or in another tool.
+
+```ts
+import { Ajv2020 } from "ajv/dist/2020.js";
+import planSchema from "@hussmartinez/pdf-sdk/formats/hm-pdf-plan/v1.schema.json" with { type: "json" };
+import commandSchema from "@hussmartinez/pdf-sdk/formats/hm-pdf-command/v1.schema.json" with { type: "json" };
+
+const ajv = new Ajv2020({ strict: true });
+// The command schema refers to the plan schema's definitions by its $id, so compile that first.
+const isPlan = ajv.compile(planSchema);
+const isCommand = ajv.compile(commandSchema);
+
+if (!isPlan(JSON.parse(text))) console.error(isPlan.errors);
+```
+
+In Node without a bundler, `createRequire(import.meta.url).resolve("@hussmartinez/pdf-sdk/formats/hm-pdf-plan/v1.schema.json")` gives the file's path. The vectors in `conformance/` stay in the repository: they're for ports and the SDK's own tests, not for hosts.
 
 ## `hm-pdf-plan`
 
