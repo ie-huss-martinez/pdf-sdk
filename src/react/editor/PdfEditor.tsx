@@ -382,9 +382,7 @@ export const PdfEditor = /* @__PURE__ */ forwardRef(function PdfEditor(
     () =>
       createMessages(pdfEditorMessages, {
         locale,
-        // sdk-core 0.4.1 accepts typed overrides without this cast; it goes
-        // once ui depends on sdk-core 0.4, so an application keeps one copy.
-        ...(overrides ? { overrides: overrides as never } : {}),
+        ...(overrides ? { overrides } : {}),
       }),
     [locale, overrides],
   );

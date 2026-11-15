@@ -129,11 +129,7 @@ export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode {
     () =>
       createMessages(pdfMessages, {
         locale,
-        // Overrides are typed for hosts that write them as literals; at
-        // runtime createMessages validates them and ignores what doesn't fit.
-        // sdk-core 0.4.1 accepts them without this cast; it goes once ui
-        // depends on sdk-core 0.4, so an application keeps one copy.
-        ...(overrides ? { overrides: overrides as never } : {}),
+        ...(overrides ? { overrides } : {}),
       }),
     [locale, overrides],
   );
