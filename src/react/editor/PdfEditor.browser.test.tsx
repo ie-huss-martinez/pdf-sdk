@@ -545,6 +545,71 @@ describe("PdfEditor", () => {
         expect(pageKeys(handle)).toEqual(["p2"]);
       });
 
+      it("prevents the keys' defaults in the thumbnails, so the page neither scrolls nor navigates, and leaves a host's field alone", async () => {
+        // A host page that can scroll, with a history entry to go back to,
+        // so a Backspace that went back or scrolled would show (docs/adr/0008).
+        const spacer = document.createElement("div");
+        spacer.style.height = "4000px";
+        const field = document.createElement("input");
+        field.type = "text";
+        field.setAttribute("aria-label", "Host's own field");
+        document.body.prepend(field);
+        const seen: { key: string; prevented: boolean; inField: boolean }[] = [];
+        const record = (event: KeyboardEvent) => {
+          if (event.key === "Delete" || event.key === "Backspace") {
+            seen.push({
+              key: event.key,
+              prevented: event.defaultPrevented,
+              inField: event.target === field,
+            });
+          }
+        };
+        // Bubbling to the window, so it runs after the editor's handlers.
+        window.addEventListener("keydown", record);
+        const url = location.href;
+        history.pushState({ test: "delete keys" }, "", "#delete-keys");
+        try {
+          const { mounted, handle } = setUp();
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(4)));
+          // Below the editor, so the page scrolls; the editor stays in view.
+          document.body.append(spacer);
+          // Chosen with the pointer, so p2 is selected and focused; the page
+          // is scrolled afterwards, so only the keys could move it.
+          await act(() => userEvent.click(option(container, "p2")));
+          window.scrollTo(0, 40);
+          const scrolled = window.scrollY;
+          expect(scrolled).toBeGreaterThan(0);
+          await act(() => userEvent.keyboard("{Delete}"));
+          await act(() => userEvent.keyboard("{Backspace}"));
+          expect(pageKeys(handle)).toEqual(["p1", "p4"]);
+          expect(seen).toEqual([
+            { key: "Delete", prevented: true, inField: false },
+            { key: "Backspace", prevented: true, inField: false },
+          ]);
+          expect(location.hash).toBe("#delete-keys");
+          expect(window.scrollY).toBe(scrolled);
+
+          // In the host's field, the keys edit the text and nothing else.
+          seen.length = 0;
+          await act(() => userEvent.click(field));
+          await act(() => userEvent.keyboard("abc{ArrowLeft}{Backspace}{Delete}"));
+          expect(field.value).toBe("a");
+          expect(seen).toEqual([
+            { key: "Backspace", prevented: false, inField: true },
+            { key: "Delete", prevented: false, inField: true },
+          ]);
+          expect(pageKeys(handle)).toEqual(["p1", "p4"]);
+          expect(location.hash).toBe("#delete-keys");
+        } finally {
+          window.removeEventListener("keydown", record);
+          history.replaceState(null, "", url);
+          window.scrollTo(0, 0);
+          spacer.remove();
+          field.remove();
+        }
+      });
+
       it("leaves the keys alone when the host leaves the tool out", async () => {
         const { mounted, handle } = setUp({ tools: ["pdf.open", "pdf.undo", "pdf.redo"] });
         const container = await mounted;
