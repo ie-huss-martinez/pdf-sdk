@@ -76,19 +76,21 @@ for (const mode of modes) {
     }) => {
       const problems = watch(page, origin);
       await page.goto(`${origin}${mode.path}`);
-      await openPdf(page, await reportPdf(), "Quarterly report.pdf");
+      // No spaces in the name: WebKit saves "a b.pdf" as "a_b.pdf", its own
+      // choice. The editor's exact name is checked in the browser tests.
+      await openPdf(page, await reportPdf(), "quarterly-report.pdf");
       // An edit, so the processing worker builds the download (docs/adr/0009).
       await page.getByRole("button", { name: "Rotate right" }).click();
       const download = page.waitForEvent("download");
       await page.getByRole("button", { name: "Download" }).click();
       const saved = await download;
-      expect(saved.suggestedFilename()).toBe("Quarterly report.pdf");
+      expect(saved.suggestedFilename()).toBe("quarterly-report.pdf");
       const stream = await saved.createReadStream();
       const chunks: Buffer[] = [];
       for await (const chunk of stream) chunks.push(chunk as Buffer);
       expect(Buffer.concat(chunks).subarray(0, 5).toString("latin1")).toBe("%PDF-");
       await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
-        "Saved Quarterly report.pdf.",
+        "Saved quarterly-report.pdf.",
       );
 
       expect(await page.evaluate(() => window.pdfSdk.violations)).toEqual([]);
