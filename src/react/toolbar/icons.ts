@@ -1,5 +1,6 @@
 import {
   DeleteIcon,
+  DownloadIcon,
   type IconComponent,
   OpenIcon,
   RedoIcon,
@@ -21,4 +22,5 @@ export const pdfIcons: Readonly<Record<string, IconComponent>> = {
   "rotate-left": RotateLeftIcon,
   "rotate-right": RotateRightIcon,
   delete: DeleteIcon,
+  download: DownloadIcon,
 };

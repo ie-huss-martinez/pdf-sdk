@@ -19,6 +19,8 @@ export interface PdfToolbarProps {
   readonly context: PdfToolContext;
   /** Icon components by name. */
   readonly icons: Readonly<Record<string, IconComponent>>;
+  /** Whether the editor is saving, which tools read as `saving`. */
+  readonly saving?: boolean;
   /** Runs a tool. Defaults to running it against `context`. */
   readonly onRun?: (tool: PdfTool) => void;
   /** Extra classes on the root. */
@@ -34,10 +36,10 @@ export interface PdfToolbarProps {
  * @public
  */
 export function PdfToolbar(props: PdfToolbarProps): ReactNode {
-  const { registry, shortcuts, context, icons, onRun, className } = props;
+  const { registry, shortcuts, context, icons, onRun, className, saving = false } = props;
   const messages = usePdfMessages();
   const snapshot = usePdfDocument();
-  const state = { snapshot };
+  const state = { snapshot, saving };
   // Tool labels and group names are keys of the catalogue, checked when the
   // tool is defined; custom keys a host adds fall back to the key itself.
   const t = messages.t as (key: string) => string;

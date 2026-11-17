@@ -14,6 +14,7 @@ import { reportPdf } from "../../test/fixtures/pdfs.js";
  * | `rotated` | The first page rotated from the keyboard, with Undo enabled |
  * | `selection` | Every page selected in the thumbnails, with deleting disabled |
  * | `deleted` | The second page deleted with Delete, focus on the remaining thumbnail |
+ * | `save-failed` | The host's `onExport` failed: the header's alert, with Download focused |
  * | `error` | A file that isn't a PDF, and the catalogue's text for it |
  * | `replace-error` | A document still open after a replacement failed, with the header's alert |
  *
@@ -120,6 +121,16 @@ const STATES: Readonly<Record<string, State>> = {
     await expect(page.getByRole("button", { name: "Delete pages" })).toBeDisabled();
     await drawn(page);
   },
+  "save-failed": async (page) => {
+    await opened(page);
+    // The page passes an onExport that fails, as a host's storage might.
+    await page.getByRole("button", { name: "Download" }).click();
+    await expect(page.locator(".hm-pdf-editor-header > [role=alert]")).toHaveText(
+      "The PDF couldn't be saved. Please try again.",
+    );
+    await expect(page.getByRole("button", { name: "Download" })).toBeFocused();
+    await drawn(page);
+  },
   error: async (page) => {
     await choose(page, "notes.pdf", Buffer.from("just some text"));
     await expect(page.getByRole("button", { name: "Choose another PDF" })).toBeFocused();
@@ -140,6 +151,9 @@ const STATES: Readonly<Record<string, State>> = {
   },
 };
 
+/** States reached from another page of the example than its first. */
+const PATHS: Readonly<Partial<Record<string, string>>> = { "save-failed": "/?save=fail" };
+
 for (const [state, reach] of Object.entries(STATES)) {
   for (const variant of visualVariants) {
     test(`${state}, ${variant.name}`, async ({ page }) => {
@@ -151,7 +165,7 @@ for (const [state, reach] of Object.entries(STATES)) {
         if (url.origin !== ORIGIN) foreign.push(request.url());
       });
       await page.clock.install({ time: NOW });
-      await page.goto("/");
+      await page.goto(PATHS[state] ?? "/");
       await applyVisualVariant(page, variant);
       await reach(page);
       // The pointer rests outside the editor, so no hover styles show.

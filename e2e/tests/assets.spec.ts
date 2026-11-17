@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { jpxPdf } from "../../test/fixtures/pdfs.js";
+import { jpxPdf, reportPdf } from "../../test/fixtures/pdfs.js";
 import { expectJpxColours, openPdf, watch } from "./helpers.js";
 
 const origin = "http://localhost:4320";
@@ -69,6 +69,31 @@ for (const mode of modes) {
         // Inline mode fetches nothing from the self-hosted directory.
         expect(problems.ownPaths.filter((path) => path.startsWith("/pdf-sdk/"))).toEqual([]);
       }
+    });
+
+    test("download an edited document with the toolbar, within the README's policy", async ({
+      page,
+    }) => {
+      const problems = watch(page, origin);
+      await page.goto(`${origin}${mode.path}`);
+      await openPdf(page, await reportPdf(), "Quarterly report.pdf");
+      // An edit, so the processing worker builds the download (docs/adr/0009).
+      await page.getByRole("button", { name: "Rotate right" }).click();
+      const download = page.waitForEvent("download");
+      await page.getByRole("button", { name: "Download" }).click();
+      const saved = await download;
+      expect(saved.suggestedFilename()).toBe("Quarterly report.pdf");
+      const stream = await saved.createReadStream();
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) chunks.push(chunk as Buffer);
+      expect(Buffer.concat(chunks).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+      await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
+        "Saved Quarterly report.pdf.",
+      );
+
+      expect(await page.evaluate(() => window.pdfSdk.violations)).toEqual([]);
+      expect(problems.errors).toEqual([]);
+      expect(problems.foreignRequests).toEqual([]);
     });
   });
 }

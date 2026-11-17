@@ -9,7 +9,9 @@ import { encodeFakePdf } from "../../../test/fakes/fake-pdf.js";
 import { createFakeProcessor } from "../../../test/fakes/fake-processor.js";
 import { jpxPdf } from "../../../test/fixtures/pdfs.js";
 import { cleanUp, loadStyles, mount, type StyleOptions, waitFor } from "../../../test/react.js";
+import { PdfError } from "../../core/errors/pdf-error.js";
 import type { PdfEngine } from "../../core/ports/pdf-engine.js";
+import type { PdfProcessor } from "../../core/ports/pdf-processor.js";
 import { PdfEditor } from "./PdfEditor.js";
 import type { PdfEditorChange, PdfEditorHandle, PdfEditorProps } from "./types.js";
 
@@ -420,12 +422,21 @@ describe("PdfEditor", () => {
         "File",
         "History",
         "Pages",
+        "Save",
       ]);
       const buttons = [...toolbar(container).querySelectorAll("button")];
       expect(
         buttons.map((button) => button.getAttribute("aria-label") ?? button.textContent),
-      ).toEqual(["Open a PDF", "Undo", "Redo", "Rotate left", "Rotate right", "Delete pages"]);
-      expect(buttons.map(disabled)).toEqual([false, true, true, true, true, true]);
+      ).toEqual([
+        "Open a PDF",
+        "Undo",
+        "Redo",
+        "Rotate left",
+        "Rotate right",
+        "Delete pages",
+        "Download",
+      ]);
+      expect(buttons.map(disabled)).toEqual([false, true, true, true, true, true, true]);
       // Disabled buttons keep focus, rather than the disabled attribute.
       expect(buttons.some((button) => button.disabled)).toBe(false);
       expect(tool(container, "pdf.undo").getAttribute("aria-keyshortcuts")).toBe("Control+Z");
@@ -468,6 +479,261 @@ describe("PdfEditor", () => {
       await act(() => userEvent.click(tool(container, "pdf.rotate-left")));
       expect(rotations(handle)).toEqual([270, 0, 270]);
       await announced(container, "Rotated 2 pages.");
+    });
+
+    describe("downloading (docs/adr/0009)", () => {
+      /** Records browser downloads instead of making them. */
+      function catchDownloads() {
+        const downloads: { name: string; type: string; size: number }[] = [];
+        const blobs = new Map<string, Blob>();
+        const create = vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+          const url = `blob:test/${blobs.size}`;
+          blobs.set(url, blob as Blob);
+          return url;
+        });
+        const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+        const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+          this: HTMLAnchorElement,
+        ) {
+          const blob = blobs.get(this.href) as Blob;
+          downloads.push({ name: this.download, type: blob.type, size: blob.size });
+        });
+        return {
+          downloads,
+          restore: () => {
+            create.mockRestore();
+            revoke.mockRestore();
+            click.mockRestore();
+          },
+        };
+      }
+
+      /** A processor whose builds wait until released, and stop when aborted. */
+      function heldProcessor(fail?: PdfError) {
+        const inner = createFakeProcessor();
+        let release = () => {};
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const builds = { started: 0 };
+        const processor: PdfProcessor = {
+          async build(job, options = {}) {
+            builds.started += 1;
+            await new Promise<void>((resolve, reject) => {
+              void gate.then(resolve);
+              options.signal?.addEventListener("abort", () => reject(options.signal?.reason));
+            });
+            if (fail) throw fail;
+            return inner.build(job, options);
+          },
+          destroy: () => inner.destroy(),
+        };
+        return { processor, release, builds };
+      }
+
+      const statusText = (container: HTMLElement) =>
+        container.querySelector(".hm-pdf-editor-saving [role='status']")?.textContent ?? null;
+      const alertText = (container: HTMLElement) =>
+        container.querySelector(".hm-pdf-editor-header > [role='alert']")?.textContent ?? null;
+
+      it("downloads the document under the opened file's name, and says so", async () => {
+        const caught = catchDownloads();
+        try {
+          const { mounted, handle } = setUp();
+          const container = await mounted;
+          await act(() => handle.current?.open(pdfFile(2, "C:\\scans\\report.pdf")));
+          const button = tool(container, "pdf.download");
+          expect(button.getAttribute("aria-label")).toBe("Download");
+          expect(button.hasAttribute("aria-keyshortcuts")).toBe(false);
+          await act(() => userEvent.click(button));
+          await waitFor(() => expect(caught.downloads).toHaveLength(1));
+          expect(caught.downloads[0]).toMatchObject({
+            name: "report.pdf",
+            type: "application/pdf",
+          });
+          expect(caught.downloads[0]?.size).toBeGreaterThan(0);
+          await announced(container, "Saved report.pdf.");
+          expect(document.activeElement).toBe(button);
+          expect(statusText(container)).toBeNull();
+        } finally {
+          caught.restore();
+        }
+      });
+
+      it("names bytes document.pdf, and follows the host's downloadName", async () => {
+        const caught = catchDownloads();
+        try {
+          const first = setUp();
+          const container = await first.mounted;
+          await act(() => first.handle.current?.open(fakePdf(1)));
+          await act(() => userEvent.click(tool(container, "pdf.download")));
+          await waitFor(() =>
+            expect(caught.downloads.map((d) => d.name)).toEqual(["document.pdf"]),
+          );
+          await cleanUp();
+
+          const downloadName = vi.fn(() => "../Q3 summary");
+          const second = setUp({ downloadName });
+          const other = await second.mounted;
+          await act(() => second.handle.current?.open(pdfFile(3, "report.pdf")));
+          await act(() => userEvent.click(tool(other, "pdf.download")));
+          await waitFor(() => expect(caught.downloads).toHaveLength(2));
+          expect(caught.downloads[1]?.name).toBe("Q3 summary.pdf");
+          expect(downloadName).toHaveBeenCalledWith({ sourceName: "report.pdf", pageCount: 3 });
+        } finally {
+          caught.restore();
+        }
+      });
+
+      it("hands the bytes to onExport instead of downloading", async () => {
+        const caught = catchDownloads();
+        try {
+          const onExport = vi.fn();
+          const { mounted, handle } = setUp({ onExport });
+          const container = await mounted;
+          await act(() => handle.current?.open(pdfFile(2, "report.pdf")));
+          await act(() => userEvent.click(tool(container, "pdf.download")));
+          await waitFor(() => expect(onExport).toHaveBeenCalledOnce());
+          const [bytes, info] = onExport.mock.calls[0] as [Uint8Array, unknown];
+          expect(bytes).toBeInstanceOf(Uint8Array);
+          expect(bytes.byteLength).toBeGreaterThan(0);
+          expect(info).toEqual({ fileName: "report.pdf", pageCount: 2 });
+          expect(caught.downloads).toEqual([]);
+          await announced(container, "The PDF is ready.");
+        } finally {
+          caught.restore();
+        }
+      });
+
+      it("is busy while it builds: it can't run twice, and offers Cancel after a second", async () => {
+        const caught = catchDownloads();
+        const held = heldProcessor();
+        try {
+          const { mounted, handle } = setUp({ processor: held.processor });
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(2)));
+          // An edit, so the processor builds the document.
+          await act(async () =>
+            handle.current?.session.execute({ type: "pdf.rotatePages", pages: ["p1"], angle: 90 }),
+          );
+          const button = tool(container, "pdf.download");
+          await act(() => userEvent.click(button));
+          expect(statusText(container)).toBe("Preparing the PDF…");
+          expect(editor(container)?.getAttribute("aria-busy")).toBe("true");
+          expect(disabled(button)).toBe(true);
+          expect(document.activeElement).toBe(button);
+          // Playwright won't click an aria-disabled button, so the click is
+          // dispatched directly: ui's button must ignore it.
+          await act(async () => button.click());
+          await act(() => userEvent.keyboard("{Enter}"));
+          expect(held.builds.started).toBe(1);
+          expect(container.querySelector(".hm-pdf-editor-saving button")).toBeNull();
+
+          // It appears once the save has taken a second.
+          await waitFor(
+            () => expect(container.querySelector(".hm-pdf-editor-saving button")).not.toBeNull(),
+            { timeout: 3_000 },
+          );
+          const cancel = container.querySelector(
+            ".hm-pdf-editor-saving button",
+          ) as HTMLButtonElement;
+          expect(cancel.textContent).toBe("Cancel");
+          await act(() => userEvent.click(cancel));
+          await waitFor(() => expect(statusText(container)).toBeNull());
+          // Cancelling ends quietly: no alert, nothing saved.
+          expect(alertText(container)).toBeNull();
+          expect(caught.downloads).toEqual([]);
+          expect(disabled(button)).toBe(false);
+          expect(editor(container)?.getAttribute("aria-busy")).toBe("false");
+        } finally {
+          held.release();
+          caught.restore();
+        }
+      });
+
+      it("says why when the build fails, and saves nothing", async () => {
+        const caught = catchDownloads();
+        const held = heldProcessor(new PdfError("PROCESSING_FAILED", "<b>from the worker</b>"));
+        try {
+          const { mounted, handle } = setUp({ processor: held.processor });
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(2)));
+          await act(async () =>
+            handle.current?.session.execute({ type: "pdf.rotatePages", pages: ["p1"], angle: 90 }),
+          );
+          const button = tool(container, "pdf.download");
+          await act(() => userEvent.click(button));
+          held.release();
+          await waitFor(() =>
+            expect(alertText(container)).toBe(
+              "Something went wrong while processing this PDF. Please try again.",
+            ),
+          );
+          expect(caught.downloads).toEqual([]);
+          expect(document.activeElement).toBe(button);
+        } finally {
+          caught.restore();
+        }
+      });
+
+      it("says the PDF couldn't be saved when onExport fails, until the next document opens", async () => {
+        const onExport = vi.fn(async () => {
+          throw new Error("The host's storage is full.");
+        });
+        const { mounted, handle } = setUp({ onExport });
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(2)));
+        await act(() => userEvent.click(tool(container, "pdf.download")));
+        await waitFor(() =>
+          expect(alertText(container)).toBe("The PDF couldn't be saved. Please try again."),
+        );
+        await act(() => handle.current?.open(fakePdf(1)));
+        expect(alertText(container)).toBeNull();
+      });
+
+      it("cancels a running save when another document opens", async () => {
+        const caught = catchDownloads();
+        const held = heldProcessor();
+        try {
+          const { mounted, handle } = setUp({ processor: held.processor });
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(2)));
+          await act(async () =>
+            handle.current?.session.execute({ type: "pdf.rotatePages", pages: ["p1"], angle: 90 }),
+          );
+          await act(() => userEvent.click(tool(container, "pdf.download")));
+          expect(statusText(container)).toBe("Preparing the PDF…");
+          await act(() => handle.current?.open(fakePdf(1)));
+          await waitFor(() => expect(statusText(container)).toBeNull());
+          held.release();
+          expect(alertText(container)).toBeNull();
+          expect(caught.downloads).toEqual([]);
+        } finally {
+          caught.restore();
+        }
+      });
+
+      it("leaves Ctrl+S and \u2318S to the browser", async () => {
+        const caught = catchDownloads();
+        const seen: boolean[] = [];
+        const record = (event: KeyboardEvent) => {
+          if (event.key.toLowerCase() === "s") seen.push(event.defaultPrevented);
+        };
+        window.addEventListener("keydown", record);
+        try {
+          const { mounted, handle } = setUp();
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(2)));
+          (container.querySelector(".hm-pdf-viewer") as HTMLElement).focus();
+          await act(() => userEvent.keyboard("{Control>}s{/Control}{Meta>}s{/Meta}"));
+          expect(seen).toEqual([false, false]);
+          expect(statusText(container)).toBeNull();
+          expect(caught.downloads).toEqual([]);
+        } finally {
+          window.removeEventListener("keydown", record);
+          caught.restore();
+        }
+      });
     });
 
     describe("deleting pages (docs/adr/0008)", () => {

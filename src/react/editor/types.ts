@@ -42,6 +42,33 @@ export interface PdfEditorChange {
 }
 
 /**
+ * What {@link PdfEditorProps.downloadName} is given to name a download.
+ *
+ * @public
+ */
+export interface PdfDownloadNameInfo {
+  /** The opened file's name, cleaned (docs/adr/0009), if it had one. */
+  readonly sourceName?: string;
+  /** The page count of the document being saved. */
+  readonly pageCount: number;
+}
+
+/**
+ * What {@link PdfEditorProps.onExport} is given with the saved document.
+ *
+ * @public
+ */
+export interface PdfExportInfo {
+  /**
+   * The name the browser download would have had: cleaned, ending in
+   * `.pdf`, and `"document.pdf"` when there's none.
+   */
+  readonly fileName: string;
+  /** The saved document's page count. */
+  readonly pageCount: number;
+}
+
+/**
  * Props for {@link PdfEditor}. The session props are the provider's: pass a
  * `session` of your own, or let the editor create one from `engine`,
  * `processor`, `assetsUrl`, `filePolicy` and `onEvent`.
@@ -62,6 +89,19 @@ export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"
   readonly file?: Blob | PdfBytes | null;
   /** Called after the document opens, changes or closes. */
   readonly onChange?: (change: PdfEditorChange) => void;
+  /**
+   * Receives the document the download tool built, instead of the browser
+   * downloading it, such as to store it in the host's own storage. The
+   * bytes are a new buffer the host owns. If it throws or rejects, the
+   * editor says the PDF couldn't be saved; its error is the host's to log.
+   */
+  readonly onExport?: (bytes: Uint8Array, info: PdfExportInfo) => void | Promise<void>;
+  /**
+   * Names the download tool's file. The result is cleaned as a file name
+   * and given a `.pdf` extension; the opened file's name by default, or
+   * `"document.pdf"` (docs/adr/0009).
+   */
+  readonly downloadName?: (info: PdfDownloadNameInfo) => string;
   /**
    * Which tools are present, by id, in order, such as
    * `["pdf.undo", "pdf.redo"]`. All of {@link pdfTools} by default. Their

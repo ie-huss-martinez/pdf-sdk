@@ -121,7 +121,21 @@
     margin: 0;
   }
 
+  /* While the download tool builds the document: its status, and a Cancel
+     button once it takes a while (docs/adr/0009). */
+  .hm-pdf-editor-saving {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--hm-pdf-editor-header-gap, var(--hm-gap-tight));
+  }
+
+  .hm-pdf-editor-saving > p {
+    margin: 0;
+  }
+
   .hm-pdf-editor-header > .hm-pdf-editor-alert,
+  .hm-pdf-editor-saving,
   .hm-pdf-editor-warnings {
     padding-inline: var(--hm-pdf-editor-inset, var(--hm-inset-normal));
   }

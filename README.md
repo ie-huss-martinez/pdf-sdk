@@ -34,6 +34,16 @@ const bytes = await editor.current?.export();
 
 **The file's name.** On `open`, `onChange` also gives the opened file's `fileName`, from the `File`, or from the `name` option of `handle.open(bytes, { name })`. The session's `sources` carry it as `name`. It's cleaned first: one path segment, with no control or bidirectional formatting characters and at most 128 code points ([ADR 0009](docs/adr/0009-saving-the-document.md)). It comes from the file, so show it only as text. It's never sent to `onEvent`.
 
+### Saving
+
+The download tool builds the document in the processing worker and downloads it. The file is named after the opened file, or `document.pdf` ([ADR 0009](docs/adr/0009-saving-the-document.md)). The download uses a `blob:` URL, so it makes no request and needs nothing more in your Content Security Policy.
+
+- **`downloadName(info)`** names the file yourself. `info` has the opened file's `sourceName` and the `pageCount`. The result is cleaned as a file name and gets a `.pdf` extension.
+- **`onExport(bytes, info)`** receives the bytes instead of the browser downloading them, for example to keep them in your app's storage. `info` has the `fileName` the download would have had, and the `pageCount`. If it throws or rejects, the editor says the PDF couldn't be saved. Your error is yours to log, and the editor doesn't read it.
+- **While it builds,** the button is disabled but keeps focus, and the header says "Preparing the PDF…". After a second, a Cancel button appears beside it.
+- **Cancelling:** cancelling, or opening or closing a document, stops the build quietly.
+- **Failures:** a failed build shows its error's text in the header.
+
 ### Tools, the toolbar and shortcuts
 
 The editor's tools are in `pdfTools`:
@@ -46,6 +56,7 @@ The editor's tools are in `pdfTools`:
 | `pdf.rotate-left` | `[` | Turns the selected pages, or the current one, a quarter turn anticlockwise |
 | `pdf.rotate-right` | `]` | Turns them a quarter turn clockwise |
 | `pdf.delete-pages` | `Delete` or `Backspace`, in the thumbnails only | Deletes the selected pages, or the current one; a document keeps at least one page |
+| `pdf.download` | none: `Ctrl+S` is the browser's own | Builds the document and downloads it, or hands it to `onExport` |
 
 Choose which tools are present with `tools`, and arrange the toolbar with `toolbar`, as groups of tool ids; `toolbar={[]}` hides it and keeps the shortcuts. An unknown id throws when the editor renders, so a typo never leaves a tool silently missing. `icons` replaces any icon by name with your own component.
 
