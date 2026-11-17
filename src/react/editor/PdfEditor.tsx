@@ -27,9 +27,8 @@ import type { PdfSessionSnapshot, PdfWarning } from "../../core/session/session.
 import { targetPages } from "../../features/pages/rotate-tools.js";
 import type { PdfTool, PdfToolContext } from "../../features/tool-types.js";
 import { DEFAULT_TOOLBAR, pdfTools } from "../../features/tools.js";
-import type { PdfMessageCatalogue } from "../../messages/en.js";
 import { PdfContext } from "../context.js";
-import { pdfEditorMessages } from "../editor-messages.js";
+import { type PdfEditorMessageCatalogue, pdfEditorMessages } from "../editor-messages.js";
 import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
 import { useProvidedSession } from "../PdfSessionProvider.js";
 import { PdfThumbnails } from "../thumbnails/PdfThumbnails.js";
@@ -43,7 +42,7 @@ import type { PdfEditorChange, PdfEditorHandle, PdfEditorProps } from "./types.j
  * A warning's text. Each one is passed `actual`; texts that don't show it
  * ignore it, which the catalogue's per-key types can't express for a union.
  */
-function warningText(messages: Messages<PdfMessageCatalogue>, warning: PdfWarning): string {
+function warningText(messages: Messages<PdfEditorMessageCatalogue>, warning: PdfWarning): string {
   const t = messages.t as (key: `warnings.${PdfLimitName}`, params: { actual: number }) => string;
   return t(`warnings.${warning.limit}`, { actual: warning.actual });
 }
@@ -58,7 +57,7 @@ const join = (...names: (string | undefined)[]) => names.filter(Boolean).join(" 
  */
 function resultOf(
   tool: PdfTool,
-  messages: Messages<PdfMessageCatalogue>,
+  messages: Messages<PdfEditorMessageCatalogue>,
   before: PdfSessionSnapshot,
 ): string | undefined {
   switch (tool.id) {

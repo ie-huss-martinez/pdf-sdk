@@ -1,4 +1,4 @@
-import { createMessages } from "@hussmartinez/sdk-core";
+import { createMessages, sdkCoreMessages } from "@hussmartinez/sdk-core";
 import { describe, expect, it } from "vitest";
 import { PdfError, type PdfErrorCode } from "../core/errors/pdf-error.js";
 import { pdfLimitDefinitions, pdfLimits } from "../core/errors/pdf-limits.js";
@@ -41,6 +41,17 @@ describe("pdfMessages", () => {
     for (const limit of Object.keys(pdfLimitDefinitions)) {
       expect(pdfMessages, limit).toHaveProperty(`warnings.${limit}`);
     }
+  });
+
+  it("holds only sdk-core's text, errors and warnings: no interface text (docs/adr/0010)", () => {
+    // The server-safe entry exports this catalogue, so interface text added
+    // here would ship to every host, server included. It belongs in
+    // src/messages/editor-en.ts, which only the React entry loads.
+    const core = new Set(Object.keys(sdkCoreMessages));
+    const stray = Object.keys(pdfMessages).filter(
+      (key) => !core.has(key) && !key.startsWith("errors.") && !key.startsWith("warnings."),
+    );
+    expect(stray).toEqual([]);
   });
 
   it("is a valid catalogue", () => {

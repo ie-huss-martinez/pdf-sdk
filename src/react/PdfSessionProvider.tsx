@@ -7,9 +7,8 @@ import type { PdfEngine } from "../core/ports/pdf-engine.js";
 import type { PdfProcessor } from "../core/ports/pdf-processor.js";
 import type { PdfSession, PdfSessionEvent } from "../core/session/session.js";
 import { createPdfSession } from "../core/session/session.js";
-import type { PdfMessageCatalogue } from "../messages/en.js";
-import { pdfMessages } from "../messages/en.js";
 import { PdfContext } from "./context.js";
+import { type PdfEditorMessageCatalogue, pdfEditorMessages } from "./editor-messages.js";
 
 /**
  * Props for {@link PdfSessionProvider}.
@@ -37,7 +36,7 @@ export interface PdfSessionProviderProps {
   /** Anonymous usage events from a session the provider creates. */
   readonly onEvent?: (event: PdfSessionEvent) => void;
   /** Text overrides, typed against the English catalogue (ADR 0019). */
-  readonly messages?: MessageOverrides<PdfMessageCatalogue>;
+  readonly messages?: MessageOverrides<PdfEditorMessageCatalogue>;
   /** The locale for numbers, sizes and plurals. Defaults to `"en"`. */
   readonly locale?: string;
   /** The components that use the session, such as `PdfViewer`. */
@@ -124,7 +123,7 @@ export function PdfSessionProvider(props: PdfSessionProviderProps): ReactNode {
   const session = useProvidedSession(props);
   const messages = useMemo(
     () =>
-      createMessages(pdfMessages, {
+      createMessages(pdfEditorMessages, {
         locale,
         ...(overrides ? { overrides } : {}),
       }),

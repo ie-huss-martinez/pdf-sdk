@@ -1,8 +1,8 @@
 import type { Messages } from "@hussmartinez/sdk-core";
 import { useContext, useSyncExternalStore } from "react";
 import type { PdfSession, PdfSessionSnapshot } from "../core/session/session.js";
-import type { PdfMessageCatalogue } from "../messages/en.js";
 import { PdfContext, type PdfContextValue } from "./context.js";
+import type { PdfEditorMessageCatalogue } from "./editor-messages.js";
 
 function usePdfContext(hook: string): PdfContextValue {
   const value = useContext(PdfContext);
@@ -39,6 +39,6 @@ export function usePdfDocument(): PdfSessionSnapshot {
  *
  * @public
  */
-export function usePdfMessages(): Messages<PdfMessageCatalogue> {
+export function usePdfMessages(): Messages<PdfEditorMessageCatalogue> {
   return usePdfContext("usePdfMessages").messages;
 }

@@ -17,3 +17,4 @@ Use [`template.md`](template.md) for new records. Name files `NNNN-short-title.m
 | [0007](0007-one-assets-directory.md) | One assets directory, and a self-hosted processing worker | Accepted |
 | [0008](0008-page-organisation-in-the-editor.md) | Organising pages in the editor: delete, move and insert | Accepted |
 | [0009](0009-saving-the-document.md) | Saving the document: the file's name, and the download tool | Accepted |
+| [0010](0010-interface-text-outside-the-server-safe-entry.md) | Interface text stays out of the server-safe entry | Accepted |
