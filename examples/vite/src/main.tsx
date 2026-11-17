@@ -19,6 +19,13 @@ document.addEventListener("securitypolicyviolation", (event) => {
 const selfHosted = document.body.dataset["assets"] === "self-hosted";
 const assetsUrl = selfHosted ? new URL("/pdf-sdk/", location.href).href : undefined;
 
+// For the screenshot tests: ?save=fail stands for a host whose own saving
+// fails, so the editor's save failure can be seen (docs/adr/0009).
+const failSave = new URLSearchParams(location.search).get("save") === "fail";
+const refuseToSave = async () => {
+  throw new Error("This test host refuses to save.");
+};
+
 // The host's layout: the editor fills the viewport below the heading. React
 // sets these through the DOM, which style-src 'self' allows.
 const root = document.getElementById("root") as HTMLElement;
@@ -34,6 +41,7 @@ createRoot(root).render(
     </h1>
     <PdfEditor
       {...(assetsUrl ? { assetsUrl } : {})}
+      {...(failSave ? { onExport: refuseToSave } : {})}
       ref={(editor) => {
         window.pdfSdk.editor = editor;
       }}

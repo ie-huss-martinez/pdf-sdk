@@ -15,10 +15,12 @@ export type { PdfTool, PdfToolContext, PdfToolState } from "./features/tool-type
 export { pdfTools } from "./features/tools.js";
 export { PdfEditor } from "./react/editor/PdfEditor.js";
 export type {
+  PdfDownloadNameInfo,
   PdfEditorChange,
   PdfEditorHandle,
   PdfEditorPart,
   PdfEditorProps,
+  PdfExportInfo,
 } from "./react/editor/types.js";
 export type { PdfEditorMessageCatalogue } from "./react/editor-messages.js";
 export { pdfEditorMessages } from "./react/editor-messages.js";

@@ -9,6 +9,8 @@ import type { PdfSession, PdfSessionSnapshot } from "../core/session/session.js"
 export interface PdfToolState {
   /** The session's current snapshot. */
   readonly snapshot: PdfSessionSnapshot;
+  /** Whether the editor is saving the document. Absent outside the editor. */
+  readonly saving?: boolean;
 }
 
 /**
@@ -21,6 +23,11 @@ export interface PdfToolContext {
   readonly session: PdfSession;
   /** Asks the user for a PDF and opens it, as the open tool does. */
   readonly chooseFile: () => void;
+  /**
+   * Builds the document and saves it, as the download tool does
+   * (docs/adr/0009). Absent outside the editor.
+   */
+  readonly save?: () => void;
 }
 
 /**

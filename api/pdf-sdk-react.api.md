@@ -18,6 +18,12 @@ import type { Tool } from '@hussmartinez/sdk-core';
 import type { ToolRegistry } from '@hussmartinez/sdk-core';
 
 // @public
+export interface PdfDownloadNameInfo {
+    readonly pageCount: number;
+    readonly sourceName?: string;
+}
+
+// @public
 export const PdfEditor: ForwardRefExoticComponent<PdfEditorProps & RefAttributes<PdfEditorHandle>>;
 
 // @public
@@ -82,10 +88,16 @@ export const pdfEditorMessages: {
         readonly one: "Deleted {count} page.";
         readonly other: "Deleted {count} pages.";
     };
+    readonly "editor.saving": "Preparing the PDF…";
+    readonly "editor.cancelSave": "Cancel";
+    readonly "editor.saved": "Saved {name}.";
+    readonly "editor.ready": "The PDF is ready.";
+    readonly "editor.saveFailed": "The PDF couldn't be saved. Please try again.";
     readonly "toolbar.label": "PDF tools";
     readonly "toolbar.groups.file": "File";
     readonly "toolbar.groups.history": "History";
     readonly "toolbar.groups.pages": "Pages";
+    readonly "toolbar.groups.save": "Save";
     readonly "toolbar.groups.other": "More tools";
     readonly "tools.open": "Open a PDF";
     readonly "tools.undo": "Undo";
@@ -93,6 +105,7 @@ export const pdfEditorMessages: {
     readonly "tools.rotate-left": "Rotate left";
     readonly "tools.rotate-right": "Rotate right";
     readonly "tools.delete-pages": "Delete pages";
+    readonly "tools.download": "Download";
     readonly "dialog.close": "Close";
     readonly "fileDropZone.choose": "Choose a file";
     readonly "fileDropZone.chooseMultiple": "Choose files";
@@ -173,13 +186,21 @@ export type PdfEditorPart = "root" | "header" | "toolbar" | "body" | "sidebar" |
 export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children" | "messages"> {
     readonly className?: string;
     readonly classNames?: Readonly<Partial<Record<PdfEditorPart, string>>>;
+    readonly downloadName?: (info: PdfDownloadNameInfo) => string;
     readonly file?: Blob | PdfBytes | null;
     readonly icons?: Readonly<Record<string, IconComponent>>;
     readonly messages?: MessageOverrides<PdfEditorMessageCatalogue>;
     readonly onChange?: (change: PdfEditorChange) => void;
+    readonly onExport?: (bytes: Uint8Array, info: PdfExportInfo) => void | Promise<void>;
     readonly toolbar?: readonly (readonly string[])[];
     readonly tools?: readonly string[];
     readonly unstyled?: boolean;
+}
+
+// @public
+export interface PdfExportInfo {
+    readonly fileName: string;
+    readonly pageCount: number;
 }
 
 // @public
@@ -233,12 +254,14 @@ export interface PdfToolbarProps {
     readonly icons: Readonly<Record<string, IconComponent>>;
     readonly onRun?: (tool: PdfTool) => void;
     readonly registry: ToolRegistry<PdfTool>;
+    readonly saving?: boolean;
     readonly shortcuts?: ShortcutRegistry;
 }
 
 // @public
 export interface PdfToolContext {
     readonly chooseFile: () => void;
+    readonly save?: () => void;
     readonly session: PdfSession;
 }
 
@@ -247,6 +270,7 @@ export const pdfTools: readonly PdfTool[];
 
 // @public
 export interface PdfToolState {
+    readonly saving?: boolean;
     // Warning: (ae-forgotten-export) The symbol "PdfSessionSnapshot" needs to be exported by the entry point react.d.ts
     readonly snapshot: PdfSessionSnapshot;
 }

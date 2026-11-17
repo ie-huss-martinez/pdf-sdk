@@ -7,6 +7,7 @@ import {
 import {
   type Announce,
   AnnouncerProvider,
+  Button,
   UiMessagesProvider,
   useAnnounce,
   usePlatform,
@@ -37,6 +38,7 @@ import { PdfToolbar } from "../toolbar/PdfToolbar.js";
 import { PdfViewer } from "../viewer/PdfViewer.js";
 import { PdfEditorStart } from "./PdfEditorStart.js";
 import type { PdfEditorChange, PdfEditorHandle, PdfEditorProps } from "./types.js";
+import { useSave } from "./use-save.js";
 
 /**
  * A warning's text. Each one is passed `actual`; texts that don't show it
@@ -110,7 +112,16 @@ function AnnounceBridge({ target }: { target: { current: Announce } }): null {
 interface BodyProps
   extends Pick<
     PdfEditorProps,
-    "file" | "onChange" | "className" | "classNames" | "unstyled" | "tools" | "toolbar" | "icons"
+    | "file"
+    | "onChange"
+    | "onExport"
+    | "downloadName"
+    | "className"
+    | "classNames"
+    | "unstyled"
+    | "tools"
+    | "toolbar"
+    | "icons"
   > {
   readonly handle: ForwardedRef<PdfEditorHandle>;
 }
@@ -132,6 +143,9 @@ function PdfEditorBody(props: BodyProps): ReactNode {
   const input = useRef<HTMLInputElement>(null);
   const latestOnChange = useRef(onChange);
   latestOnChange.current = onChange;
+  const saveProps = useRef(props);
+  saveProps.current = props;
+  const saving = useSave({ session, messages, announce, props: saveProps });
 
   // Mistakes in `tools` or `toolbar`, such as an unknown id, throw here, when
   // the editor renders, rather than leaving a tool silently missing.
@@ -152,8 +166,8 @@ function PdfEditorBody(props: BodyProps): ReactNode {
     [platform, registry],
   );
   const context: PdfToolContext = useMemo(
-    () => ({ session, chooseFile: () => input.current?.click() }),
-    [session],
+    () => ({ session, chooseFile: () => input.current?.click(), save: saving.save }),
+    [session, saving.save],
   );
   const icons = useMemo(() => ({ ...pdfIcons, ...props.icons }), [props.icons]);
 
@@ -162,7 +176,7 @@ function PdfEditorBody(props: BodyProps): ReactNode {
 
   const runTool = (tool: PdfTool) => {
     const before = session.getSnapshot();
-    if (!(tool.isEnabled?.({ snapshot: before }) ?? true)) return;
+    if (!(tool.isEnabled?.({ snapshot: before, saving: saving.saving }) ?? true)) return;
     void Promise.resolve(tool.run(context)).then(() => {
       const result = resultOf(tool, messages, before);
       if (result) announce(result);
@@ -282,7 +296,7 @@ function PdfEditorBody(props: BodyProps): ReactNode {
       ref={root}
       role="group"
       aria-label={messages.t("editor.label")}
-      aria-busy={status === "opening" || snapshot.busy}
+      aria-busy={status === "opening" || snapshot.busy || saving.saving}
       className={join("hm-pdf-editor", className, classNames.root)}
       data-hm-status={status}
       onKeyDown={onKeyDown}
@@ -309,8 +323,24 @@ function PdfEditorBody(props: BodyProps): ReactNode {
           context={context}
           icons={icons}
           onRun={runTool}
+          saving={saving.saving}
           className={join("hm-pdf-editor-toolbar", classNames.toolbar)}
         />
+        {saving.saving ? (
+          <div className={join("hm-pdf-editor-saving", classNames.status)}>
+            <p role="status">{messages.t("editor.saving")}</p>
+            {saving.cancellable ? (
+              <Button size="small" onClick={saving.cancel}>
+                {messages.t("editor.cancelSave")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {saving.failure ? (
+          <p role="alert" className={join("hm-pdf-editor-alert", classNames.alert)}>
+            {saving.failure}
+          </p>
+        ) : null}
         {status === "ready" && showError ? (
           <p role="alert" className={join("hm-pdf-editor-alert", classNames.alert)}>
             {messages.error(error)}
@@ -371,6 +401,8 @@ export const PdfEditor = /* @__PURE__ */ forwardRef(function PdfEditor(
   const {
     file,
     onChange,
+    onExport,
+    downloadName,
     className,
     classNames,
     unstyled,
@@ -400,6 +432,8 @@ export const PdfEditor = /* @__PURE__ */ forwardRef(function PdfEditor(
           handle={handle}
           {...(file !== undefined ? { file } : {})}
           {...(onChange ? { onChange } : {})}
+          {...(onExport ? { onExport } : {})}
+          {...(downloadName ? { downloadName } : {})}
           {...(className !== undefined ? { className } : {})}
           {...(classNames ? { classNames } : {})}
           {...(unstyled !== undefined ? { unstyled } : {})}
