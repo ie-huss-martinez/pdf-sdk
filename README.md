@@ -28,7 +28,7 @@ const bytes = await editor.current?.export();
 
 **A bounded height.** `PdfEditor` fills the height of its container, and its viewer and thumbnails scroll within it, so give it a bounded height: a fixed height, or a grid row such as `minmax(0, 1fr)`. The same goes for `PdfViewer` and `PdfThumbnails` used on their own.
 
-**Text.** `messages` overrides any text the editor shows, by key, including ui's, such as `"spinner.label"`. The editor builds one set of text from them and your `locale`, for its own components and for ui's ([sdk-core ADR 0046](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0046-ui-text-through-the-sdk.md)). `pdfEditorMessages` is the English catalogue, and `MessageOverrides<PdfEditorMessageCatalogue>` types your overrides.
+**Text.** `messages` overrides any text the editor shows, by key, including ui's, such as `"spinner.label"`. The editor builds one set of text from them and your `locale`, for its own components and for ui's ([sdk-core ADR 0046](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0046-ui-text-through-the-sdk.md)). `pdfEditorMessages`, from `@hussmartinez/pdf-sdk/react`, is the English catalogue, and `MessageOverrides<PdfEditorMessageCatalogue>` types your overrides. `pdfMessages`, from the server-safe entry, holds only error and warning text, for hosts that show the session's errors themselves ([ADR 0010](docs/adr/0010-interface-text-outside-the-server-safe-entry.md)).
 
 `file` opens a document, and a different one replaces it; `null` closes it. Users can also open one with the editor's button or by dropping it on the editor. `onChange` reports each `open`, `edit` and `close`, and the ref's `PdfEditorHandle` exports, undoes, redoes and closes.
 

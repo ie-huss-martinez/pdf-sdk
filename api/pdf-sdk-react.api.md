@@ -46,32 +46,6 @@ export type PdfEditorMessageCatalogue = typeof pdfEditorMessages;
 
 // @public
 export const pdfEditorMessages: {
-    readonly "dialog.close": "Close";
-    readonly "fileDropZone.choose": "Choose a file";
-    readonly "fileDropZone.chooseMultiple": "Choose files";
-    readonly "fileDropZone.hint": "or drop it here";
-    readonly "fileDropZone.hintMultiple": "or drop them here";
-    readonly "progress.label": "Progress";
-    readonly "spinner.label": "Loading";
-    readonly "errors.INVALID_THEME_TOKEN": "The theme setting {token} has a value that can't be used.";
-    readonly "errors.INVALID_THEME_SELECTOR": "The theme can't be applied to the selector {selector}.";
-    readonly "errors.INVALID_PDF": "This file isn't a PDF, or it's too damaged to open.";
-    readonly "errors.PASSWORD_REQUIRED": "This PDF is protected with a password.";
-    readonly "errors.PROCESSING_FAILED": "Something went wrong while processing this PDF. Please try again.";
-    readonly "errors.TOO_MANY_PAGES": "This document has {actual, number} pages, which is over the {maximum, number}-page limit.";
-    readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
-    readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
-    readonly "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.";
-    readonly "errors.INVALID_DOCUMENT": "This project is damaged, or it isn't a PDF project.";
-    readonly "errors.UNSUPPORTED_FORMAT": "This project was saved by a newer version, or by another app. Update the app, and try again.";
-    readonly "warnings.maxPages": {
-        readonly $plural: "actual";
-    } & {
-        readonly one: "This document has {actual} page. Large documents may be slow.";
-        readonly other: "This document has {actual} pages. Large documents may be slow.";
-    };
-    readonly "warnings.maxSessionSize": "The open documents use {actual, fileSize}. Clearing the undo history frees memory.";
-    readonly "warnings.maxImagePixels": "Some images are very large and may be slow to show.";
     readonly "viewer.label": "Document";
     readonly "viewer.empty": "No document is open.";
     readonly "viewer.page": "Page {page} of {count}";
@@ -112,6 +86,32 @@ export const pdfEditorMessages: {
     readonly "tools.redo": "Redo";
     readonly "tools.rotate-left": "Rotate left";
     readonly "tools.rotate-right": "Rotate right";
+    readonly "dialog.close": "Close";
+    readonly "fileDropZone.choose": "Choose a file";
+    readonly "fileDropZone.chooseMultiple": "Choose files";
+    readonly "fileDropZone.hint": "or drop it here";
+    readonly "fileDropZone.hintMultiple": "or drop them here";
+    readonly "progress.label": "Progress";
+    readonly "spinner.label": "Loading";
+    readonly "errors.INVALID_THEME_TOKEN": "The theme setting {token} has a value that can't be used.";
+    readonly "errors.INVALID_THEME_SELECTOR": "The theme can't be applied to the selector {selector}.";
+    readonly "errors.INVALID_PDF": "This file isn't a PDF, or it's too damaged to open.";
+    readonly "errors.PASSWORD_REQUIRED": "This PDF is protected with a password.";
+    readonly "errors.PROCESSING_FAILED": "Something went wrong while processing this PDF. Please try again.";
+    readonly "errors.TOO_MANY_PAGES": "This document has {actual, number} pages, which is over the {maximum, number}-page limit.";
+    readonly "errors.SESSION_TOO_LARGE": "The open documents would use {actual, fileSize}, which is over the {maximum, fileSize} limit. Close a document, or clear the undo history, and try again.";
+    readonly "errors.IMAGE_TOO_LARGE": "Some images are too large to show. They're kept unchanged in the document.";
+    readonly "errors.INVALID_COMMAND": "This edit couldn't be made. Please try again.";
+    readonly "errors.INVALID_DOCUMENT": "This project is damaged, or it isn't a PDF project.";
+    readonly "errors.UNSUPPORTED_FORMAT": "This project was saved by a newer version, or by another app. Update the app, and try again.";
+    readonly "warnings.maxPages": {
+        readonly $plural: "actual";
+    } & {
+        readonly one: "This document has {actual} page. Large documents may be slow.";
+        readonly other: "This document has {actual} pages. Large documents may be slow.";
+    };
+    readonly "warnings.maxSessionSize": "The open documents use {actual, fileSize}. Clearing the undo history frees memory.";
+    readonly "warnings.maxImagePixels": "Some images are very large and may be slow to show.";
     readonly "errors.UNKNOWN": "Something went wrong. Please try again.";
     readonly "errors.ABORTED": "The operation was cancelled.";
     readonly "errors.TIMEOUT": "The operation took too long and was stopped.";
@@ -190,8 +190,7 @@ export interface PdfSessionProviderProps {
     // Warning: (ae-forgotten-export) The symbol "PdfFilePolicyOverrides" needs to be exported by the entry point react.d.ts
     readonly filePolicy?: PdfFilePolicyOverrides;
     readonly locale?: string;
-    // Warning: (ae-forgotten-export) The symbol "PdfMessageCatalogue" needs to be exported by the entry point react.d.ts
-    readonly messages?: MessageOverrides<PdfMessageCatalogue>;
+    readonly messages?: MessageOverrides<PdfEditorMessageCatalogue>;
     // Warning: (ae-forgotten-export) The symbol "PdfSessionEvent" needs to be exported by the entry point react.d.ts
     readonly onEvent?: (event: PdfSessionEvent) => void;
     // Warning: (ae-forgotten-export) The symbol "PdfProcessor" needs to be exported by the entry point react.d.ts
@@ -266,7 +265,7 @@ export interface PdfViewerProps {
 export function usePdfDocument(): PdfSessionSnapshot;
 
 // @public
-export function usePdfMessages(): Messages<PdfMessageCatalogue>;
+export function usePdfMessages(): Messages<PdfEditorMessageCatalogue>;
 
 // @public
 export function usePdfSession(): PdfSession;

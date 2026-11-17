@@ -3,10 +3,14 @@ import type { PdfErrorCode } from "../core/errors/pdf-error.js";
 import type { PdfLimitName } from "../core/errors/pdf-limits.js";
 
 /**
- * The PDF SDK's English message catalogue: sdk-core's messages, and text for
- * every {@link PdfErrorCode} and every limit's warning. Pass it to
- * `createMessages` from `@hussmartinez/sdk-core`, with the host's locale and
- * overrides.
+ * The PDF SDK's English message catalogue for the server-safe entry:
+ * sdk-core's messages, and text for every {@link PdfErrorCode} and every
+ * limit's warning. Pass it to `createMessages` from `@hussmartinez/sdk-core`,
+ * with the host's locale and overrides.
+ *
+ * It holds no interface text: the editor's, the viewer's and the
+ * thumbnails' text is in `pdfEditorMessages`, from the React entry
+ * (docs/adr/0010).
  *
  * Error text is looked up by code, with the error's `details` as
  * parameters, and never taken from `error.message` (ADR 0019).
@@ -42,42 +46,6 @@ export const pdfMessages = /* @__PURE__ */ defineMessages({
   "warnings.maxSessionSize":
     "The open documents use {actual, fileSize}. Clearing the undo history frees memory.",
   "warnings.maxImagePixels": "Some images are very large and may be slow to show.",
-  "viewer.label": "Document",
-  "viewer.empty": "No document is open.",
-  "viewer.page": "Page {page} of {count}",
-  "viewer.webLink": "Link to {destination}, opens in a new tab",
-  "viewer.emailLink": "Email {destination}",
-  "thumbnails.label": "Pages",
-  "thumbnails.page": "Page {page} of {count}",
-  "thumbnails.number": "{page}",
-  "editor.label": "PDF editor",
-  "editor.start.title": "Open a PDF to get started",
-  "editor.start.retryTitle": "Try another PDF",
-  "editor.start.choose": "Choose a PDF",
-  "editor.start.retry": "Choose another PDF",
-  "editor.start.hint": "Or drop one here. Your file stays on this device and is never uploaded.",
-  "editor.opening": "Opening the PDF…",
-  "editor.opened": /* @__PURE__ */ plural("count", {
-    one: "Opened a PDF with {count} page.",
-    other: "Opened a PDF with {count} pages.",
-  }),
-  "editor.closed": "The PDF was closed.",
-  "editor.undone": "Undone.",
-  "editor.redone": "Redone.",
-  "editor.rotated": /* @__PURE__ */ plural("count", {
-    one: "Rotated {count} page.",
-    other: "Rotated {count} pages.",
-  }),
-  "toolbar.label": "PDF tools",
-  "toolbar.groups.file": "File",
-  "toolbar.groups.history": "History",
-  "toolbar.groups.pages": "Pages",
-  "toolbar.groups.other": "More tools",
-  "tools.open": "Open a PDF",
-  "tools.undo": "Undo",
-  "tools.redo": "Redo",
-  "tools.rotate-left": "Rotate left",
-  "tools.rotate-right": "Rotate right",
 }) satisfies Record<`errors.${PdfErrorCode}`, MessageValue> &
   Record<`warnings.${PdfLimitName}`, MessageValue>;
 
