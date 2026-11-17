@@ -107,7 +107,9 @@ export interface PdfSessionSnapshot {
   readonly historyTrimmed: boolean;
   /**
    * The keys of the selected pages, in plan order. Tools act on them, such as
-   * rotating the selection. View state: not undoable, and never in events.
+   * rotating the selection. View state: not part of the plan and never in
+   * events, but undo and redo bring back the selection and current page
+   * that went with each step (docs/adr/0008).
    */
   readonly selection: readonly string[];
   /** The key of the page the user is looking at, if a document is open. */
@@ -272,6 +274,12 @@ export interface PdfSession {
   close(): Promise<void>;
 }
 
+/** The view state kept beside a history step (docs/adr/0008). */
+interface View {
+  readonly selection: readonly string[];
+  readonly currentPage: string | undefined;
+}
+
 interface Source extends PdfSourceInfo {
   readonly bytes: Uint8Array;
   readonly document: PdfDocumentHandle;
@@ -299,6 +307,11 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   // Undo and redo stacks of command steps, which the memory policy below
   // trims (ADR 0010 and ADR 0029 in sdk-core, docs/adr/0004).
   const history = createHistory<PdfCommand>();
+  /**
+   * The view before each step, and the view when it was last undone, by the
+   * history's own step object. Steps the history drops are released with it.
+   */
+  const views = new WeakMap<HistoryStep<PdfCommand>, { readonly before: View; after?: View }>();
   const sources = new Map<string, Source>();
   // Checks commands against the sources the session holds (sdk-core ADR 0045).
   const reduce = createPdfReducer((id) => sources.get(id)?.pageCount);
@@ -497,10 +510,33 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
     return { page, source };
   }
 
+  /** The selection and current page, which undo and redo bring back (docs/adr/0008). */
+  function view(): View {
+    return { selection, currentPage };
+  }
+
+  /**
+   * Brings back a view, keeping only pages the plan still has; changed()
+   * settles the rest. The current page is brought into view.
+   */
+  function restore(saved: View): void {
+    const keys = new Set(plan.pages.map((page) => page.key));
+    selection = saved.selection.filter((key) => keys.has(key));
+    if (saved.currentPage !== undefined && keys.has(saved.currentPage)) {
+      currentPage = saved.currentPage;
+      navigation = { page: saved.currentPage, sequence: (navigation?.sequence ?? 0) + 1 };
+    }
+  }
+
   function step(commands: readonly PdfCommand[]): void {
+    const before = view();
     const result = applyCommands(reduce, plan, commands);
     plan = result.state;
     history.push({ commands, inverses: result.inverses });
+    // The history stores its own frozen copy of the step, the object that
+    // undo() and redo() return, so the view is kept against that one.
+    const stored = history.steps.at(-1);
+    if (stored) views.set(stored, { before });
     // A new step drops the redo steps, and the documents only they held.
     collect();
   }
@@ -634,11 +670,18 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
     undo() {
       const entry = history.undo();
       if (!entry) return;
+      const now = view();
       try {
         plan = applyCommands(reduce, plan, entry.inverses).state;
       } catch (reason) {
         history.restore("undo");
         throw reason;
+      }
+      const record = views.get(entry);
+      if (record) {
+        // Redo brings back what the user had when they undid.
+        record.after = now;
+        restore(record.before);
       }
       changed();
       emit({ type: "undo" });
@@ -653,6 +696,8 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
         history.restore("redo");
         throw reason;
       }
+      const after = views.get(entry)?.after;
+      if (after) restore(after);
       changed();
       emit({ type: "redo" });
     },

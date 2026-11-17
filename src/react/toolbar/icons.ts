@@ -1,4 +1,5 @@
 import {
+  DeleteIcon,
   type IconComponent,
   OpenIcon,
   RedoIcon,
@@ -19,4 +20,5 @@ export const pdfIcons: Readonly<Record<string, IconComponent>> = {
   redo: RedoIcon,
   "rotate-left": RotateLeftIcon,
   "rotate-right": RotateRightIcon,
+  delete: DeleteIcon,
 };

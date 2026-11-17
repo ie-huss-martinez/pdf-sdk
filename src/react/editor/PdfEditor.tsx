@@ -68,6 +68,8 @@ function resultOf(
     case "pdf.rotate-left":
     case "pdf.rotate-right":
       return messages.t("editor.rotated", { count: targetPages(before).length });
+    case "pdf.delete-pages":
+      return messages.t("editor.deleted", { count: targetPages(before).length });
     default:
       return undefined;
   }
@@ -154,6 +156,9 @@ function PdfEditorBody(props: BodyProps): ReactNode {
     [session],
   );
   const icons = useMemo(() => ({ ...pdfIcons, ...props.icons }), [props.icons]);
+
+  // Keys that only work in the thumbnails, for tools the host kept (docs/adr/0008).
+  const deleteTool = registry.get("pdf.delete-pages");
 
   const runTool = (tool: PdfTool) => {
     const before = session.getSnapshot();
@@ -246,6 +251,7 @@ function PdfEditorBody(props: BodyProps): ReactNode {
         <PdfThumbnails
           className={join("hm-pdf-editor-sidebar", classNames.sidebar)}
           unstyled={unstyled}
+          {...(deleteTool ? { onDelete: () => runTool(deleteTool) } : {})}
         />
         <PdfViewer unstyled={unstyled} />
       </>

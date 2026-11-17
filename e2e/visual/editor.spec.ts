@@ -12,6 +12,8 @@ import { reportPdf } from "../../test/fixtures/pdfs.js";
  * | `empty` | The start area, before a PDF is open, with only the open tool enabled |
  * | `open` | The report fixture: its pages as thumbnails and in the viewer, focus on the document |
  * | `rotated` | The first page rotated from the keyboard, with Undo enabled |
+ * | `selection` | Every page selected in the thumbnails, with deleting disabled |
+ * | `deleted` | The second page deleted with Delete, focus on the remaining thumbnail |
  * | `error` | A file that isn't a PDF, and the catalogue's text for it |
  * | `replace-error` | A document still open after a replacement failed, with the header's alert |
  *
@@ -98,6 +100,25 @@ const STATES: Readonly<Record<string, State>> = {
     await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Rotated 1 page.");
     await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
     await drawn(page, { wide: true });
+  },
+  selection: async (page) => {
+    await opened(page);
+    // Every page selected from the thumbnails' keys: deleting is disabled,
+    // because a document keeps one page (docs/adr/0008).
+    await page.getByRole("option", { name: "Page 1 of 2" }).click();
+    await page.keyboard.press("Control+a");
+    await expect(page.getByRole("option", { selected: true })).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "Delete pages" })).toBeDisabled();
+    await drawn(page);
+  },
+  deleted: async (page) => {
+    await opened(page);
+    await page.getByRole("option", { name: "Page 2 of 2" }).click();
+    await page.keyboard.press("Delete");
+    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Deleted 1 page.");
+    await expect(page.getByRole("option", { name: "Page 1 of 1" })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Delete pages" })).toBeDisabled();
+    await drawn(page);
   },
   error: async (page) => {
     await choose(page, "notes.pdf", Buffer.from("just some text"));

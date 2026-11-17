@@ -76,6 +76,12 @@ export const pdfEditorMessages: {
         readonly one: "Rotated {count} page.";
         readonly other: "Rotated {count} pages.";
     };
+    readonly "editor.deleted": {
+        readonly $plural: "count";
+    } & {
+        readonly one: "Deleted {count} page.";
+        readonly other: "Deleted {count} pages.";
+    };
     readonly "toolbar.label": "PDF tools";
     readonly "toolbar.groups.file": "File";
     readonly "toolbar.groups.history": "History";
@@ -86,6 +92,7 @@ export const pdfEditorMessages: {
     readonly "tools.redo": "Redo";
     readonly "tools.rotate-left": "Rotate left";
     readonly "tools.rotate-right": "Rotate right";
+    readonly "tools.delete-pages": "Delete pages";
     readonly "dialog.close": "Close";
     readonly "fileDropZone.choose": "Choose a file";
     readonly "fileDropZone.chooseMultiple": "Choose files";
@@ -209,6 +216,7 @@ export interface PdfThumbnailsProps {
     readonly className?: string;
     readonly classNames?: Readonly<Partial<Record<PdfThumbnailsPart, string>>>;
     readonly concurrency?: number;
+    readonly onDelete?: () => void;
     readonly unstyled?: boolean;
 }
 

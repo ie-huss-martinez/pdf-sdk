@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -38,6 +39,11 @@ export interface PdfThumbnailsProps {
   readonly unstyled?: boolean;
   /** How many thumbnails are drawn at once. Defaults to 2. */
   readonly concurrency?: number;
+  /**
+   * Runs when the user presses Delete or Backspace in the list, such as the
+   * editor's delete tool. Without it, those keys do nothing here.
+   */
+  readonly onDelete?: () => void;
 }
 
 const LETTER = { width: 612, height: 792 };
@@ -127,7 +133,7 @@ function Thumbnail(props: ThumbnailProps): ReactNode {
  * @public
  */
 export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
-  const { className, classNames = {}, unstyled = false, concurrency = 2 } = props;
+  const { className, classNames = {}, unstyled = false, concurrency = 2, onDelete } = props;
   const session = usePdfSession();
   const snapshot = usePdfDocument();
   const messages = usePdfMessages();
@@ -139,6 +145,8 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
   const [estimate, setEstimate] = useState(LETTER);
   const [activeKey, setActiveKey] = useState<string>();
   const anchor = useRef<string | undefined>(undefined);
+  /** The thumbnail that had focus, so focus can stay in the list if it's removed. */
+  const focused = useRef<string | undefined>(undefined);
   const { plan, selection, currentPage } = snapshot;
   const keys = plan.pages.map((page) => page.key);
   const active = activeKey && keys.includes(activeKey) ? activeKey : (currentPage ?? keys[0]);
@@ -163,6 +171,19 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
       .querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(currentPage)}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [currentPage]);
+
+  // A thumbnail that had focus may leave the plan: deleted, or undone. Focus
+  // then moves to the current page's thumbnail, never to the page's body
+  // (docs/adr/0008).
+  useLayoutEffect(() => {
+    const key = focused.current;
+    const element = root.current;
+    if (!key || !element || keys.includes(key)) return;
+    focused.current = undefined;
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (!lost || !active) return;
+    element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(active)}"]`)?.focus();
+  });
 
   const onMeasured = useCallback((info: PdfPageInfo) => {
     setEstimate((current) =>
@@ -231,6 +252,13 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
       case "Escape":
         if (active) session.select([active]);
         break;
+      case "Delete":
+      case "Backspace":
+        if (onDelete && !event.altKey && !modifier && !event.shiftKey) {
+          event.preventDefault();
+          onDelete();
+        }
+        break;
       case "a":
       case "A":
         if (modifier) {
@@ -254,6 +282,9 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
       aria-orientation="vertical"
       tabIndex={keys.length === 0 ? 0 : -1}
       onKeyDown={onKeyDown}
+      onFocus={(event) => {
+        focused.current = (event.target as HTMLElement).dataset["hmPageKey"];
+      }}
       className={join("hm-pdf-thumbnails", className, classNames.root)}
       {...(unstyled ? { "data-hm-unstyled": "" } : {})}
     >
