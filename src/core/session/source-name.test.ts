@@ -11,7 +11,7 @@ describe("cleanFileName (docs/adr/0009)", () => {
     ["folder/sub\\mixed.pdf", "mixed.pdf"],
     ["re\u0000po\u0007rt\u007F\u0085.pdf", "report.pdf"],
     ["line\nbreak\r\t.pdf", "linebreak.pdf"],
-    // A right-to-left override that would show "invoice‮fdp.exe" as "invoiceexe.pdf".
+    // A right-to-left override that would show "invoice\u202Efdp.exe" as "invoiceexe.pdf".
     ["invoice\u202Efdp.exe", "invoicefdp.exe"],
     ["a\u2066b\u2069c\u200Ed\u200Fe\u061Cf.pdf", "abcdef.pdf"],
     ['a<b>c:d"e|f?g*h.pdf', "abcdefgh.pdf"],
@@ -30,6 +30,15 @@ describe("cleanFileName (docs/adr/0009)", () => {
       expect(cleanFileName(raw)).toBeUndefined();
     },
   );
+
+  it("removes a right-to-left override that disguises an extension", () => {
+    // Shown as "invoiceexe.pdf", but it's an .exe.
+    const disguised = "invoice\u202Efdp.exe";
+    const clean = cleanFileName(disguised) as string;
+    expect(clean).toBe("invoicefdp.exe");
+    expect(clean).not.toContain("\u202E");
+    expect(clean.endsWith(".exe")).toBe(true);
+  });
 
   it("gives no name for anything that isn't a string", () => {
     for (const value of [undefined, null, 42, {}, ["a.pdf"], new String("a.pdf")]) {

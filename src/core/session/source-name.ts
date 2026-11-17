@@ -4,7 +4,7 @@ export const MAX_NAME_LENGTH = 128;
 /** Control characters (Unicode category Cc: C0, DEL and C1). */
 const CONTROL = /\p{Cc}/gu;
 /** Bidirectional formatting characters, which can disguise an extension. */
-const BIDI = /[؜‎‏‪-‮⁦-⁩]/gu;
+const BIDI = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu;
 /** Characters Windows refuses in file names. Separators are handled first. */
 const REFUSED = /[<>:"|?*]/gu;
 

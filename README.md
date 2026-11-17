@@ -100,7 +100,7 @@ The browser and end-to-end tests also need Docker. They run in the pinned browse
 
 | Step | Script | Tool |
 |---|---|---|
-| Format and lint | `lint` | Biome |
+| Format and lint | `lint` | Biome, then `tools/check-hidden-unicode.ts`, which fails on bidirectional formatting and zero-width characters in tracked files outside `test/fixtures`; write them as escapes |
 | CSS rules | `lint:css` | stylelint, with the `hm-` namespace and token rules |
 | Types | `typecheck` | TypeScript |
 | Dependency rules | `lint:deps` | dependency-cruiser, through `hm-lint-deps` |
