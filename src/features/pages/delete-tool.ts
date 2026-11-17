@@ -45,12 +45,3 @@ export const deletePagesTool: PdfTool = /* @__PURE__ */ defineTool({
   isEnabled: canDelete,
   run: deletePages,
 });
-
-/**
- * Keys that run a tool only while focus is in the thumbnails, by tool ID,
- * as `aria-keyshortcuts` gives them. The toolbar advertises them on the
- * tools' buttons (docs/adr/0008).
- */
-export const THUMBNAIL_KEYS: Readonly<Record<string, string>> = {
-  "pdf.delete-pages": "Delete Backspace",
-};

@@ -62,6 +62,7 @@ function resultOf(
   tool: PdfTool,
   messages: Messages<PdfEditorMessageCatalogue>,
   before: PdfSessionSnapshot,
+  after: PdfSessionSnapshot,
 ): string | undefined {
   switch (tool.id) {
     case "pdf.undo":
@@ -73,6 +74,14 @@ function resultOf(
       return messages.t("editor.rotated", { count: targetPages(before).length });
     case "pdf.delete-pages":
       return messages.t("editor.deleted", { count: targetPages(before).length });
+    case "pdf.move-earlier":
+    case "pdf.move-later": {
+      // The move selects the moved pages; it says where the first one went.
+      if (after.plan === before.plan) return undefined;
+      const [first] = after.selection;
+      const position = after.plan.pages.findIndex((page) => page.key === first) + 1;
+      return messages.t("editor.moved", { count: after.selection.length, position });
+    }
     default:
       return undefined;
   }
@@ -181,13 +190,17 @@ function PdfEditorBody(props: BodyProps): ReactNode {
 
   // Keys that only work in the thumbnails, for tools the host kept (docs/adr/0008).
   const deleteTool = registry.get("pdf.delete-pages");
+  const moveTools = {
+    earlier: registry.get("pdf.move-earlier"),
+    later: registry.get("pdf.move-later"),
+  };
 
   const runTool = (tool: PdfTool) => {
     const before = session.getSnapshot();
     const state = { snapshot: before, saving: saving.saving, inserting };
     if (!(tool.isEnabled?.(state) ?? true)) return;
     void Promise.resolve(tool.run(context)).then(() => {
-      const result = resultOf(tool, messages, before);
+      const result = resultOf(tool, messages, before, session.getSnapshot());
       if (result) announce(result);
     });
   };
@@ -304,6 +317,14 @@ function PdfEditorBody(props: BodyProps): ReactNode {
           className={join("hm-pdf-editor-sidebar", classNames.sidebar)}
           unstyled={unstyled}
           {...(deleteTool ? { onDelete: () => runTool(deleteTool) } : {})}
+          {...(moveTools.earlier || moveTools.later
+            ? {
+                onMove: (direction: "earlier" | "later") => {
+                  const tool = moveTools[direction];
+                  if (tool) runTool(tool);
+                },
+              }
+            : {})}
         />
         <PdfViewer unstyled={unstyled} />
       </>
