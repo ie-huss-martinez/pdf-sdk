@@ -5,5 +5,5 @@
     "lib": ["es2023", "dom"],
     "types": ["node"]
   },
-  "include": ["*.ts", "tests", "../test/fixtures/pdfs.ts"]
+  "include": ["*.ts", "tests", "visual", "../test/fixtures/pdfs.ts"]
 }
