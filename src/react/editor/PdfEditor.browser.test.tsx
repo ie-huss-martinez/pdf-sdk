@@ -85,9 +85,19 @@ function setUp(props: Partial<PdfEditorProps> = {}, css?: string, styles: StyleO
  * Waits until the editor reaches a status. Engines read files
  * asynchronously, and some browsers take several tasks to do it.
  */
-const settle = async (container: HTMLElement, status: string) => {
-  await waitFor(() => expect(editor(container)?.dataset["hmStatus"]).toBe(status));
+const settle = async (container: HTMLElement, status: string, timeout?: number) => {
+  await waitFor(() => expect(editor(container)?.dataset["hmStatus"]).toBe(status), {
+    ...(timeout === undefined ? {} : { timeout }),
+  });
 };
+
+/**
+ * How long the file's first open may take, in milliseconds. It's the slowest
+ * open in the file, and on a loaded machine WebKit has run past the browser
+ * tests' default of fifteen seconds there, so its test and its wait allow
+ * thirty. Later opens stay within the defaults.
+ */
+const FIRST_OPEN = 30_000;
 
 const editor = (container: HTMLElement) =>
   container.querySelector<HTMLElement>('[role="group"][aria-label="PDF editor"]');
@@ -141,12 +151,15 @@ describe("PdfEditor", () => {
     );
   });
 
-  it("opens a chosen file, announces it and moves focus to the document", async () => {
+  it("opens a chosen file, announces it and moves focus to the document", {
+    timeout: FIRST_OPEN,
+  }, async () => {
     const { mounted, changes } = setUp();
     const container = await mounted;
     (button(container) as HTMLButtonElement).focus();
     await act(() => userEvent.upload(input(container), pdfFile(3)));
-    await settle(container, "ready");
+    // The file's first open (FIRST_OPEN).
+    await settle(container, "ready", FIRST_OPEN);
 
     expect(editor(container)?.dataset["hmStatus"]).toBe("ready");
     expect(changes).toEqual([{ reason: "open", pageCount: 3 }]);
