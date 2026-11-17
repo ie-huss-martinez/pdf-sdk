@@ -1,11 +1,12 @@
 import {
+  Component,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
+  type RefObject,
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -55,10 +56,54 @@ const LETTER = { width: 612, height: 792 };
 
 /** The key of the thumbnail in `root` that has focus, if one has. */
 function focusedThumbnail(root: HTMLElement | null): string | undefined {
-  if (!root || typeof document === "undefined") return undefined;
+  if (!root) return undefined;
   const active = document.activeElement;
   if (!(active instanceof HTMLElement) || !root.contains(active)) return undefined;
   return active.dataset["hmPageKey"];
+}
+
+interface FocusKeeperProps {
+  readonly root: RefObject<HTMLDivElement | null>;
+  readonly keys: readonly string[];
+  /** Where focus goes if the focused thumbnail left the plan. */
+  readonly fallback: string | undefined;
+}
+
+/**
+ * Keeps focus in the list when the thumbnail that has it is moved, which
+ * takes focus from it in some browsers, or leaves the plan: deleted, or
+ * undone (docs/adr/0008). Focus goes back to it, or to the current page's
+ * thumbnail, never to the page's body.
+ *
+ * A class, for `getSnapshotBeforeUpdate`: React calls it for the whole tree
+ * before a commit changes the DOM, so it reads which thumbnail had focus
+ * without reading the DOM or writing a ref during render. It covers every
+ * way a thumbnail can move or go: keys, the toolbar, undo and the host's
+ * own calls. If focus was elsewhere, such as on the host's page, nothing
+ * was recorded and nothing is taken back. It renders nothing.
+ */
+class FocusKeeper extends Component<FocusKeeperProps> {
+  override getSnapshotBeforeUpdate(): string | null {
+    return focusedThumbnail(this.props.root.current) ?? null;
+  }
+
+  override componentDidUpdate(
+    _props: FocusKeeperProps,
+    _state: unknown,
+    focused: string | null,
+  ): void {
+    const element = this.props.root.current;
+    if (!focused || !element) return;
+    const now = document.activeElement;
+    if (now !== null && now !== document.body) return;
+    const target = this.props.keys.includes(focused) ? focused : this.props.fallback;
+    if (!target) return;
+    element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(target)}"]`)?.focus();
+  }
+
+  override render(): null {
+    return null;
+  }
 }
 const join = (...names: (string | undefined)[]) => names.filter(Boolean).join(" ");
 
@@ -160,12 +205,6 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
   const [estimate, setEstimate] = useState(LETTER);
   const [activeKey, setActiveKey] = useState<string>();
   const anchor = useRef<string | undefined>(undefined);
-  /**
-   * The thumbnail that had focus when this render began, before React moved
-   * or removed any of them, so focus can stay in the list (docs/adr/0008).
-   */
-  const focused = useRef<string | undefined>(undefined);
-  focused.current = focusedThumbnail(root.current);
   const { plan, selection, currentPage } = snapshot;
   const keys = plan.pages.map((page) => page.key);
   const active = activeKey && keys.includes(activeKey) ? activeKey : (currentPage ?? keys[0]);
@@ -190,21 +229,6 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
       .querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(currentPage)}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [currentPage]);
-
-  // A thumbnail that had focus may be moved, which takes focus from it in
-  // some browsers, or leave the plan: deleted, or undone. Focus then goes
-  // back to it, or to the current page's thumbnail, never to the page's
-  // body (docs/adr/0008).
-  useLayoutEffect(() => {
-    const key = focused.current;
-    const element = root.current;
-    if (!key || !element) return;
-    const lost = document.activeElement === null || document.activeElement === document.body;
-    if (!lost) return;
-    const target = keys.includes(key) ? key : active;
-    if (!target) return;
-    element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(target)}"]`)?.focus();
-  });
 
   const onMeasured = useCallback((info: PdfPageInfo) => {
     setEstimate((current) =>
@@ -334,6 +358,7 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
           classNames={classNames}
         />
       ))}
+      <FocusKeeper root={root} keys={keys} fallback={active} />
     </div>
   );
 }

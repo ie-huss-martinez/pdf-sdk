@@ -618,6 +618,33 @@ describe("PdfEditor", () => {
         }
       });
 
+      it("never takes focus back from where the user moved it, such as the host's own button", async () => {
+        const hostButton = document.createElement("button");
+        hostButton.textContent = "Host's own button";
+        document.body.prepend(hostButton);
+        try {
+          const { mounted, handle } = setUp();
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(4)));
+          await act(() => userEvent.click(option(container, "p2")));
+          await act(() => userEvent.keyboard("{Delete}"));
+          await act(() => userEvent.keyboard("{Alt>}{ArrowDown}{/Alt}"));
+          expect(document.activeElement).toBe(option(container, "p3"));
+
+          // The user moves on to the host's page; the editor's thumbnails then
+          // move and come back, but focus stays where the user put it.
+          await act(() => userEvent.click(hostButton));
+          await act(async () => handle.current?.undo());
+          await act(async () => handle.current?.undo());
+          expect(pageKeys(handle)).toEqual(["p1", "p2", "p3", "p4"]);
+          expect(document.activeElement).toBe(hostButton);
+          await act(async () => handle.current?.redo());
+          expect(document.activeElement).toBe(hostButton);
+        } finally {
+          hostButton.remove();
+        }
+      });
+
       it("ignores Alt+arrows with other modifiers, outside the thumbnails, and without the tools", async () => {
         const first = setUp();
         const container = await first.mounted;
