@@ -1,5 +1,6 @@
 import { redoTool, undoTool } from "./history/history-tools.js";
 import { openTool } from "./open/open-tool.js";
+import { deletePagesTool } from "./pages/delete-tool.js";
 import { rotateLeftTool, rotateRightTool } from "./pages/rotate-tools.js";
 import type { PdfTool } from "./tool-types.js";
 
@@ -14,11 +15,12 @@ export const pdfTools: readonly PdfTool[] = [
   redoTool,
   rotateLeftTool,
   rotateRightTool,
+  deletePagesTool,
 ];
 
 /** The toolbar's default groups. */
 export const DEFAULT_TOOLBAR: readonly (readonly string[])[] = [
   ["pdf.open"],
   ["pdf.undo", "pdf.redo"],
-  ["pdf.rotate-left", "pdf.rotate-right"],
+  ["pdf.rotate-left", "pdf.rotate-right", "pdf.delete-pages"],
 ];

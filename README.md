@@ -45,6 +45,7 @@ The editor's tools are in `pdfTools`:
 | `pdf.redo` | `Ctrl+Shift+Z` or `Ctrl+Y`, or `⇧⌘Z` | Redoes the last undone edit |
 | `pdf.rotate-left` | `[` | Turns the selected pages, or the current one, a quarter turn anticlockwise |
 | `pdf.rotate-right` | `]` | Turns them a quarter turn clockwise |
+| `pdf.delete-pages` | `Delete` or `Backspace`, in the thumbnails only | Deletes the selected pages, or the current one; a document keeps at least one page |
 
 Choose which tools are present with `tools`, and arrange the toolbar with `toolbar`, as groups of tool ids; `toolbar={[]}` hides it and keeps the shortcuts. An unknown id throws when the editor renders, so a typo never leaves a tool silently missing. `icons` replaces any icon by name with your own component.
 
@@ -55,7 +56,9 @@ Choose which tools are present with `tools`, and arrange the toolbar with `toolb
 />
 ```
 
-Shortcuts work only while focus is inside the editor, never on the rest of your page, and never while typing in a field. The toolbar is one tab stop, with arrow keys between its buttons; each button names its shortcut in `aria-keyshortcuts`. Undoing, redoing and rotating are announced to screen readers.
+Shortcuts work only while focus is inside the editor, never on the rest of your page, and never while typing in a field. The toolbar is one tab stop, with arrow keys between its buttons; each button names its shortcut in `aria-keyshortcuts`. A button that can't run is disabled with `aria-disabled`, so it keeps focus. Undoing, redoing, rotating and deleting are announced to screen readers.
+
+Deleting works on the thumbnails' selection, so its keys work only while focus is in the thumbnails ([ADR 0008](docs/adr/0008-page-organisation-in-the-editor.md)). The page that takes the first deleted page's place is selected, and focus moves to it if its thumbnail had focus. Undo and redo bring back the selection and the current page with the pages. `PdfThumbnails` used on its own takes an `onDelete` prop for those keys.
 
 ## Saving a project
 

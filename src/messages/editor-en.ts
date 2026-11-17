@@ -34,6 +34,10 @@ export const pdfEditorText = /* @__PURE__ */ defineMessages({
     one: "Rotated {count} page.",
     other: "Rotated {count} pages.",
   }),
+  "editor.deleted": /* @__PURE__ */ plural("count", {
+    one: "Deleted {count} page.",
+    other: "Deleted {count} pages.",
+  }),
   "toolbar.label": "PDF tools",
   "toolbar.groups.file": "File",
   "toolbar.groups.history": "History",
@@ -44,4 +48,5 @@ export const pdfEditorText = /* @__PURE__ */ defineMessages({
   "tools.redo": "Redo",
   "tools.rotate-left": "Rotate left",
   "tools.rotate-right": "Rotate right",
+  "tools.delete-pages": "Delete pages",
 });

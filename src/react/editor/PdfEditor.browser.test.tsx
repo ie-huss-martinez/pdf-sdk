@@ -406,6 +406,9 @@ describe("PdfEditor", () => {
       container.querySelector<HTMLElement>('[role="toolbar"]') as HTMLElement;
     const tool = (container: HTMLElement, id: string) =>
       container.querySelector<HTMLButtonElement>(`[data-hm-tool="${id}"]`) as HTMLButtonElement;
+    /** ui's toolbar buttons stay focusable when disabled, with aria-disabled (docs/adr/0008). */
+    const disabled = (button: HTMLButtonElement) =>
+      button.disabled || button.getAttribute("aria-disabled") === "true";
     const rotations = (handle: { current: PdfEditorHandle | null }) =>
       handle.current?.session.getSnapshot().plan.pages.map((page) => page.rotation);
 
@@ -421,14 +424,21 @@ describe("PdfEditor", () => {
       const buttons = [...toolbar(container).querySelectorAll("button")];
       expect(
         buttons.map((button) => button.getAttribute("aria-label") ?? button.textContent),
-      ).toEqual(["Open a PDF", "Undo", "Redo", "Rotate left", "Rotate right"]);
-      expect(buttons.map((button) => button.disabled)).toEqual([false, true, true, true, true]);
+      ).toEqual(["Open a PDF", "Undo", "Redo", "Rotate left", "Rotate right", "Delete pages"]);
+      expect(buttons.map(disabled)).toEqual([false, true, true, true, true, true]);
+      // Disabled buttons keep focus, rather than the disabled attribute.
+      expect(buttons.some((button) => button.disabled)).toBe(false);
       expect(tool(container, "pdf.undo").getAttribute("aria-keyshortcuts")).toBe("Control+Z");
       expect(tool(container, "pdf.rotate-right").getAttribute("aria-keyshortcuts")).toBe("]");
+      // The delete keys work in the thumbnails, and the button says so.
+      expect(tool(container, "pdf.delete-pages").getAttribute("aria-keyshortcuts")).toBe(
+        "Delete Backspace",
+      );
 
       await act(() => handle.current?.open(fakePdf(2)));
-      expect(tool(container, "pdf.rotate-left").disabled).toBe(false);
-      expect(tool(container, "pdf.undo").disabled).toBe(true);
+      expect(disabled(tool(container, "pdf.rotate-left"))).toBe(false);
+      expect(disabled(tool(container, "pdf.delete-pages"))).toBe(false);
+      expect(disabled(tool(container, "pdf.undo"))).toBe(true);
     });
 
     it("rotates the current page, then undoes and redoes, announcing each", async () => {
@@ -458,6 +468,92 @@ describe("PdfEditor", () => {
       await act(() => userEvent.click(tool(container, "pdf.rotate-left")));
       expect(rotations(handle)).toEqual([270, 0, 270]);
       await announced(container, "Rotated 2 pages.");
+    });
+
+    describe("deleting pages (docs/adr/0008)", () => {
+      const option = (container: HTMLElement, key: string) =>
+        container.querySelector<HTMLElement>(
+          `[role="option"][data-hm-page-key="${key}"]`,
+        ) as HTMLElement;
+      const pageKeys = (handle: { current: PdfEditorHandle | null }) =>
+        handle.current?.session.getSnapshot().plan.pages.map((page) => page.key);
+
+      it("deletes the selection with Delete in the thumbnails, says so, and keeps focus in the list", async () => {
+        const { mounted, handle, changes } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(4)));
+        await act(() => userEvent.click(option(container, "p2")));
+        await act(() => userEvent.keyboard("{Shift>}{ArrowDown}{/Shift}"));
+        expect(handle.current?.session.getSnapshot().selection).toEqual(["p2", "p3"]);
+
+        await act(() => userEvent.keyboard("{Delete}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p4"]);
+        expect(changes.at(-1)).toEqual({ reason: "edit", pageCount: 2 });
+        await announced(container, "Deleted 2 pages.");
+        // The page that took the first deleted page's place is chosen, and
+        // focus moved to it, rather than falling to the page's body.
+        expect(handle.current?.session.getSnapshot()).toMatchObject({
+          selection: ["p4"],
+          currentPage: "p4",
+        });
+        expect(document.activeElement).toBe(option(container, "p4"));
+      });
+
+      it("deletes with Backspace too, and undo brings back the pages and the selection", async () => {
+        const { mounted, handle } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(3)));
+        await act(() => userEvent.click(option(container, "p3")));
+        await act(() => userEvent.keyboard("{Backspace}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p2"]);
+        expect(document.activeElement).toBe(option(container, "p2"));
+
+        await act(() => userEvent.keyboard("{Control>}z{/Control}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p2", "p3"]);
+        expect(handle.current?.session.getSnapshot()).toMatchObject({
+          selection: ["p3"],
+          currentPage: "p3",
+        });
+        await announced(container, "Undone.");
+      });
+
+      it("ignores the delete keys outside the thumbnails, and with modifiers", async () => {
+        const { mounted, handle } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(3)));
+        (container.querySelector(".hm-pdf-viewer") as HTMLElement).focus();
+        await act(() => userEvent.keyboard("{Delete}{Backspace}"));
+        await act(() => userEvent.click(option(container, "p2")));
+        await act(() => userEvent.keyboard("{Alt>}{Delete}{/Alt}{Shift>}{Backspace}{/Shift}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p2", "p3"]);
+      });
+
+      it("never deletes the last page, and its button keeps focus once disabled", async () => {
+        const { mounted, handle } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(2)));
+        const button = tool(container, "pdf.delete-pages");
+        await act(() => userEvent.click(button));
+        expect(pageKeys(handle)).toEqual(["p2"]);
+        await announced(container, "Deleted 1 page.");
+        expect(button.getAttribute("aria-disabled")).toBe("true");
+        expect(document.activeElement).toBe(button);
+
+        await act(() => userEvent.keyboard("{Enter}"));
+        await act(() => userEvent.click(option(container, "p2")));
+        await act(() => userEvent.keyboard("{Delete}"));
+        expect(pageKeys(handle)).toEqual(["p2"]);
+      });
+
+      it("leaves the keys alone when the host leaves the tool out", async () => {
+        const { mounted, handle } = setUp({ tools: ["pdf.open", "pdf.undo", "pdf.redo"] });
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(3)));
+        expect(tool(container, "pdf.delete-pages")).toBeNull();
+        await act(() => userEvent.click(option(container, "p2")));
+        await act(() => userEvent.keyboard("{Delete}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p2", "p3"]);
+      });
     });
 
     it("takes its shortcuts while focus is in the editor, and only then", async () => {

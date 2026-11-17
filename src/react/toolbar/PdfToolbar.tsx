@@ -1,6 +1,7 @@
 import type { ShortcutRegistry, ToolRegistry } from "@hussmartinez/sdk-core";
 import { IconButton, type IconComponent, Toolbar, ToolbarGroup } from "@hussmartinez/ui/react";
 import type { ReactNode } from "react";
+import { THUMBNAIL_KEYS } from "../../features/pages/delete-tool.js";
 import type { PdfTool, PdfToolContext } from "../../features/tool-types.js";
 import { usePdfDocument, usePdfMessages } from "../hooks.js";
 
@@ -53,7 +54,7 @@ export function PdfToolbar(props: PdfToolbarProps): ReactNode {
             .filter((tool) => tool.isAvailable?.(state) ?? true)
             .map((tool) => {
               const Icon = icons[tool.icon];
-              const keys = shortcuts?.ariaKeyShortcuts(tool.id);
+              const keys = shortcuts?.ariaKeyShortcuts(tool.id) ?? THUMBNAIL_KEYS[tool.id];
               return (
                 <IconButton
                   key={tool.id}
@@ -61,6 +62,9 @@ export function PdfToolbar(props: PdfToolbarProps): ReactNode {
                   label={t(tool.label)}
                   icon={Icon ? <Icon /> : null}
                   disabled={!(tool.isEnabled?.(state) ?? true)}
+                  // A button that becomes disabled keeps focus, so keyboard
+                  // users stay in the toolbar (docs/adr/0008).
+                  focusableWhenDisabled
                   {...(keys ? { "aria-keyshortcuts": keys } : {})}
                   onClick={() => run(tool)}
                 />

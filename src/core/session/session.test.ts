@@ -431,3 +431,52 @@ describe("a source's file name (docs/adr/0009)", () => {
     expect(JSON.stringify(events)).not.toContain(secret);
   });
 });
+
+describe("the view state that undo and redo bring back (docs/adr/0008)", () => {
+  it("restores the selection and current page from before a step, and redo the ones from the undo", async () => {
+    const { session: s } = session();
+    await s.open(pdf(4));
+    s.select(["p2", "p3"]);
+    s.setCurrentPage("p3");
+    s.execute({ type: "pdf.rotatePages", pages: ["p2", "p3"], angle: 90 });
+    // The user moves on before undoing.
+    s.select(["p4"]);
+    s.goToPage("p4");
+
+    s.undo();
+    expect(s.getSnapshot()).toMatchObject({ selection: ["p2", "p3"], currentPage: "p3" });
+    expect(s.getSnapshot().navigation?.page).toBe("p3");
+
+    s.select(["p1"]);
+    s.redo();
+    expect(s.getSnapshot()).toMatchObject({ selection: ["p4"], currentPage: "p4" });
+    expect(s.getSnapshot().navigation?.page).toBe("p4");
+  });
+
+  it("brings back the view from before an insert when it's undone", async () => {
+    const { session: s } = session();
+    await s.open(pdf(3));
+    await s.insert(pdf(2));
+    expect(keys(s)).toEqual(["p1", "p2", "p3", "p4", "p5"]);
+    s.select(["p4", "p5"]);
+    s.goToPage("p5");
+    s.execute({ type: "pdf.rotatePages", pages: ["p4"], angle: 90 });
+    s.undo();
+    s.undo();
+    // The rotate's undo selects inserted pages again; the insert's undo
+    // removes them, and brings back the view from before the insert.
+    expect(keys(s)).toEqual(["p1", "p2", "p3"]);
+    expect(s.getSnapshot().selection).toEqual([]);
+    expect(s.getSnapshot().currentPage).toBe("p1");
+  });
+
+  it("never puts the view in events or the history's commands", async () => {
+    const { session: s, events } = session();
+    await s.open(pdf(2));
+    s.select(["p2"]);
+    s.execute({ type: "pdf.deletePages", pages: ["p2"] });
+    s.undo();
+    s.redo();
+    expect(JSON.stringify(events)).not.toMatch(/selection|currentPage/);
+  });
+});
