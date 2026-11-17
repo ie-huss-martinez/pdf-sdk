@@ -15,3 +15,5 @@ Use [`template.md`](template.md) for new records. Name files `NNNN-short-title.m
 | [0005](0005-element-in-the-light-dom.md) | The element renders in the light DOM, and the standalone script stays in its layers | Accepted |
 | [0006](0006-icc-colour-and-self-hosted-assets.md) | ICC colour needs self-hosted assets; inline mode uses approximate colour | Accepted; where `assetsUrl` points superseded by [0007](0007-one-assets-directory.md) |
 | [0007](0007-one-assets-directory.md) | One assets directory, and a self-hosted processing worker | Accepted |
+| [0008](0008-page-organisation-in-the-editor.md) | Organising pages in the editor: delete, move and insert | Accepted |
+| [0009](0009-saving-the-document.md) | Saving the document: the file's name, and the download tool | Accepted |
