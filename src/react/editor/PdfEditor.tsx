@@ -22,6 +22,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type { PdfLimitName } from "../../core/errors/pdf-limits.js";
 import type { PdfSessionSnapshot, PdfWarning } from "../../core/session/session.js";
@@ -141,6 +142,8 @@ function PdfEditorBody(props: BodyProps): ReactNode {
   const root = useRef<HTMLDivElement>(null);
   const startButton = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const insertInput = useRef<HTMLInputElement>(null);
+  const [inserting, setInserting] = useState(false);
   const latestOnChange = useRef(onChange);
   latestOnChange.current = onChange;
   const saveProps = useRef(props);
@@ -166,7 +169,12 @@ function PdfEditorBody(props: BodyProps): ReactNode {
     [platform, registry],
   );
   const context: PdfToolContext = useMemo(
-    () => ({ session, chooseFile: () => input.current?.click(), save: saving.save }),
+    () => ({
+      session,
+      chooseFile: () => input.current?.click(),
+      chooseInsertFile: () => insertInput.current?.click(),
+      save: saving.save,
+    }),
     [session, saving.save],
   );
   const icons = useMemo(() => ({ ...pdfIcons, ...props.icons }), [props.icons]);
@@ -176,7 +184,8 @@ function PdfEditorBody(props: BodyProps): ReactNode {
 
   const runTool = (tool: PdfTool) => {
     const before = session.getSnapshot();
-    if (!(tool.isEnabled?.({ snapshot: before, saving: saving.saving }) ?? true)) return;
+    const state = { snapshot: before, saving: saving.saving, inserting };
+    if (!(tool.isEnabled?.(state) ?? true)) return;
     void Promise.resolve(tool.run(context)).then(() => {
       const result = resultOf(tool, messages, before);
       if (result) announce(result);
@@ -256,6 +265,35 @@ function PdfEditorBody(props: BodyProps): ReactNode {
     session.open(chosen).catch(() => {});
   };
 
+  /**
+   * Inserts every page of another file after the current page, then selects
+   * the inserted pages and shows the first (docs/adr/0008). A failure is in
+   * the snapshot, which the header's alert shows, and changes nothing.
+   */
+  const insert = async (chosen: File) => {
+    const before = session.getSnapshot();
+    const current = before.plan.pages.findIndex((page) => page.key === before.currentPage);
+    const at = current >= 0 ? current + 1 : before.plan.pages.length;
+    setInserting(true);
+    try {
+      await session.insert(chosen, { at });
+    } catch {
+      return;
+    } finally {
+      setInserting(false);
+    }
+    const had = new Set(before.plan.pages.map((page) => page.key));
+    const added = session
+      .getSnapshot()
+      .plan.pages.filter((page) => !had.has(page.key))
+      .map((page) => page.key);
+    const [first] = added;
+    if (!first) return;
+    session.select(added);
+    session.goToPage(first);
+    announce(messages.t("editor.inserted", { count: added.length, page: at }));
+  };
+
   const { error, warnings } = snapshot;
   const showError = error !== undefined && error.code !== "ABORTED";
   let content: ReactNode;
@@ -316,6 +354,21 @@ function PdfEditorBody(props: BodyProps): ReactNode {
           if (chosen) open(chosen);
         }}
       />
+      <input
+        ref={insertInput}
+        type="file"
+        accept="application/pdf,.pdf"
+        // The insert tool is the control; this input only opens the picker.
+        tabIndex={-1}
+        aria-hidden="true"
+        hidden
+        data-hm-insert=""
+        onChange={(event) => {
+          const [chosen] = event.target.files ?? [];
+          event.target.value = "";
+          if (chosen) void insert(chosen);
+        }}
+      />
       <div className={join("hm-pdf-editor-header", classNames.header)}>
         <PdfToolbar
           registry={registry}
@@ -324,6 +377,7 @@ function PdfEditorBody(props: BodyProps): ReactNode {
           icons={icons}
           onRun={runTool}
           saving={saving.saving}
+          inserting={inserting}
           className={join("hm-pdf-editor-toolbar", classNames.toolbar)}
         />
         {saving.saving ? (
@@ -346,12 +400,13 @@ function PdfEditorBody(props: BodyProps): ReactNode {
             {messages.error(error)}
           </p>
         ) : null}
-        {status === "ready" && warnings.length > 0 ? (
+        {status === "ready" && (warnings.length > 0 || snapshot.historyTrimmed) ? (
           <div role="status" className={join("hm-pdf-editor-warnings", classNames.status)}>
             <ul>
               {warnings.map((warning) => (
                 <li key={warning.limit}>{warningText(messages, warning)}</li>
               ))}
+              {snapshot.historyTrimmed ? <li>{messages.t("editor.historyTrimmed")}</li> : null}
             </ul>
           </div>
         ) : null}

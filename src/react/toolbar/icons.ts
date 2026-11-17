@@ -3,6 +3,7 @@ import {
   DownloadIcon,
   type IconComponent,
   OpenIcon,
+  PageAddIcon,
   RedoIcon,
   RotateLeftIcon,
   RotateRightIcon,
@@ -23,4 +24,5 @@ export const pdfIcons: Readonly<Record<string, IconComponent>> = {
   "rotate-right": RotateRightIcon,
   delete: DeleteIcon,
   download: DownloadIcon,
+  "page-add": PageAddIcon,
 };

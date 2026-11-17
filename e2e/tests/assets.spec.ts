@@ -1,5 +1,6 @@
+import { PDFDocument } from "@cantoo/pdf-lib";
 import { expect, test } from "@playwright/test";
-import { jpxPdf, reportPdf } from "../../test/fixtures/pdfs.js";
+import { jpxPdf, pagesPdf, reportPdf } from "../../test/fixtures/pdfs.js";
 import { expectJpxColours, openPdf, watch } from "./helpers.js";
 
 const origin = "http://localhost:4320";
@@ -92,6 +93,36 @@ for (const mode of modes) {
       await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
         "Saved quarterly-report.pdf.",
       );
+
+      expect(await page.evaluate(() => window.pdfSdk.violations)).toEqual([]);
+      expect(problems.errors).toEqual([]);
+      expect(problems.foreignRequests).toEqual([]);
+    });
+
+    test("merge a second PDF with the insert tool, and download the result", async ({ page }) => {
+      const problems = watch(page, origin);
+      await page.goto(`${origin}${mode.path}`);
+      await openPdf(page, await reportPdf(), "report.pdf");
+      const chooser = page.waitForEvent("filechooser");
+      await page.getByRole("button", { name: "Insert pages" }).click();
+      await (await chooser).setFiles({
+        name: "appendix.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from(await pagesPdf([{ width: 300, height: 400 }])),
+      });
+      await expect(page.getByRole("listbox", { name: "Pages" }).getByRole("option")).toHaveCount(3);
+      await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
+        "Inserted 1 page after page 1.",
+      );
+
+      const download = page.waitForEvent("download");
+      await page.getByRole("button", { name: "Download" }).click();
+      const stream = await (await download).createReadStream();
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) chunks.push(chunk as Buffer);
+      const merged = await PDFDocument.load(Buffer.concat(chunks));
+      // The appendix's page sits between the report's two.
+      expect(merged.getPages().map((each) => Math.round(each.getWidth()))).toEqual([612, 300, 842]);
 
       expect(await page.evaluate(() => window.pdfSdk.violations)).toEqual([]);
       expect(problems.errors).toEqual([]);
