@@ -22,6 +22,7 @@ export const PdfEditor: ForwardRefExoticComponent<PdfEditorProps & RefAttributes
 
 // @public
 export interface PdfEditorChange {
+    readonly fileName?: string;
     readonly pageCount: number;
     readonly reason: "open" | "edit" | "close";
 }
@@ -32,7 +33,8 @@ export interface PdfEditorHandle {
     // Warning: (ae-forgotten-export) The symbol "PdfExportOptions" needs to be exported by the entry point react.d.ts
     export(options?: PdfExportOptions): Promise<Uint8Array>;
     // Warning: (ae-forgotten-export) The symbol "PdfBytes" needs to be exported by the entry point react.d.ts
-    open(file: Blob | PdfBytes): Promise<void>;
+    // Warning: (ae-forgotten-export) The symbol "PdfOpenOptions" needs to be exported by the entry point react.d.ts
+    open(file: Blob | PdfBytes, options?: PdfOpenOptions): Promise<void>;
     redo(): void;
     // Warning: (ae-forgotten-export) The symbol "PdfSession" needs to be exported by the entry point react.d.ts
     readonly session: PdfSession;

@@ -32,6 +32,8 @@ const bytes = await editor.current?.export();
 
 `file` opens a document, and a different one replaces it; `null` closes it. Users can also open one with the editor's button or by dropping it on the editor. `onChange` reports each `open`, `edit` and `close`, and the ref's `PdfEditorHandle` exports, undoes, redoes and closes.
 
+**The file's name.** On `open`, `onChange` also gives the opened file's `fileName`, from the `File`, or from the `name` option of `handle.open(bytes, { name })`. The session's `sources` carry it as `name`. It's cleaned first: one path segment, with no control or bidirectional formatting characters and at most 128 code points ([ADR 0009](docs/adr/0009-saving-the-document.md)). It comes from the file, so show it only as text. It's never sent to `onEvent`.
+
 ### Tools, the toolbar and shortcuts
 
 The editor's tools are in `pdfTools`:

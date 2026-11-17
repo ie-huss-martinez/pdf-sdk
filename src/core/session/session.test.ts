@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFakeEngine } from "../../../test/fakes/fake-engine.js";
 import { encodeFakePdf, type FakePdf } from "../../../test/fakes/fake-pdf.js";
+import { createFakeProcessor } from "../../../test/fakes/fake-processor.js";
 import { isPdfError } from "../errors/pdf-error.js";
 import type { PdfBytes } from "../model/document.js";
 import type { PdfEngine } from "../ports/pdf-engine.js";
@@ -372,5 +373,61 @@ describe("a PDF session", () => {
 
     await s.open(pdf(1));
     expect(s.getSnapshot()).toMatchObject({ selection: [], currentPage: "p4" });
+  });
+});
+
+describe("a source's file name (docs/adr/0009)", () => {
+  const file = (pageCount: number, name: string) =>
+    new File([pdf(pageCount)], name, { type: "application/pdf" });
+
+  it("keeps a File's name, cleaned", async () => {
+    const { session: s } = session();
+    await s.open(file(2, "C:\\scans\\re\u202Eport.pdf"));
+    expect(s.getSnapshot().sources).toEqual([
+      expect.objectContaining({ id: "s1", pageCount: 2, name: "report.pdf" }),
+    ]);
+  });
+
+  it("takes the name option for bytes, and prefers it to File.name", async () => {
+    const { session: s } = session();
+    await s.open(pdf(1), { name: "../from-bytes.pdf" });
+    expect(s.getSnapshot().sources[0]?.name).toBe("from-bytes.pdf");
+    await s.open(file(1, "own.pdf"), { name: "given.pdf" });
+    expect(s.getSnapshot().sources[0]?.name).toBe("given.pdf");
+  });
+
+  it("has no name for bytes or a plain Blob without the option, or a name that cleans to nothing", async () => {
+    const { session: s } = session();
+    await s.open(pdf(1));
+    expect(s.getSnapshot().sources[0]).not.toHaveProperty("name");
+    await s.open(new Blob([pdf(1)], { type: "application/pdf" }));
+    expect(s.getSnapshot().sources[0]).not.toHaveProperty("name");
+    await s.open(file(1, "\u0000/..."));
+    expect(s.getSnapshot().sources[0]).not.toHaveProperty("name");
+  });
+
+  it("names inserted sources too, keeping the opened one first", async () => {
+    const { session: s } = session();
+    await s.open(file(1, "base.pdf"));
+    await s.insert(file(2, "appendix.pdf"));
+    await s.insert(pdf(1), { name: "extra.pdf" });
+    expect(s.getSnapshot().sources.map((source) => source.name)).toEqual([
+      "base.pdf",
+      "appendix.pdf",
+      "extra.pdf",
+    ]);
+  });
+
+  it("never puts a file name in a usage event, whatever happens to the file", async () => {
+    const { session: s, events } = session({ processor: createFakeProcessor() });
+    const secret = "Zq7-secret-name";
+    await s.open(file(2, `${secret}-open.pdf`));
+    await s.insert(file(1, `${secret}-insert.pdf`));
+    await s.insert(pdf(1), { name: `${secret}-option.pdf` });
+    await s.open(new File(["not a pdf"], `${secret}-broken.pdf`)).catch(() => {});
+    await s.insert(new File(["not a pdf"], `${secret}-broken-insert.pdf`)).catch(() => {});
+    await s.export();
+    expect(events.length).toBeGreaterThan(0);
+    expect(JSON.stringify(events)).not.toContain(secret);
   });
 });

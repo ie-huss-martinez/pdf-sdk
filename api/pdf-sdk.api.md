@@ -253,7 +253,7 @@ export interface PdfImageCompression {
 }
 
 // @public
-export interface PdfInsertOptions extends PdfCallOptions {
+export interface PdfInsertOptions extends PdfOpenOptions {
     readonly at?: number;
     readonly pageIndexes?: readonly number[];
 }
@@ -452,6 +452,11 @@ export interface PdfMovePagesCommand {
 }
 
 // @public
+export interface PdfOpenOptions extends PdfCallOptions {
+    readonly name?: string;
+}
+
+// @public
 export interface PdfPageInfo {
     readonly height: number;
     readonly rotation: PdfRotation;
@@ -598,7 +603,7 @@ export interface PdfSession {
     getTextContent(key: string, options?: PdfCallOptions): Promise<PdfTextContent>;
     goToPage(key: string): void;
     insert(file: Blob | PdfBytes, options?: PdfInsertOptions): Promise<void>;
-    open(file: Blob | PdfBytes, options?: PdfCallOptions): Promise<void>;
+    open(file: Blob | PdfBytes, options?: PdfOpenOptions): Promise<void>;
     // (undocumented)
     redo(): void;
     renderPage(key: string, canvas: HTMLCanvasElement, options: Omit<PdfRenderOptions, "rotation">): Promise<void>;
@@ -686,6 +691,7 @@ export interface PdfSetFieldValueCommand {
 export interface PdfSourceInfo {
     readonly byteLength: number;
     readonly id: string;
+    readonly name?: string;
     // (undocumented)
     readonly pageCount: number;
 }

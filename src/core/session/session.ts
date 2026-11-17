@@ -24,6 +24,7 @@ import { createPdfReducer, type PdfCommand } from "../operations/commands.js";
 import type { PdfCallOptions } from "../ports/options.js";
 import type { PdfDocumentHandle, PdfEngine, PdfRenderOptions } from "../ports/pdf-engine.js";
 import type { PdfBuildOptions, PdfProcessor } from "../ports/pdf-processor.js";
+import { cleanFileName } from "./source-name.js";
 
 /**
  * A source document the session holds: opened or inserted, never changed.
@@ -36,6 +37,13 @@ export interface PdfSourceInfo {
   readonly pageCount: number;
   /** The size of its bytes. */
   readonly byteLength: number;
+  /**
+   * The file's name, from `File.name` or the `name` option, cleaned as
+   * docs/adr/0009 describes: one path segment, without control or
+   * bidirectional formatting characters, at most 128 code points. Absent
+   * when there was none. Show it only as text; it never reaches `onEvent`.
+   */
+  readonly name?: string;
 }
 
 /**
@@ -153,11 +161,24 @@ export interface PdfSessionOptions {
 }
 
 /**
+ * Options for {@link PdfSession.open}.
+ *
+ * @public
+ */
+export interface PdfOpenOptions extends PdfCallOptions {
+  /**
+   * The file's name, for bytes or a `Blob` that isn't a `File`. It wins over
+   * `File.name`, and is cleaned before it's kept (docs/adr/0009).
+   */
+  readonly name?: string;
+}
+
+/**
  * Options for {@link PdfSession.insert}.
  *
  * @public
  */
-export interface PdfInsertOptions extends PdfCallOptions {
+export interface PdfInsertOptions extends PdfOpenOptions {
   /** The position of the first inserted page. Defaults to the end. */
   readonly at?: number;
   /** Zero-based indexes of the pages to insert. Defaults to every page. */
@@ -197,7 +218,7 @@ export interface PdfSession {
    * Rejects with a `PdfError`, which the snapshot also holds; the current
    * document, if any, stays open.
    */
-  open(file: Blob | PdfBytes, options?: PdfCallOptions): Promise<void>;
+  open(file: Blob | PdfBytes, options?: PdfOpenOptions): Promise<void>;
   /**
    * Inserts the pages of another document, as one undoable step. If the
    * documents held would then exceed `maxSessionSize`, the session first
@@ -355,8 +376,8 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       status,
       plan,
       sources: Object.freeze(
-        [...sources.values()].map(({ id, pageCount, byteLength }) =>
-          Object.freeze({ id, pageCount, byteLength }),
+        [...sources.values()].map(({ id, pageCount, byteLength, name }) =>
+          Object.freeze({ id, pageCount, byteLength, ...(name === undefined ? {} : { name }) }),
         ),
       ),
       canUndo: history.canUndo,
@@ -395,7 +416,14 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
   }
 
   /** Reads, checks and opens one file as a source, without registering it. */
-  async function load(file: Blob | PdfBytes, signal: AbortSignal): Promise<Source> {
+  async function load(
+    file: Blob | PdfBytes,
+    signal: AbortSignal,
+    given: string | undefined,
+  ): Promise<Source> {
+    // File isn't a global in every runtime the core supports (ADR 0007 in sdk-core).
+    const fileName = typeof File !== "undefined" && file instanceof File ? file.name : undefined;
+    const name = cleanFileName(given ?? fileName);
     const found: PdfWarning[] = [];
     const warnAt = (limit: PdfLimitName, actual: number) => {
       if (policy.check(limit, actual) === "warning") found.push({ limit, actual });
@@ -429,6 +457,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       id: `s${nextSource}`,
       pageCount: document.pageCount,
       byteLength: bytes.byteLength,
+      ...(name === undefined ? {} : { name }),
       bytes,
       document,
     };
@@ -489,7 +518,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
           // The open document is released once this one opens, so this one
           // must fit on its own.
           policy.check("maxSessionSize", file instanceof Blob ? file.size : file.byteLength);
-          return load(file, signal);
+          return load(file, signal, callOptions.name);
         });
         await release();
         sources.set(source.id, source);
@@ -532,7 +561,7 @@ export function createPdfSession(options: PdfSessionOptions): PdfSession {
       try {
         const source = await track(insertOptions.signal, false, async (signal) => {
           policy.check("maxFiles", sources.size + 1);
-          return load(file, signal);
+          return load(file, signal, insertOptions.name);
         });
         try {
           const pageIndexes =

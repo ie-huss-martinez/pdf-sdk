@@ -1,7 +1,7 @@
 import type { MessageOverrides } from "@hussmartinez/sdk-core";
 import type { IconComponent } from "@hussmartinez/ui/react";
 import type { PdfBytes } from "../../core/model/document.js";
-import type { PdfExportOptions, PdfSession } from "../../core/session/session.js";
+import type { PdfExportOptions, PdfOpenOptions, PdfSession } from "../../core/session/session.js";
 import type { PdfEditorMessageCatalogue } from "../editor-messages.js";
 import type { PdfSessionProviderProps } from "../PdfSessionProvider.js";
 
@@ -34,6 +34,11 @@ export interface PdfEditorChange {
   readonly reason: "open" | "edit" | "close";
   /** The document's page count after the change; 0 once it's closed. */
   readonly pageCount: number;
+  /**
+   * On `open`, the opened file's name, cleaned (docs/adr/0009), if it had
+   * one: from `File.name` or the `name` option. Show it only as text.
+   */
+  readonly fileName?: string;
 }
 
 /**
@@ -88,8 +93,11 @@ export interface PdfEditorProps extends Omit<PdfSessionProviderProps, "children"
 export interface PdfEditorHandle {
   /** The editor's session, for commands and state beyond the handle's. */
   readonly session: PdfSession;
-  /** Opens a document, replacing the current one once it has opened. */
-  open(file: Blob | PdfBytes): Promise<void>;
+  /**
+   * Opens a document, replacing the current one once it has opened. Pass
+   * `name` with bytes or a plain `Blob`; a `File` gives its own.
+   */
+  open(file: Blob | PdfBytes, options?: PdfOpenOptions): Promise<void>;
   /** Builds the document as it is now. The result is a new buffer the caller owns. */
   export(options?: PdfExportOptions): Promise<Uint8Array>;
   /** Undoes the last edit, if there is one. */
