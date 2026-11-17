@@ -108,6 +108,7 @@ The browser and end-to-end tests also need Docker. They run in the pinned browse
 | Browser tests | `test:browser` | Vitest in Chromium in the browser test image, and in Firefox and WebKit too in CI |
 | Examples | `build:examples` | Production builds of the Next.js and Vite examples, against the built package |
 | End-to-end tests | `test:e2e` | Playwright in the browser test image, against the examples: server rendering and hydration, axe, no foreign requests, and both asset modes under the Content Security Policies above |
+| Visual regression | `test:visual` | `hm-test-visual`: screenshots of the editor's states in [`e2e/visual`](e2e/visual), on Chromium in the browser test image, in light and dark, compact and comfortable (sdk-core ADR 0048). `pnpm test:visual:update` rewrites the baselines |
 | Size budgets | `check:size` | size-limit, brotli size of each entry point |
 | API reports | `check:api` | api-extractor, one report per entry point in [`api`](api), and `hm-check-api-reports` across them |
 | Package checks | `check:package` | publint and Are the Types Wrong? |
