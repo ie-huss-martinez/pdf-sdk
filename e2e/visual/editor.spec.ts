@@ -14,6 +14,7 @@ import { pagesPdf, reportPdf } from "../../test/fixtures/pdfs.js";
  * | `rotated` | The first page rotated from the keyboard, with Undo enabled |
  * | `selection` | Every page selected in the thumbnails, with deleting disabled |
  * | `deleted` | The second page deleted with Delete, focus on the remaining thumbnail |
+ * | `moved` | The second page moved to the start with Alt+Up, focus kept on it, Move earlier disabled |
  * | `inserted` | A blank page inserted after page 1 with the insert tool, selected and in view |
  * | `insert-error` | A file that isn't a PDF, inserted: the header's alert, with the document unchanged |
  * | `save-failed` | The host's `onExport` failed: the header's alert, with Download focused |
@@ -121,6 +122,18 @@ const STATES: Readonly<Record<string, State>> = {
     await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Deleted 1 page.");
     await expect(page.getByRole("option", { name: "Page 1 of 1" })).toBeFocused();
     await expect(page.getByRole("button", { name: "Delete pages" })).toBeDisabled();
+    await drawn(page);
+  },
+  moved: async (page) => {
+    await opened(page);
+    // The second page moved to the start with Alt+Up in the thumbnails.
+    await page.getByRole("option", { name: "Page 2 of 2" }).click();
+    await page.keyboard.press("Alt+ArrowUp");
+    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
+      "Moved 1 page to position 1.",
+    );
+    await expect(page.getByRole("option", { name: "Page 1 of 2" })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Move earlier" })).toBeDisabled();
     await drawn(page);
   },
   inserted: async (page) => {

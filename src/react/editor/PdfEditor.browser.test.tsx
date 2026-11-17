@@ -434,10 +434,23 @@ describe("PdfEditor", () => {
         "Redo",
         "Rotate left",
         "Rotate right",
+        "Move earlier",
+        "Move later",
         "Delete pages",
         "Download",
       ]);
-      expect(buttons.map(disabled)).toEqual([false, true, true, true, true, true, true, true]);
+      expect(buttons.map(disabled)).toEqual([
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+      ]);
       // Disabled buttons keep focus, rather than the disabled attribute.
       expect(buttons.some((button) => button.disabled)).toBe(false);
       expect(tool(container, "pdf.undo").getAttribute("aria-keyshortcuts")).toBe("Control+Z");
@@ -445,6 +458,12 @@ describe("PdfEditor", () => {
       // The delete keys work in the thumbnails, and the button says so.
       expect(tool(container, "pdf.delete-pages").getAttribute("aria-keyshortcuts")).toBe(
         "Delete Backspace",
+      );
+      expect(tool(container, "pdf.move-earlier").getAttribute("aria-keyshortcuts")).toBe(
+        "Alt+ArrowUp",
+      );
+      expect(tool(container, "pdf.move-later").getAttribute("aria-keyshortcuts")).toBe(
+        "Alt+ArrowDown",
       );
 
       await act(() => handle.current?.open(fakePdf(2)));
@@ -480,6 +499,149 @@ describe("PdfEditor", () => {
       await act(() => userEvent.click(tool(container, "pdf.rotate-left")));
       expect(rotations(handle)).toEqual([270, 0, 270]);
       await announced(container, "Rotated 2 pages.");
+    });
+
+    describe("moving pages (docs/adr/0008)", () => {
+      const option = (container: HTMLElement, key: string) =>
+        container.querySelector<HTMLElement>(
+          `[role="option"][data-hm-page-key="${key}"]`,
+        ) as HTMLElement;
+      const pageKeys = (handle: { current: PdfEditorHandle | null }) =>
+        handle.current?.session.getSnapshot().plan.pages.map((page) => page.key);
+
+      it("moves the selection with Alt+arrows in the thumbnails, says where, and keeps focus on it", async () => {
+        const { mounted, handle, changes } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(4)));
+        await act(() => userEvent.click(option(container, "p3")));
+
+        await act(() => userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p3", "p2", "p4"]);
+        expect(changes.at(-1)).toEqual({ reason: "edit", pageCount: 4 });
+        await announced(container, "Moved 1 page to position 2.");
+        expect(document.activeElement).toBe(option(container, "p3"));
+        expect(handle.current?.session.getSnapshot()).toMatchObject({
+          selection: ["p3"],
+          currentPage: "p3",
+        });
+
+        await act(() => userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}"));
+        expect(pageKeys(handle)).toEqual(["p3", "p1", "p2", "p4"]);
+        expect(document.activeElement).toBe(option(container, "p3"));
+        expect(disabled(tool(container, "pdf.move-earlier"))).toBe(true);
+        // At the start, Alt+↑ does nothing, and focus doesn't move either.
+        await act(() => userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}"));
+        expect(pageKeys(handle)).toEqual(["p3", "p1", "p2", "p4"]);
+        expect(document.activeElement).toBe(option(container, "p3"));
+
+        await act(() => userEvent.keyboard("{Alt>}{ArrowDown}{ArrowDown}{/Alt}"));
+        expect(pageKeys(handle)).toEqual(["p1", "p2", "p3", "p4"]);
+        await announced(container, "Moved 1 page to position 3.");
+        expect(document.activeElement).toBe(option(container, "p3"));
+      });
+
+      it("gathers a scattered selection, and undo brings back the order and the selection", async () => {
+        const { mounted, handle } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(5)));
+        await act(async () => handle.current?.session.select(["p2", "p4"]));
+        await act(() => userEvent.click(tool(container, "pdf.move-later")));
+        expect(pageKeys(handle)).toEqual(["p1", "p3", "p5", "p2", "p4"]);
+        await announced(container, "Moved 2 pages to position 4.");
+        // The button keeps focus, now that the block is at the end and it's disabled.
+        expect(disabled(tool(container, "pdf.move-later"))).toBe(true);
+        expect(document.activeElement).toBe(tool(container, "pdf.move-later"));
+
+        await act(() => userEvent.click(tool(container, "pdf.undo")));
+        expect(pageKeys(handle)).toEqual(["p1", "p2", "p3", "p4", "p5"]);
+        expect(handle.current?.session.getSnapshot().selection).toEqual(["p2", "p4"]);
+      });
+
+      it("prevents Alt+arrows' defaults in the thumbnails, so the page neither scrolls nor navigates, and leaves a host's field alone", async () => {
+        const spacer = document.createElement("div");
+        spacer.style.height = "4000px";
+        const field = document.createElement("textarea");
+        field.setAttribute("aria-label", "Host's own field");
+        document.body.prepend(field);
+        const seen: { key: string; prevented: boolean; inField: boolean }[] = [];
+        const record = (event: KeyboardEvent) => {
+          if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+            seen.push({
+              key: event.key,
+              prevented: event.defaultPrevented,
+              inField: event.target === field,
+            });
+          }
+        };
+        // Bubbling to the window, so it runs after the editor's handlers.
+        window.addEventListener("keydown", record);
+        const url = location.href;
+        history.pushState({ test: "move keys" }, "", "#move-keys");
+        try {
+          const { mounted, handle } = setUp();
+          const container = await mounted;
+          await act(() => handle.current?.open(fakePdf(4)));
+          document.body.append(spacer);
+          await act(() => userEvent.click(option(container, "p2")));
+          window.scrollTo(0, 40);
+          const scrolled = window.scrollY;
+          expect(scrolled).toBeGreaterThan(0);
+
+          await act(() => userEvent.keyboard("{Alt>}{ArrowDown}{/Alt}"));
+          await act(() => userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}"));
+          expect(pageKeys(handle)).toEqual(["p1", "p2", "p3", "p4"]);
+          expect(seen).toEqual([
+            { key: "ArrowDown", prevented: true, inField: false },
+            { key: "ArrowUp", prevented: true, inField: false },
+          ]);
+          expect(location.hash).toBe("#move-keys");
+          expect(window.scrollY).toBe(scrolled);
+          expect(handle.current?.session.getSnapshot().canUndo).toBe(true);
+
+          // In the host's field, the keys are the field's, and the pages stay.
+          seen.length = 0;
+          const undoable = handle.current?.session.getSnapshot().plan;
+          await act(() => userEvent.click(field));
+          await act(() => userEvent.keyboard("one{Enter}two{Alt>}{ArrowUp}{ArrowDown}{/Alt}"));
+          expect(seen).toEqual([
+            { key: "ArrowUp", prevented: false, inField: true },
+            { key: "ArrowDown", prevented: false, inField: true },
+          ]);
+          expect(handle.current?.session.getSnapshot().plan).toBe(undoable);
+          expect(location.hash).toBe("#move-keys");
+        } finally {
+          window.removeEventListener("keydown", record);
+          history.replaceState(null, "", url);
+          window.scrollTo(0, 0);
+          spacer.remove();
+          field.remove();
+        }
+      });
+
+      it("ignores Alt+arrows with other modifiers, outside the thumbnails, and without the tools", async () => {
+        const first = setUp();
+        const container = await first.mounted;
+        await act(() => first.handle.current?.open(fakePdf(3)));
+        await act(() => userEvent.click(option(container, "p2")));
+        await act(() =>
+          userEvent.keyboard(
+            "{Alt>}{Shift>}{ArrowUp}{/Shift}{Control>}{ArrowUp}{/Control}{Meta>}{ArrowUp}{/Meta}{/Alt}",
+          ),
+        );
+        (container.querySelector(".hm-pdf-viewer") as HTMLElement).focus();
+        await act(() => userEvent.keyboard("{Alt>}{ArrowUp}{ArrowDown}{/Alt}"));
+        expect(pageKeys(first.handle)).toEqual(["p1", "p2", "p3"]);
+        await cleanUp();
+
+        const second = setUp({ tools: ["pdf.open", "pdf.undo", "pdf.redo"] });
+        const other = await second.mounted;
+        await act(() => second.handle.current?.open(fakePdf(3)));
+        await act(() => userEvent.click(option(other, "p2")));
+        await act(() => userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}"));
+        expect(pageKeys(second.handle)).toEqual(["p1", "p2", "p3"]);
+        // Without the tools, Alt+↑ doesn't move focus either.
+        expect(document.activeElement).toBe(option(other, "p2"));
+      });
     });
 
     describe("inserting pages (docs/adr/0008)", () => {

@@ -56,6 +56,8 @@ The editor's tools are in `pdfTools`:
 | `pdf.redo` | `Ctrl+Shift+Z` or `Ctrl+Y`, or `⇧⌘Z` | Redoes the last undone edit |
 | `pdf.rotate-left` | `[` | Turns the selected pages, or the current one, a quarter turn anticlockwise |
 | `pdf.rotate-right` | `]` | Turns them a quarter turn clockwise |
+| `pdf.move-earlier` | `Alt+↑` (`Option+↑` on macOS), in the thumbnails only | Moves the selected pages, or the current one, one position earlier |
+| `pdf.move-later` | `Alt+↓` (`Option+↓`), in the thumbnails only | Moves them one position later |
 | `pdf.delete-pages` | `Delete` or `Backspace`, in the thumbnails only | Deletes the selected pages, or the current one; a document keeps at least one page |
 | `pdf.download` | none: `Ctrl+S` is the browser's own | Builds the document and downloads it, or hands it to `onExport` |
 
@@ -72,7 +74,9 @@ Shortcuts work only while focus is inside the editor, never on the rest of your 
 
 Inserting puts every page of the chosen PDF after the current page, selects the inserted pages and shows the first. The file policy's limits apply to the combined document: `maxPages` counts the pages after the insert, and `maxSessionSize` counts every document held. A failed insert leaves the document unchanged and shows why in the header. When undo steps had to be dropped to make room within `maxSessionSize`, the header says so.
 
-Deleting works on the thumbnails' selection, so its keys work only while focus is in the thumbnails ([ADR 0008](docs/adr/0008-page-organisation-in-the-editor.md)). The page that takes the first deleted page's place is selected, and focus moves to it if its thumbnail had focus. Undo and redo bring back the selection and the current page with the pages. `PdfThumbnails` used on its own takes an `onDelete` prop for those keys.
+Moving gathers pages that aren't next to each other into one block, in their order, and moves the block one position. The moved pages stay selected, and focus stays on them. The keys were chosen so they don't clash with browser or system shortcuts; ADR 0008 records the check.
+
+Deleting and moving work on the thumbnails' selection, so their keys work only while focus is in the thumbnails ([ADR 0008](docs/adr/0008-page-organisation-in-the-editor.md)). The page that takes the first deleted page's place is selected, and focus moves to it if its thumbnail had focus. Undo and redo bring back the selection and the current page with the pages. `PdfThumbnails` used on its own takes `onDelete` and `onMove` props for those keys.
 
 ## Saving a project
 

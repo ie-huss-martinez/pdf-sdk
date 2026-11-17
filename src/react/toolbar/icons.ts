@@ -2,6 +2,8 @@ import {
   DeleteIcon,
   DownloadIcon,
   type IconComponent,
+  MoveDownIcon,
+  MoveUpIcon,
   OpenIcon,
   PageAddIcon,
   RedoIcon,
@@ -25,4 +27,6 @@ export const pdfIcons: Readonly<Record<string, IconComponent>> = {
   delete: DeleteIcon,
   download: DownloadIcon,
   "page-add": PageAddIcon,
+  "move-up": MoveUpIcon,
+  "move-down": MoveDownIcon,
 };

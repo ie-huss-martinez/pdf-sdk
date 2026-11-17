@@ -1,7 +1,7 @@
 import type { ShortcutRegistry, ToolRegistry } from "@hussmartinez/sdk-core";
 import { IconButton, type IconComponent, Toolbar, ToolbarGroup } from "@hussmartinez/ui/react";
 import type { ReactNode } from "react";
-import { THUMBNAIL_KEYS } from "../../features/pages/delete-tool.js";
+import { THUMBNAIL_KEYS } from "../../features/pages/thumbnail-keys.js";
 import type { PdfTool, PdfToolContext } from "../../features/tool-types.js";
 import { usePdfDocument, usePdfMessages } from "../hooks.js";
 

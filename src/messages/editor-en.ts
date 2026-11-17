@@ -38,6 +38,10 @@ export const pdfEditorText = /* @__PURE__ */ defineMessages({
     one: "Deleted {count} page.",
     other: "Deleted {count} pages.",
   }),
+  "editor.moved": /* @__PURE__ */ plural("count", {
+    one: "Moved {count} page to position {position}.",
+    other: "Moved {count} pages to position {position}.",
+  }),
   "editor.inserted": /* @__PURE__ */ plural("count", {
     one: "Inserted {count} page after page {page}.",
     other: "Inserted {count} pages after page {page}.",
@@ -63,4 +67,6 @@ export const pdfEditorText = /* @__PURE__ */ defineMessages({
   "tools.delete-pages": "Delete pages",
   "tools.download": "Download",
   "tools.insert-pages": "Insert pages",
+  "tools.move-earlier": "Move earlier",
+  "tools.move-later": "Move later",
 });

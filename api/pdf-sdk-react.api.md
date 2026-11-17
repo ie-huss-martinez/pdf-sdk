@@ -88,6 +88,12 @@ export const pdfEditorMessages: {
         readonly one: "Deleted {count} page.";
         readonly other: "Deleted {count} pages.";
     };
+    readonly "editor.moved": {
+        readonly $plural: "count";
+    } & {
+        readonly one: "Moved {count} page to position {position}.";
+        readonly other: "Moved {count} pages to position {position}.";
+    };
     readonly "editor.inserted": {
         readonly $plural: "count";
     } & {
@@ -114,6 +120,8 @@ export const pdfEditorMessages: {
     readonly "tools.delete-pages": "Delete pages";
     readonly "tools.download": "Download";
     readonly "tools.insert-pages": "Insert pages";
+    readonly "tools.move-earlier": "Move earlier";
+    readonly "tools.move-later": "Move later";
     readonly "dialog.close": "Close";
     readonly "fileDropZone.choose": "Choose a file";
     readonly "fileDropZone.chooseMultiple": "Choose files";
@@ -246,6 +254,7 @@ export interface PdfThumbnailsProps {
     readonly classNames?: Readonly<Partial<Record<PdfThumbnailsPart, string>>>;
     readonly concurrency?: number;
     readonly onDelete?: () => void;
+    readonly onMove?: (direction: "earlier" | "later") => void;
     readonly unstyled?: boolean;
 }
 

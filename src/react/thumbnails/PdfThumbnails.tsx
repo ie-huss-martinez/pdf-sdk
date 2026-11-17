@@ -44,9 +44,22 @@ export interface PdfThumbnailsProps {
    * editor's delete tool. Without it, those keys do nothing here.
    */
   readonly onDelete?: () => void;
+  /**
+   * Runs when the user presses Alt+↑ or Alt+↓ (Option on macOS) in the list,
+   * such as the editor's move tools. Without it, those keys do nothing here.
+   */
+  readonly onMove?: (direction: "earlier" | "later") => void;
 }
 
 const LETTER = { width: 612, height: 792 };
+
+/** The key of the thumbnail in `root` that has focus, if one has. */
+function focusedThumbnail(root: HTMLElement | null): string | undefined {
+  if (!root || typeof document === "undefined") return undefined;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !root.contains(active)) return undefined;
+  return active.dataset["hmPageKey"];
+}
 const join = (...names: (string | undefined)[]) => names.filter(Boolean).join(" ");
 
 interface ThumbnailProps {
@@ -127,13 +140,15 @@ function Thumbnail(props: ThumbnailProps): ReactNode {
  * Keyboard: the arrow keys, Home and End move to a page, select it and show
  * it; with Shift they extend the selection; with Ctrl or ⌘ they move without
  * selecting, and Space then adds or removes the page. Ctrl or ⌘ + A selects
- * every page, and Escape keeps only the focused one. With a pointer: click,
+ * every page, and Escape keeps only the focused one. Delete and Backspace,
+ * and Alt or Option with ↑ and ↓, run `onDelete` and `onMove` when given.
+ * With a pointer: click,
  * Ctrl or ⌘ + click, and Shift + click.
  *
  * @public
  */
 export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
-  const { className, classNames = {}, unstyled = false, concurrency = 2, onDelete } = props;
+  const { className, classNames = {}, unstyled = false, concurrency = 2, onDelete, onMove } = props;
   const session = usePdfSession();
   const snapshot = usePdfDocument();
   const messages = usePdfMessages();
@@ -145,8 +160,12 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
   const [estimate, setEstimate] = useState(LETTER);
   const [activeKey, setActiveKey] = useState<string>();
   const anchor = useRef<string | undefined>(undefined);
-  /** The thumbnail that had focus, so focus can stay in the list if it's removed. */
+  /**
+   * The thumbnail that had focus when this render began, before React moved
+   * or removed any of them, so focus can stay in the list (docs/adr/0008).
+   */
   const focused = useRef<string | undefined>(undefined);
+  focused.current = focusedThumbnail(root.current);
   const { plan, selection, currentPage } = snapshot;
   const keys = plan.pages.map((page) => page.key);
   const active = activeKey && keys.includes(activeKey) ? activeKey : (currentPage ?? keys[0]);
@@ -172,17 +191,19 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
       ?.scrollIntoView({ block: "nearest" });
   }, [currentPage]);
 
-  // A thumbnail that had focus may leave the plan: deleted, or undone. Focus
-  // then moves to the current page's thumbnail, never to the page's body
-  // (docs/adr/0008).
+  // A thumbnail that had focus may be moved, which takes focus from it in
+  // some browsers, or leave the plan: deleted, or undone. Focus then goes
+  // back to it, or to the current page's thumbnail, never to the page's
+  // body (docs/adr/0008).
   useLayoutEffect(() => {
     const key = focused.current;
     const element = root.current;
-    if (!key || !element || keys.includes(key)) return;
-    focused.current = undefined;
+    if (!key || !element) return;
     const lost = document.activeElement === null || document.activeElement === document.body;
-    if (!lost || !active) return;
-    element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(active)}"]`)?.focus();
+    if (!lost) return;
+    const target = keys.includes(key) ? key : active;
+    if (!target) return;
+    element.querySelector<HTMLElement>(`[data-hm-page-key="${CSS.escape(target)}"]`)?.focus();
   });
 
   const onMeasured = useCallback((info: PdfPageInfo) => {
@@ -225,6 +246,14 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (keys.length === 0) return;
     const modifier = event.ctrlKey || event.metaKey;
+    // Alt or Option with ↑ or ↓ moves pages, and never moves focus.
+    if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+      if (onMove && !modifier && !event.shiftKey) {
+        event.preventDefault();
+        onMove(event.key === "ArrowUp" ? "earlier" : "later");
+      }
+      return;
+    }
     const move = (index: number) => {
       event.preventDefault();
       const target = Math.max(0, Math.min(keys.length - 1, index));
@@ -282,9 +311,6 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
       aria-orientation="vertical"
       tabIndex={keys.length === 0 ? 0 : -1}
       onKeyDown={onKeyDown}
-      onFocus={(event) => {
-        focused.current = (event.target as HTMLElement).dataset["hmPageKey"];
-      }}
       className={join("hm-pdf-thumbnails", className, classNames.root)}
       {...(unstyled ? { "data-hm-unstyled": "" } : {})}
     >
