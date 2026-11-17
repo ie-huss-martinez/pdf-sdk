@@ -88,6 +88,13 @@ export const pdfEditorMessages: {
         readonly one: "Deleted {count} page.";
         readonly other: "Deleted {count} pages.";
     };
+    readonly "editor.inserted": {
+        readonly $plural: "count";
+    } & {
+        readonly one: "Inserted {count} page after page {page}.";
+        readonly other: "Inserted {count} pages after page {page}.";
+    };
+    readonly "editor.historyTrimmed": "To make room for the inserted document, your earliest edits can no longer be undone.";
     readonly "editor.saving": "Preparing the PDF…";
     readonly "editor.cancelSave": "Cancel";
     readonly "editor.saved": "Saved {name}.";
@@ -106,6 +113,7 @@ export const pdfEditorMessages: {
     readonly "tools.rotate-right": "Rotate right";
     readonly "tools.delete-pages": "Delete pages";
     readonly "tools.download": "Download";
+    readonly "tools.insert-pages": "Insert pages";
     readonly "dialog.close": "Close";
     readonly "fileDropZone.choose": "Choose a file";
     readonly "fileDropZone.chooseMultiple": "Choose files";
@@ -252,6 +260,7 @@ export interface PdfToolbarProps {
     readonly className?: string;
     readonly context: PdfToolContext;
     readonly icons: Readonly<Record<string, IconComponent>>;
+    readonly inserting?: boolean;
     readonly onRun?: (tool: PdfTool) => void;
     readonly registry: ToolRegistry<PdfTool>;
     readonly saving?: boolean;
@@ -261,6 +270,7 @@ export interface PdfToolbarProps {
 // @public
 export interface PdfToolContext {
     readonly chooseFile: () => void;
+    readonly chooseInsertFile?: () => void;
     readonly save?: () => void;
     readonly session: PdfSession;
 }
@@ -270,6 +280,7 @@ export const pdfTools: readonly PdfTool[];
 
 // @public
 export interface PdfToolState {
+    readonly inserting?: boolean;
     readonly saving?: boolean;
     // Warning: (ae-forgotten-export) The symbol "PdfSessionSnapshot" needs to be exported by the entry point react.d.ts
     readonly snapshot: PdfSessionSnapshot;

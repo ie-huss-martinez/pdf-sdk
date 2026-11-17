@@ -11,6 +11,8 @@ export interface PdfToolState {
   readonly snapshot: PdfSessionSnapshot;
   /** Whether the editor is saving the document. Absent outside the editor. */
   readonly saving?: boolean;
+  /** Whether the editor is inserting another document. Absent outside the editor. */
+  readonly inserting?: boolean;
 }
 
 /**
@@ -28,6 +30,11 @@ export interface PdfToolContext {
    * (docs/adr/0009). Absent outside the editor.
    */
   readonly save?: () => void;
+  /**
+   * Asks the user for another PDF and inserts its pages after the current
+   * page, as the insert tool does (docs/adr/0008). Absent outside the editor.
+   */
+  readonly chooseInsertFile?: () => void;
 }
 
 /**

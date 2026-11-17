@@ -429,6 +429,7 @@ describe("PdfEditor", () => {
         buttons.map((button) => button.getAttribute("aria-label") ?? button.textContent),
       ).toEqual([
         "Open a PDF",
+        "Insert pages",
         "Undo",
         "Redo",
         "Rotate left",
@@ -436,7 +437,7 @@ describe("PdfEditor", () => {
         "Delete pages",
         "Download",
       ]);
-      expect(buttons.map(disabled)).toEqual([false, true, true, true, true, true, true]);
+      expect(buttons.map(disabled)).toEqual([false, true, true, true, true, true, true, true]);
       // Disabled buttons keep focus, rather than the disabled attribute.
       expect(buttons.some((button) => button.disabled)).toBe(false);
       expect(tool(container, "pdf.undo").getAttribute("aria-keyshortcuts")).toBe("Control+Z");
@@ -479,6 +480,132 @@ describe("PdfEditor", () => {
       await act(() => userEvent.click(tool(container, "pdf.rotate-left")));
       expect(rotations(handle)).toEqual([270, 0, 270]);
       await announced(container, "Rotated 2 pages.");
+    });
+
+    describe("inserting pages (docs/adr/0008)", () => {
+      const insertInput = (container: HTMLElement) =>
+        container.querySelector<HTMLInputElement>("input[data-hm-insert]") as HTMLInputElement;
+      const pageKeys = (handle: { current: PdfEditorHandle | null }) =>
+        handle.current?.session.getSnapshot().plan.pages.map((page) => page.key);
+      const alertText = (container: HTMLElement) =>
+        container.querySelector(".hm-pdf-editor-header > [role='alert']")?.textContent ?? null;
+      /** A fake PDF of exactly `size` bytes, for the session's memory limit. */
+      const sized = (size: number) => {
+        const base = encodeFakePdf({ pages: [{ width: 600, height: 800, text: "" }] });
+        return encodeFakePdf({
+          pages: [{ width: 600, height: 800, text: "x".repeat(size - base.length) }],
+        });
+      };
+
+      it("inserts another file's pages after the current page, selects them and says so", async () => {
+        const { mounted, handle, changes } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(pdfFile(2, "report.pdf")));
+        const clicked = vi.fn();
+        insertInput(container).addEventListener("click", (event) => {
+          // The test chooses the file itself, so no system picker opens.
+          event.preventDefault();
+          clicked();
+        });
+        const button = tool(container, "pdf.insert-pages");
+        expect(button.getAttribute("aria-label")).toBe("Insert pages");
+        await act(() => userEvent.click(button));
+        expect(clicked).toHaveBeenCalledOnce();
+
+        await act(() => userEvent.upload(insertInput(container), pdfFile(2, "appendix.pdf")));
+        await waitFor(() => expect(pageKeys(handle)).toEqual(["p1", "p3", "p4", "p2"]));
+        expect(handle.current?.session.getSnapshot()).toMatchObject({
+          selection: ["p3", "p4"],
+          currentPage: "p3",
+        });
+        expect(handle.current?.session.getSnapshot().navigation?.page).toBe("p3");
+        await announced(container, "Inserted 2 pages after page 1.");
+        expect(changes.at(-1)).toEqual({ reason: "edit", pageCount: 4 });
+        // Inserting isn't opening: the document keeps its name.
+        expect(handle.current?.session.getSnapshot().sources.map((s) => s.name)).toEqual([
+          "report.pdf",
+          "appendix.pdf",
+        ]);
+
+        // One undo step, which brings back the pages and the selection.
+        await act(() => userEvent.click(tool(container, "pdf.undo")));
+        expect(pageKeys(handle)).toEqual(["p1", "p2"]);
+        expect(handle.current?.session.getSnapshot().selection).toEqual([]);
+      });
+
+      it("explains a failed insert, and leaves the document untouched", async () => {
+        const { mounted, handle } = setUp();
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(2)));
+        await act(() => userEvent.upload(insertInput(container), notAPdf()));
+        await waitFor(() =>
+          expect(alertText(container)).toBe("This file isn't a PDF, or it's too damaged to open."),
+        );
+        expect(pageKeys(handle)).toEqual(["p1", "p2"]);
+        expect(handle.current?.session.getSnapshot().canUndo).toBe(false);
+        expect(disabled(tool(container, "pdf.insert-pages"))).toBe(false);
+      });
+
+      it("applies the page limit to the combined document", async () => {
+        const { mounted, handle } = setUp({ filePolicy: { maxPages: 3 } });
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(2)));
+        await act(() => userEvent.upload(insertInput(container), pdfFile(2, "appendix.pdf")));
+        await waitFor(() =>
+          expect(alertText(container)).toBe(
+            "This document has 4 pages, which is over the 3-page limit.",
+          ),
+        );
+        expect(pageKeys(handle)).toEqual(["p1", "p2"]);
+      });
+
+      it("says so when earlier edits were dropped to make room", async () => {
+        const { mounted, handle } = setUp({ filePolicy: { maxSessionSize: 750 } });
+        const container = await mounted;
+        await act(() => handle.current?.open(sized(300)));
+        await act(() => handle.current?.session.insert(sized(200)));
+        // Only the history refers to the inserted document now.
+        await act(async () =>
+          handle.current?.session.execute({ type: "pdf.deletePages", pages: ["p2"] }),
+        );
+        expect(container.querySelector(".hm-pdf-editor-warnings")).toBeNull();
+        const file = new File([sized(400)], "large.pdf", { type: "application/pdf" });
+        await act(() => userEvent.upload(insertInput(container), file));
+        await waitFor(() =>
+          expect(container.querySelector(".hm-pdf-editor-warnings")?.textContent).toContain(
+            "your earliest edits can no longer be undone",
+          ),
+        );
+      });
+
+      it("is disabled while an insert runs, and keeps focus", async () => {
+        const engine = createFakeEngine();
+        let release = () => {};
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let opens = 0;
+        const slow: PdfEngine = {
+          ...engine,
+          // The first open is the document; later ones are inserts, held.
+          open: async (source, options) => {
+            opens += 1;
+            if (opens > 1) await gate;
+            return engine.open(source, options);
+          },
+        };
+        const { mounted, handle } = setUp({ engine: slow });
+        const container = await mounted;
+        await act(() => handle.current?.open(fakePdf(1)));
+        const button = tool(container, "pdf.insert-pages");
+        button.focus();
+        await act(() => userEvent.upload(insertInput(container), pdfFile(1, "appendix.pdf")));
+        expect(disabled(button)).toBe(true);
+        expect(document.activeElement).toBe(button);
+        release();
+        await waitFor(() => expect(pageKeys(handle)).toHaveLength(2));
+        expect(disabled(button)).toBe(false);
+      });
     });
 
     describe("downloading (docs/adr/0009)", () => {

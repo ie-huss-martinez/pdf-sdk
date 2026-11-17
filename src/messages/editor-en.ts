@@ -38,6 +38,12 @@ export const pdfEditorText = /* @__PURE__ */ defineMessages({
     one: "Deleted {count} page.",
     other: "Deleted {count} pages.",
   }),
+  "editor.inserted": /* @__PURE__ */ plural("count", {
+    one: "Inserted {count} page after page {page}.",
+    other: "Inserted {count} pages after page {page}.",
+  }),
+  "editor.historyTrimmed":
+    "To make room for the inserted document, your earliest edits can no longer be undone.",
   "editor.saving": "Preparing the PDF…",
   "editor.cancelSave": "Cancel",
   "editor.saved": "Saved {name}.",
@@ -56,4 +62,5 @@ export const pdfEditorText = /* @__PURE__ */ defineMessages({
   "tools.rotate-right": "Rotate right",
   "tools.delete-pages": "Delete pages",
   "tools.download": "Download",
+  "tools.insert-pages": "Insert pages",
 });

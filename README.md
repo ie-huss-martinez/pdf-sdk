@@ -51,6 +51,7 @@ The editor's tools are in `pdfTools`:
 | Tool | Shortcut | What it does |
 |---|---|---|
 | `pdf.open` | none: `Ctrl+O` is the browser's own | Opens a PDF, replacing the current one |
+| `pdf.insert-pages` | none | Inserts every page of another PDF after the current page, which merges the two |
 | `pdf.undo` | `Ctrl+Z`, or `⌘Z` on Apple platforms | Undoes the last edit |
 | `pdf.redo` | `Ctrl+Shift+Z` or `Ctrl+Y`, or `⇧⌘Z` | Redoes the last undone edit |
 | `pdf.rotate-left` | `[` | Turns the selected pages, or the current one, a quarter turn anticlockwise |
@@ -68,6 +69,8 @@ Choose which tools are present with `tools`, and arrange the toolbar with `toolb
 ```
 
 Shortcuts work only while focus is inside the editor, never on the rest of your page, and never while typing in a field. The toolbar is one tab stop, with arrow keys between its buttons; each button names its shortcut in `aria-keyshortcuts`. A button that can't run is disabled with `aria-disabled`, so it keeps focus. Undoing, redoing, rotating and deleting are announced to screen readers.
+
+Inserting puts every page of the chosen PDF after the current page, selects the inserted pages and shows the first. The file policy's limits apply to the combined document: `maxPages` counts the pages after the insert, and `maxSessionSize` counts every document held. A failed insert leaves the document unchanged and shows why in the header. When undo steps had to be dropped to make room within `maxSessionSize`, the header says so.
 
 Deleting works on the thumbnails' selection, so its keys work only while focus is in the thumbnails ([ADR 0008](docs/adr/0008-page-organisation-in-the-editor.md)). The page that takes the first deleted page's place is selected, and focus moves to it if its thumbnail had focus. Undo and redo bring back the selection and the current page with the pages. `PdfThumbnails` used on its own takes an `onDelete` prop for those keys.
 

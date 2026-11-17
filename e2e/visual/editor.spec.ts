@@ -1,6 +1,6 @@
 import { applyVisualVariant, visualVariants } from "@hussmartinez/sdk-config/testing/visual";
 import { expect, type Page, test } from "@playwright/test";
-import { reportPdf } from "../../test/fixtures/pdfs.js";
+import { pagesPdf, reportPdf } from "../../test/fixtures/pdfs.js";
 
 /**
  * The editor's designed states, as screenshots (sdk-core ADR 0048). Each is
@@ -14,6 +14,8 @@ import { reportPdf } from "../../test/fixtures/pdfs.js";
  * | `rotated` | The first page rotated from the keyboard, with Undo enabled |
  * | `selection` | Every page selected in the thumbnails, with deleting disabled |
  * | `deleted` | The second page deleted with Delete, focus on the remaining thumbnail |
+ * | `inserted` | A blank page inserted after page 1 with the insert tool, selected and in view |
+ * | `insert-error` | A file that isn't a PDF, inserted: the header's alert, with the document unchanged |
  * | `save-failed` | The host's `onExport` failed: the header's alert, with Download focused |
  * | `error` | A file that isn't a PDF, and the catalogue's text for it |
  * | `replace-error` | A document still open after a replacement failed, with the header's alert |
@@ -119,6 +121,53 @@ const STATES: Readonly<Record<string, State>> = {
     await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Deleted 1 page.");
     await expect(page.getByRole("option", { name: "Page 1 of 1" })).toBeFocused();
     await expect(page.getByRole("button", { name: "Delete pages" })).toBeDisabled();
+    await drawn(page);
+  },
+  inserted: async (page) => {
+    await opened(page);
+    // A blank Letter page from the toolbar's insert tool, after page 1.
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Insert pages" }).click();
+    await (await chooser).setFiles({
+      name: "blank.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from(await pagesPdf([{ width: 612, height: 792 }])),
+    });
+    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
+      "Inserted 1 page after page 1.",
+    );
+    await expect(page.getByRole("option", { selected: true })).toHaveCount(1);
+    await expect(page.getByRole("option", { name: "Page 2 of 3" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await drawn(page);
+    // The viewer brought the inserted page into view; it must be drawn too.
+    await expect
+      .poll(
+        () =>
+          page
+            .locator(".hm-pdf-page-canvas")
+            .nth(1)
+            .evaluate((canvas) => (canvas as HTMLCanvasElement).width),
+        { timeout: 30_000 },
+      )
+      .toBeGreaterThan(0);
+    await expect(page.locator('.hm-pdf-editor [aria-busy="true"]')).toHaveCount(0);
+  },
+  "insert-error": async (page) => {
+    await opened(page);
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Insert pages" }).click();
+    await (await chooser).setFiles({
+      name: "notes.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("just some text"),
+    });
+    await expect(page.locator(".hm-pdf-editor-header > [role=alert]")).toHaveText(
+      "This file isn't a PDF, or it's too damaged to open.",
+    );
+    await expect(page.getByRole("listbox", { name: "Pages" }).getByRole("option")).toHaveCount(2);
     await drawn(page);
   },
   "save-failed": async (page) => {
