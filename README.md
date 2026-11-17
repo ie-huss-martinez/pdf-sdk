@@ -102,6 +102,7 @@ The browser and end-to-end tests also need Docker. They run in the pinned browse
 | CSS rules | `lint:css` | stylelint, with the `hm-` namespace and token rules |
 | Types | `typecheck` | TypeScript |
 | Dependency rules | `lint:deps` | dependency-cruiser, through `hm-lint-deps` |
+| Playwright pinned to the browser test image | `check:playwright-image` | `hm-check-playwright-image` (sdk-core ADR 0025) |
 | Build | `build` | Vite, then api-extractor for the type declarations |
 | Unit tests | `test` | Vitest |
 | Browser tests | `test:browser` | Vitest in Chromium in the browser test image, and in Firefox and WebKit too in CI |
