@@ -1,5 +1,102 @@
 # @hussmartinez/pdf-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- [#58](https://github.com/ie-huss-martinez/pdf-sdk/pull/58) [`a63f7c1`](https://github.com/ie-huss-martinez/pdf-sdk/commit/a63f7c147552b254aee66334bec7ef643c847cec) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfEditor` can delete pages. The new `pdf.delete-pages` tool, in `pdfTools` and in the toolbar's Pages group with ui's delete icon, works like this:
+  
+  - It deletes the selected pages, or the current page, as one undoable step.
+  - A document keeps at least one page, so the tool is disabled when every page would go.
+  - In the thumbnails, Delete or Backspace runs it. Those keys do nothing elsewhere in the editor.
+  - It announces "Deleted 2 pages.".
+  - The page that takes the first deleted page's place becomes the selection and the current page. Focus moves to its thumbnail if the deleted one had focus.
+  
+  To leave deleting out, omit `pdf.delete-pages` from `tools`.
+  
+  Other changes:
+  
+  - **Undo and redo restore view state:** they now bring back the selection and current page that went with each step, not only the pages. Undoing a delete selects the restored pages again.
+  - **Disabled toolbar buttons keep focus:** they now use `aria-disabled` instead of the `disabled` attribute, so keyboard users stay in the toolbar. Tests that read `button.disabled`, or use jest-dom's `toBeDisabled()`, should check `aria-disabled="true"` instead. Playwright's `toBeDisabled()` already understands `aria-disabled`.
+  - **`PdfThumbnails` has an `onDelete` prop:** used on its own, it runs `onDelete` on Delete and Backspace.
+
+- [#59](https://github.com/ie-huss-martinez/pdf-sdk/pull/59) [`5259cd4`](https://github.com/ie-huss-martinez/pdf-sdk/commit/5259cd49931a085acefaff5a3c6135ad277e2f50) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfEditor` can save the document. The new `pdf.download` tool, in `pdfTools` and in a new Save group at the end of the toolbar with ui's download icon, works like this:
+  
+  - It builds the document in the worker and downloads it, named after the opened file, or `document.pdf`.
+  - The download uses a `blob:` URL: no request, and no change to your Content Security Policy.
+  - It has no shortcut, so Ctrl or ⌘+S stays the browser's.
+  
+  New props:
+  
+  - **`downloadName(info)`** names the file. `info` is `PdfDownloadNameInfo`: `sourceName` and `pageCount`. The result is cleaned as a file name, and `.pdf` is added if it's missing.
+  - **`onExport(bytes, info)`** receives the bytes instead of the browser downloading them. `info` is `PdfExportInfo`: `fileName` and `pageCount`. If it throws or rejects, the editor shows "The PDF couldn't be saved. Please try again." Your error is yours to log.
+  
+  While a save runs:
+  
+  - The button is disabled but keeps focus.
+  - The editor is `aria-busy`, and the header says "Preparing the PDF…".
+  - After a second, a Cancel button appears. Cancelling, or opening or closing a document, stops the save quietly.
+  - A failed build shows its error's text in the header's alert.
+  
+  For your own tools, `PdfToolState` gains `saving` and `PdfToolContext` gains `save()`. Both are optional and absent outside the editor. `PdfToolbar` gains a `saving` prop.
+  
+  If your app has its own Download button that calls `handle.export()`, you can remove it, or keep it and leave `pdf.download` out of `tools`.
+
+- [#57](https://github.com/ie-huss-martinez/pdf-sdk/pull/57) [`48110a3`](https://github.com/ie-huss-martinez/pdf-sdk/commit/48110a38ec03648623255ee4abbb6ff817622a65) Thanks [@hussmartinez](https://github.com/hussmartinez)! - The server-safe entry no longer carries the interface's text. `pdfMessages` and `PdfMessageCatalogue`, from `@hussmartinez/pdf-sdk`, now hold only sdk-core's text and the SDK's error and warning text. The text of the editor, its toolbar and tools, the viewer and the thumbnails is in `pdfEditorMessages`, from `@hussmartinez/pdf-sdk/react`, which also holds the error, warning and ui text.
+  
+  This makes the server-safe entry about 0.36 kB smaller (brotli), and keeps it from growing as the editor gains tools.
+  
+  `PdfSessionProvider` and `usePdfMessages()` now use `pdfEditorMessages`, as `PdfEditor` already did. Their `messages` overrides are typed with `PdfEditorMessageCatalogue`. The keys and their English text are unchanged, so overrides keep working at runtime.
+  
+  **Migrating:** if you typed overrides of interface keys with `PdfMessageCatalogue`, type them with `PdfEditorMessageCatalogue`:
+  
+  ```ts
+  // Before
+  import type { PdfMessageCatalogue } from "@hussmartinez/pdf-sdk";
+  const messages: MessageOverrides<PdfMessageCatalogue> = { "editor.start.choose": "Elegir un PDF" };
+  
+  // After
+  import type { PdfEditorMessageCatalogue } from "@hussmartinez/pdf-sdk/react";
+  const messages: MessageOverrides<PdfEditorMessageCatalogue> = { "editor.start.choose": "Elegir un PDF" };
+  ```
+  
+  Overrides of `errors.*` and `warnings.*` keys typed with `PdfMessageCatalogue` need no change. Neither does `createMessages(pdfMessages)` for showing the session's errors without the React components.
+
+- [#60](https://github.com/ie-huss-martinez/pdf-sdk/pull/60) [`1e9a75e`](https://github.com/ie-huss-martinez/pdf-sdk/commit/1e9a75e9ab7e0738e35b2a6a806512825a8cbac6) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfEditor` can merge PDFs. The new `pdf.insert-pages` tool, in `pdfTools` and in the toolbar's File group with ui's page-add icon, works like this:
+  
+  - It asks for another PDF and inserts all its pages after the current page, as one undoable step.
+  - The inserted pages become the selection, the first one comes into view, and the insert is announced, for example "Inserted 2 pages after page 1.".
+  - The file policy applies to the combined document. `maxPages` counts the pages after the insert, and `maxSessionSize` counts every document the session holds.
+  - A failed insert, such as a file that isn't a PDF or one over a limit, leaves the document unchanged and shows why in the header.
+  - When the session had to drop the earliest undo steps to make room, the header says those edits can no longer be undone.
+  
+  For your own tools, `PdfToolState` gains `inserting` and `PdfToolContext` gains `chooseInsertFile()`. Both are optional and absent outside the editor. `PdfToolbar` gains an `inserting` prop.
+  
+  It now depends on `@hussmartinez/ui` `^0.8.0`, for that icon. If your app also depends on `@hussmartinez/ui` directly, move it to 0.8 too, so your app keeps one copy (sdk-core ADR 0047).
+
+- [#61](https://github.com/ie-huss-martinez/pdf-sdk/pull/61) [`4a2ebd7`](https://github.com/ie-huss-martinez/pdf-sdk/commit/4a2ebd78e8795da6a7141ca4a2c7e2650d474d84) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfEditor` can reorder pages. The new `pdf.move-earlier` and `pdf.move-later` tools, in `pdfTools` and in the toolbar's Pages group with ui's move-up and move-down icons, work like this:
+  
+  - They move the selected pages, or the current one, one position earlier or later, as one undoable step each.
+  - Pages that aren't next to each other are gathered into one block, in their order.
+  - The moved pages stay selected and focused, and the move is announced, for example "Moved 2 pages to position 4.".
+  - A tool is disabled when its block is already at that end.
+  
+  In the thumbnails, Alt+↑ and Alt+↓ (Option on macOS) run them. They do nothing elsewhere in the editor, and nothing with other modifiers. These keys don't clash with browser or system shortcuts; ADR 0008 records the check.
+  
+  `PdfThumbnails` used on its own takes an `onMove(direction)` prop for those keys. If a moved or removed thumbnail had focus, focus now stays in the list.
+
+- [#56](https://github.com/ie-huss-martinez/pdf-sdk/pull/56) [`c69a7c2`](https://github.com/ie-huss-martinez/pdf-sdk/commit/c69a7c2641fb543c1fbe17f2176f282ba25aecbb) Thanks [@hussmartinez](https://github.com/hussmartinez)! - The opened file's name is now available, so you can show it or name a download after it:
+  
+  - `PdfSourceInfo.name`: each source in `session.getSnapshot().sources` has the name of the `File` it came from.
+  - `PdfEditorChange.fileName`: `onChange` reports it on `"open"`.
+  - A new `name` option on `session.open()` (`PdfOpenOptions`), `session.insert()` and `PdfEditorHandle.open()` names bytes or a plain `Blob`. It wins over `File.name`.
+  
+  The name is cleaned before it's kept. It's the last path segment only, without control or bidirectional formatting characters or characters Windows refuses, trimmed, and at most 128 code points. If nothing is left, there's no name. It comes from the file, so show it as text only, never as HTML. It never appears in `onEvent` usage events.
+
+### Patch Changes
+
+- [#53](https://github.com/ie-huss-martinez/pdf-sdk/pull/53) [`d0c7596`](https://github.com/ie-huss-martinez/pdf-sdk/commit/d0c759609565850bac07f9fbd6334e67159fe563) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfEditor` now sets its own text in ui's type: `--hm-font-family`, `--hm-font-size-body` and `--hm-line-height-body`. The start area, the alerts and the page numbers no longer inherit the host page's font, which was often the browser's default serif. A host's unlayered CSS still overrides these, and `unstyled` editors keep inheriting them.
+
 ## 0.3.0
 
 ### Minor Changes
