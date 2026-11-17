@@ -307,6 +307,35 @@ describe("PdfEditor", () => {
     expect(editor(container)?.getBoundingClientRect().height).toBeCloseTo(600, 0);
   });
 
+  it("sets its own text in ui's type, whatever the host page sets around it", async () => {
+    const { mounted } = setUp(
+      {},
+      "width: 800px; height: 600px; display: grid; grid-template-rows: minmax(0, 1fr); font: 30px/3 serif;",
+    );
+    const container = await mounted;
+    // The tokens' computed values, read from an element that uses them.
+    const probe = document.createElement("span");
+    probe.style.cssText =
+      "font-family: var(--hm-font-family); font-size: var(--hm-font-size-body); line-height: var(--hm-line-height-body);";
+    document.body.append(probe);
+    const expected = getComputedStyle(probe);
+    // The start area's privacy hint: plain text of the editor's own.
+    const choose = button(container) as HTMLButtonElement;
+    const hint = getComputedStyle(
+      document.getElementById(choose.getAttribute("aria-describedby") ?? "") as HTMLElement,
+    );
+    const root = getComputedStyle(editor(container) as HTMLElement);
+    try {
+      expect(expected.fontFamily).not.toMatch(/^serif$/);
+      expect(root.fontFamily).toBe(expected.fontFamily);
+      expect(root.fontSize).toBe(expected.fontSize);
+      expect(root.lineHeight).toBe(expected.lineHeight);
+      expect(hint.fontFamily).toBe(expected.fontFamily);
+    } finally {
+      probe.remove();
+    }
+  });
+
   describe("without ui's tokens", () => {
     // ui's stylesheet is required (sdk-core ADR 0036), but if a host leaves it
     // out the editor still keeps its layout. These tests load only the SDK's
