@@ -162,7 +162,7 @@ describe("PdfEditor", () => {
     await settle(container, "ready", FIRST_OPEN);
 
     expect(editor(container)?.dataset["hmStatus"]).toBe("ready");
-    expect(changes).toEqual([{ reason: "open", pageCount: 3 }]);
+    expect(changes).toEqual([{ reason: "open", pageCount: 3, fileName: "report.pdf" }]);
     expect(container.querySelectorAll('[role="option"]')).toHaveLength(3);
     expect(container.querySelectorAll(".hm-pdf-page")).toHaveLength(3);
     await announced(container, "Opened a PDF with 3 pages.");
@@ -242,7 +242,7 @@ describe("PdfEditor", () => {
       );
     });
     await settle(container, "ready");
-    expect(changes).toEqual([{ reason: "open", pageCount: 2 }]);
+    expect(changes).toEqual([{ reason: "open", pageCount: 2, fileName: "report.pdf" }]);
   });
 
   it("opens the host's file, a new one when it changes, and closes on null", async () => {
@@ -258,8 +258,19 @@ describe("PdfEditor", () => {
     await setFile(null);
     await settle(container, "empty");
     expect(changes.map((change) => change.reason)).toEqual(["open", "open", "close"]);
+    // Bytes have no name; a File has its own.
+    expect(changes[0]).not.toHaveProperty("fileName");
+    expect(changes[1]?.fileName).toBe("report.pdf");
     expect(editor(container)?.dataset["hmStatus"]).toBe("empty");
     await announced(container, "The PDF was closed.");
+  });
+
+  it("names the file the host opens through the handle, cleaned (docs/adr/0009)", async () => {
+    const { mounted, changes, handle } = setUp();
+    await mounted;
+    await act(() => handle.current?.open(fakePdf(1), { name: "../../scans/in\u202Evoice.pdf" }));
+    expect(changes).toEqual([{ reason: "open", pageCount: 1, fileName: "invoice.pdf" }]);
+    expect(handle.current?.session.getSnapshot().sources[0]?.name).toBe("invoice.pdf");
   });
 
   it("gives the host a handle to edit, undo, redo and export", async () => {
@@ -489,7 +500,7 @@ describe("PdfEditor", () => {
       expect(clicked).toHaveBeenCalledOnce();
       await act(() => userEvent.upload(picker, pdfFile(2)));
       await settle(container, "ready");
-      expect(changes).toEqual([{ reason: "open", pageCount: 2 }]);
+      expect(changes).toEqual([{ reason: "open", pageCount: 2, fileName: "report.pdf" }]);
     });
 
     it("shows the chosen tools in the chosen groups, and hides with an empty toolbar", async () => {

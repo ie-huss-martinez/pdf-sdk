@@ -104,6 +104,7 @@ export type { PdfBuildOptions, PdfProcessor } from "./core/ports/pdf-processor.j
 export type {
   PdfExportOptions,
   PdfInsertOptions,
+  PdfOpenOptions,
   PdfSession,
   PdfSessionEvent,
   PdfSessionOptions,

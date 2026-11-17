@@ -80,8 +80,9 @@ function changeBetween(
   after: PdfSessionSnapshot,
 ): PdfEditorChange | undefined {
   const pageCount = after.plan.pages.length;
-  if (after.status === "ready" && after.sources[0]?.id !== before.sources[0]?.id) {
-    return { reason: "open", pageCount };
+  const opened = after.sources[0];
+  if (after.status === "ready" && opened?.id !== before.sources[0]?.id) {
+    return { reason: "open", pageCount, ...(opened?.name ? { fileName: opened.name } : {}) };
   }
   if (before.sources.length > 0 && after.sources.length === 0) {
     return { reason: "close", pageCount: 0 };
@@ -178,7 +179,7 @@ function PdfEditorBody(props: BodyProps): ReactNode {
     handle,
     () => ({
       session,
-      open: (next) => session.open(next),
+      open: (next, options) => session.open(next, options),
       export: (options) => session.export(options),
       undo: () => session.undo(),
       redo: () => session.redo(),
