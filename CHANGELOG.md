@@ -1,5 +1,13 @@
 # @hussmartinez/pdf-sdk
 
+## 0.4.2
+
+### Patch Changes
+
+- [#64](https://github.com/ie-huss-martinez/pdf-sdk/pull/64) [`2b2052b`](https://github.com/ie-huss-martinez/pdf-sdk/commit/2b2052babe0ea88c4a11a2eefdf6f9bfef2caede) Thanks [@hussmartinez](https://github.com/hussmartinez)! - `PdfViewer` and `PdfThumbnails` no longer flicker when their content only just overflows, with scrollbars that take space: on Windows, or with "always show scrollbars" on macOS or Linux. Before, at certain heights, a scrollbar appeared, the pages narrowed and fit, the scrollbar went, and the pages widened again, every frame.
+  
+  Pages and thumbnails are now sized as if the scrollbar were always shown, using its measured width. Overlay scrollbars take no space, so nothing changes with them.
+
 ## 0.4.1
 
 ### Patch Changes
