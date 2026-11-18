@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { PdfPageInfo } from "../../core/model/document.js";
 import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
+import { scrollbarThickness, steadyWidth } from "../scrollbar.js";
 import { useNearObserver } from "../use-near-observer.js";
 import { PdfViewerPage } from "./PdfViewerPage.js";
 import { RenderQueue } from "./render-queue.js";
@@ -85,8 +86,18 @@ export function PdfViewer(props: PdfViewerProps): ReactNode {
     if (!element) return;
     // Runs after layout and before paint, so a restored position never shows
     // the shifted one first.
+    // Pages are sized as if the viewer's scrollbar were shown, so one coming
+    // and going doesn't resize them, and with them the pages, every frame.
+    const viewerElement = root.current;
+    const thickness = viewerElement ? scrollbarThickness(viewerElement) : 0;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
+      if (entry) {
+        setWidth(
+          viewerElement
+            ? steadyWidth(viewerElement, entry.contentRect.width, thickness)
+            : entry.contentRect.width,
+        );
+      }
       const viewer = root.current;
       const held = anchor.current;
       if (!viewer || !held) return;
