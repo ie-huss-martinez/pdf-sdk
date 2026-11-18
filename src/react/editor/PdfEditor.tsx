@@ -356,7 +356,13 @@ function PdfEditorBody(props: BodyProps): ReactNode {
       role="group"
       aria-label={messages.t("editor.label")}
       aria-busy={status === "opening" || snapshot.busy || saving.saving}
-      className={join("hm-pdf-editor", className, classNames.root)}
+      // ui's text root (ui ADR 0010), unless the host styles the editor itself.
+      className={join(
+        unstyled ? undefined : "hm-text",
+        "hm-pdf-editor",
+        className,
+        classNames.root,
+      )}
       data-hm-status={status}
       onKeyDown={onKeyDown}
       {...(unstyled ? { "data-hm-unstyled": "" } : {})}

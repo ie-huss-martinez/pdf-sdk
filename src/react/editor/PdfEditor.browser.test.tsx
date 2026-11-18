@@ -339,6 +339,8 @@ describe("PdfEditor", () => {
     );
     const root = getComputedStyle(editor(container) as HTMLElement);
     try {
+      // ui's text root (ui ADR 0010) gives it, not rules of the editor's own.
+      expect(editor(container)?.classList.contains("hm-text")).toBe(true);
       expect(expected.fontFamily).not.toMatch(/^serif$/);
       expect(root.fontFamily).toBe(expected.fontFamily);
       expect(root.fontSize).toBe(expected.fontSize);
@@ -347,6 +349,17 @@ describe("PdfEditor", () => {
     } finally {
       probe.remove();
     }
+  });
+
+  it("leaves an unstyled editor's text to the host", async () => {
+    const { mounted } = setUp(
+      { unstyled: true },
+      "width: 800px; height: 600px; display: grid; grid-template-rows: minmax(0, 1fr); font: 30px/3 serif;",
+    );
+    const container = await mounted;
+    const root = editor(container) as HTMLElement;
+    expect(root.classList.contains("hm-text")).toBe(false);
+    expect(getComputedStyle(root).fontSize).toBe("30px");
   });
 
   describe("without ui's tokens", () => {

@@ -15,13 +15,12 @@
   }
 
   /* The editor's own text, such as the start area, the alerts and the page
-     numbers, in ui's type, not whatever the host page sets around it. */
+     numbers, takes ui's type from ui's hm-text class on the root (ui ADR
+     0010), not whatever the host page sets around it. The colour stays here,
+     for the --hm-pdf-editor-text override. */
   .hm-pdf-editor:not([data-hm-unstyled]) {
     background: var(--hm-pdf-editor-bg, var(--hm-color-surface));
     color: var(--hm-pdf-editor-text, var(--hm-color-text));
-    font-family: var(--hm-font-family);
-    font-size: var(--hm-font-size-body);
-    line-height: var(--hm-line-height-body);
   }
 
   .hm-pdf-editor-header {
