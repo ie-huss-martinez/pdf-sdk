@@ -362,6 +362,116 @@ describe("PdfEditor", () => {
     expect(getComputedStyle(root).fontSize).toBe("30px");
   });
 
+  describe("with scrollbars that take space, as on Windows or with 'always show scrollbars'", () => {
+    // Headless engines use overlay scrollbars, which take no space. A styled
+    // ::-webkit-scrollbar takes 15 px in WebKit; Chromium's headless mode
+    // hides it and Firefox ignores it, so there these tests can't run.
+    const SCROLLBARS = "::-webkit-scrollbar { width: 15px; height: 15px; background: #ccc; }";
+    const scrollbarWidth = () => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "width: 100px; height: 100px; overflow: scroll;";
+      document.body.append(probe);
+      const width = probe.offsetWidth - probe.clientWidth;
+      probe.remove();
+      return width;
+    };
+    /** The widths of `element` over ten frames, which must not change. */
+    const widthsOver = async (element: HTMLElement) => {
+      const widths: number[] = [];
+      for (let index = 0; index < 10; index += 1) {
+        await frames(1);
+        widths.push(element.clientWidth);
+      }
+      return widths;
+    };
+
+    /**
+     * Sizes the editor, in 3 px steps, from where `scroller`'s content
+     * fits it with room to spare to where it overflows by a little: the
+     * band where a scrollbar that takes space makes the pages narrower and
+     * shorter. At each height, `scroller`'s width must hold still over ten
+     * frames. Measuring the edge exactly isn't needed: the band is about as
+     * tall as the scrollbar is wide, and the steps cross it either way.
+     */
+    async function acrossTheEdge(
+      host: HTMLElement,
+      scroller: HTMLElement,
+      content: () => number,
+    ): Promise<string[]> {
+      await waitFor(() => expect(content()).toBeGreaterThan(0));
+      await frames(5);
+      const edge = host.getBoundingClientRect().height + content() - scroller.clientHeight;
+      const unsteady: string[] = [];
+      for (let height = edge - 30; height <= edge + 6; height += 3) {
+        host.style.height = `${height}px`;
+        await frames(3);
+        const widths = new Set(await widthsOver(scroller));
+        if (widths.size > 1) unsteady.push(`${height}px: ${[...widths].join(" and ")}`);
+      }
+      return unsteady;
+    }
+
+    // A scan of a dozen heights, ten frames each: WebKit under load needs time.
+    it("keeps the viewer's width still when its page only just overflows", {
+      timeout: 60_000,
+    }, async (context) => {
+      const { mounted, handle } = setUp(
+        {},
+        "width: 800px; height: 1400px; display: grid; grid-template-rows: minmax(0, 1fr);",
+      );
+      const host = await mounted;
+      const style = document.createElement("style");
+      style.textContent = SCROLLBARS;
+      document.head.append(style);
+      try {
+        if (scrollbarWidth() === 0) context.skip();
+        await act(() => handle.current?.open(fakePdf(1)));
+        const viewer = host.querySelector(".hm-pdf-viewer") as HTMLElement;
+        const pages = host.querySelector(".hm-pdf-viewer-pages") as HTMLElement;
+        const unsteady = await acrossTheEdge(
+          host,
+          viewer,
+          () => pages.getBoundingClientRect().height,
+        );
+        expect(unsteady).toEqual([]);
+      } finally {
+        style.remove();
+      }
+    });
+
+    it("keeps the thumbnails' width still when they only just overflow", {
+      timeout: 60_000,
+    }, async (context) => {
+      const { mounted, handle } = setUp(
+        {},
+        "width: 800px; height: 1400px; display: grid; grid-template-rows: minmax(0, 1fr);",
+      );
+      const host = await mounted;
+      const style = document.createElement("style");
+      style.textContent = SCROLLBARS;
+      document.head.append(style);
+      try {
+        if (scrollbarWidth() === 0) context.skip();
+        await act(() => handle.current?.open(fakePdf(6)));
+        const list = await waitFor(() => {
+          const found = host.querySelector<HTMLElement>(".hm-pdf-thumbnails");
+          expect(found).not.toBeNull();
+          return found as HTMLElement;
+        });
+        // The list's own content height: to its last thumbnail, and its padding.
+        const content = () => {
+          const last = list.querySelector<HTMLElement>('[role="option"]:last-of-type');
+          if (!last) return 0;
+          const bottom = last.getBoundingClientRect().bottom - list.getBoundingClientRect().top;
+          return bottom + list.scrollTop + Number.parseFloat(getComputedStyle(list).paddingBottom);
+        };
+        expect(await acrossTheEdge(host, list, content)).toEqual([]);
+      } finally {
+        style.remove();
+      }
+    });
+  });
+
   describe("without ui's tokens", () => {
     // ui's stylesheet is required (sdk-core ADR 0036), but if a host leaves it
     // out the editor still keeps its layout. These tests load only the SDK's

@@ -1,7 +1,6 @@
 import uiStylesUrl from "@hussmartinez/ui/styles.css?url";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { vi } from "vitest";
 import stylesUrl from "../src/styles.css?url";
 
 // Tells React these tests wrap updates in act(), as a test environment does.
@@ -12,25 +11,35 @@ const cleanups: Array<() => void | Promise<void>> = [];
 /** How long each of {@link waitFor}'s act() slices waits, in milliseconds. */
 const SLICE = 20;
 
+/** How long {@link waitFor} tries by default, as `vi.waitFor` does, in milliseconds. */
+const TIMEOUT = 1_000;
+
 /**
- * `vi.waitFor`, but with the waiting between attempts done inside `act()`.
- * Engines, workers and observers update the components while a test waits,
- * so those updates happen in an act scope and React doesn't warn about them.
- * Each slice is short, because React applies what was queued in a scope only
- * when it ends, and the next step, such as an effect that starts a drawing,
- * needs it. Attempts follow each other with no pause outside `act()`.
+ * Retries `callback` until it stops throwing, waiting between attempts only
+ * inside `act()`. Engines, workers, observers, animation frames and timers
+ * update the components while a test waits, and those updates must land in
+ * an act scope, or React warns. Each slice is short, because React applies
+ * what was queued in a scope only when it ends, and the next step, such as
+ * an effect that starts a drawing, needs it.
+ *
+ * It's a loop rather than `vi.waitFor`, which schedules each retry with a
+ * timer: that left a moment outside `act()` between slices, where such an
+ * update could land. Here, only microtasks run between a slice and the next
+ * attempt.
  */
-export function waitFor<T>(
+export async function waitFor<T>(
   callback: () => T | Promise<T>,
-  { timeout }: { readonly timeout?: number } = {},
+  { timeout = TIMEOUT }: { readonly timeout?: number } = {},
 ): Promise<T> {
-  return vi.waitFor(
-    async () => {
-      await act(() => new Promise((resolve) => setTimeout(resolve, SLICE)));
-      return callback();
-    },
-    { interval: 0, ...(timeout === undefined ? {} : { timeout }) },
-  );
+  const deadline = performance.now() + timeout;
+  for (;;) {
+    await act(() => new Promise<void>((resolve) => setTimeout(resolve, SLICE)));
+    try {
+      return await callback();
+    } catch (error) {
+      if (performance.now() >= deadline) throw error;
+    }
+  }
 }
 
 /** Undoes everything mount() and loadStyles() did. Call it in afterEach. */

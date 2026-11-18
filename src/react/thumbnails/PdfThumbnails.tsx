@@ -14,6 +14,7 @@ import type { PdfPageInfo } from "../../core/model/document.js";
 import type { PdfPlanPage } from "../../core/model/plan.js";
 import type { PdfSession } from "../../core/session/session.js";
 import { usePdfDocument, usePdfMessages, usePdfSession } from "../hooks.js";
+import { scrollbarThickness, steadyWidth } from "../scrollbar.js";
 import { useNear, useNearObserver } from "../use-near-observer.js";
 import { usePageDrawing } from "../use-page-drawing.js";
 import { pageGeometry } from "../viewer/geometry.js";
@@ -213,8 +214,11 @@ export function PdfThumbnails(props: PdfThumbnailsProps): ReactNode {
   useEffect(() => {
     const element = root.current;
     if (!element) return;
+    // Sized as if a scrollbar were shown, so one coming and going doesn't
+    // resize the thumbnails, and with them the list, every frame.
+    const thickness = scrollbarThickness(element);
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
+      if (entry) setWidth(steadyWidth(element, entry.contentRect.width, thickness));
     });
     observer.observe(element);
     return () => observer.disconnect();
