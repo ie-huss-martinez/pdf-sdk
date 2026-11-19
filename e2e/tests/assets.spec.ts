@@ -1,7 +1,7 @@
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { expect, test } from "@playwright/test";
 import { jpxPdf, pagesPdf, reportPdf } from "../../test/fixtures/pdfs.js";
-import { expectJpxColours, openPdf, watch } from "./helpers.js";
+import { expectAnnounced, expectJpxColours, openPdf, watch } from "./helpers.js";
 
 const origin = "http://localhost:4320";
 
@@ -90,9 +90,7 @@ for (const mode of modes) {
       const chunks: Buffer[] = [];
       for await (const chunk of stream) chunks.push(chunk as Buffer);
       expect(Buffer.concat(chunks).subarray(0, 5).toString("latin1")).toBe("%PDF-");
-      await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
-        "Saved quarterly-report.pdf.",
-      );
+      await expectAnnounced(page, "Saved quarterly-report.pdf.");
 
       expect(await page.evaluate(() => window.pdfSdk.violations)).toEqual([]);
       expect(problems.errors).toEqual([]);
@@ -111,9 +109,7 @@ for (const mode of modes) {
         buffer: Buffer.from(await pagesPdf([{ width: 300, height: 400 }])),
       });
       await expect(page.getByRole("listbox", { name: "Pages" }).getByRole("option")).toHaveCount(3);
-      await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
-        "Inserted 1 page after page 1.",
-      );
+      await expectAnnounced(page, "Inserted 1 page after page 1.");
 
       const download = page.waitForEvent("download");
       await page.getByRole("button", { name: "Download" }).click();

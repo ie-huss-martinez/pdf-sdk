@@ -1,6 +1,7 @@
 import { applyVisualVariant, visualVariants } from "@hussmartinez/sdk-config/testing/visual";
 import { expect, type Page, test } from "@playwright/test";
 import { pagesPdf, reportPdf } from "../../test/fixtures/pdfs.js";
+import { expectAnnounced } from "../tests/helpers.js";
 
 /**
  * The editor's designed states, as screenshots (sdk-core ADR 0048). Each is
@@ -101,7 +102,7 @@ const STATES: Readonly<Record<string, State>> = {
     await opened(page);
     // The shortcut rotates the current page clockwise, and says so.
     await page.keyboard.press("]");
-    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Rotated 1 page.");
+    await expectAnnounced(page, "Rotated 1 page.");
     await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
     await drawn(page, { wide: true });
   },
@@ -119,7 +120,7 @@ const STATES: Readonly<Record<string, State>> = {
     await opened(page);
     await page.getByRole("option", { name: "Page 2 of 2" }).click();
     await page.keyboard.press("Delete");
-    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Deleted 1 page.");
+    await expectAnnounced(page, "Deleted 1 page.");
     await expect(page.getByRole("option", { name: "Page 1 of 1" })).toBeFocused();
     await expect(page.getByRole("button", { name: "Delete pages" })).toBeDisabled();
     await drawn(page);
@@ -129,9 +130,7 @@ const STATES: Readonly<Record<string, State>> = {
     // The second page moved to the start with Alt+Up in the thumbnails.
     await page.getByRole("option", { name: "Page 2 of 2" }).click();
     await page.keyboard.press("Alt+ArrowUp");
-    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
-      "Moved 1 page to position 1.",
-    );
+    await expectAnnounced(page, "Moved 1 page to position 1.");
     await expect(page.getByRole("option", { name: "Page 1 of 2" })).toBeFocused();
     await expect(page.getByRole("button", { name: "Move earlier" })).toBeDisabled();
     await drawn(page);
@@ -146,9 +145,7 @@ const STATES: Readonly<Record<string, State>> = {
       mimeType: "application/pdf",
       buffer: Buffer.from(await pagesPdf([{ width: 612, height: 792 }])),
     });
-    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
-      "Inserted 1 page after page 1.",
-    );
+    await expectAnnounced(page, "Inserted 1 page after page 1.");
     await expect(page.getByRole("option", { selected: true })).toHaveCount(1);
     await expect(page.getByRole("option", { name: "Page 2 of 3" })).toHaveAttribute(
       "aria-selected",
