@@ -128,7 +128,11 @@ const frames = async (count: number) => {
 const announced = async (container: HTMLElement, text: string) => {
   await frames(2);
   const said = container.querySelector('.hm-announcer [aria-live="polite"]')?.textContent ?? "";
-  expect(said === text || said.endsWith(` ${text}`), `"${said}" ends with "${text}"`).toBe(true);
+  // A whole sentence: the start, or the end of the previous one, comes first.
+  const last =
+    said === text ||
+    ([".", "!", "?", "\u2026"] as const).some((end) => said.endsWith(`${end} ${text}`));
+  expect(last, `"${text}" is the last sentence of "${said}"`).toBe(true);
 };
 
 /** A host's icon, for the icons prop. */

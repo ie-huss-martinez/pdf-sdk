@@ -124,6 +124,7 @@ export async function expectJpxColours(page: Page): Promise<void> {
 export async function expectAnnounced(page: Page, text: string): Promise<void> {
   const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
-    new RegExp(`(^| )${escaped}$`),
+    // A whole sentence: the start, or the end of the previous one, comes first.
+    new RegExp(`(^|[.!?\u2026] )${escaped}$`),
   );
 }
