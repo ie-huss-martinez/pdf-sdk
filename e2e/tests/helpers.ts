@@ -115,3 +115,16 @@ export async function expectJpxColours(page: Page): Promise<void> {
     expect(close, `${quadrant}: ${actual.join(", ")}`).toBe(true);
   }
 }
+
+/**
+ * Waits until `text` is what the editor's polite live region said last.
+ * Since ui 0.14.2, messages announced in the same frame are said together,
+ * separated by a space, so the region may also hold an earlier message.
+ */
+export async function expectAnnounced(page: Page, text: string): Promise<void> {
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText(
+    // A whole sentence: the start, or the end of the previous one, comes first.
+    new RegExp(`(^|[.!?\u2026] )${escaped}$`),
+  );
+}

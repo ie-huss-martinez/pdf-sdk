@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { reportPdf } from "../../test/fixtures/pdfs.js";
-import { openPdf, watch } from "./helpers.js";
+import { expectAnnounced, openPdf, watch } from "./helpers.js";
 
 const url = "http://localhost:4321/";
 const origin = new URL(url).origin;
@@ -49,7 +49,7 @@ test.describe("Next.js App Router", () => {
 
     // A shortcut rotates the current page, and says so.
     await page.keyboard.press("]");
-    await expect(page.locator(".hm-announcer [aria-live=polite]")).toHaveText("Rotated 1 page.");
+    await expectAnnounced(page, "Rotated 1 page.");
     await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
 
     expect(problems.errors).toEqual([]);

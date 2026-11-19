@@ -115,14 +115,24 @@ const frames = async (count: number) => {
 };
 
 /**
- * What ui's polite live region says after an announcement. ui clears the
- * region, then sets the text in an animation frame, so screen readers notice
- * a repeat. Frames run in the order they're asked for, so two more frames
- * guarantee it has run, however slowly a busy browser schedules them.
+ * Checks that `text` is what ui's polite live region said last. ui clears
+ * the region, then sets the text in an animation frame, so screen readers
+ * notice a repeat. Frames run in the order they're asked for, so two more
+ * frames guarantee it has run, however slowly a busy browser schedules them.
+ *
+ * Since ui 0.14.2, messages announced in the same frame are said together,
+ * separated by a space. A test's steps can fall in one frame in a busy
+ * browser, so the region may hold an earlier step's message too: `text`
+ * must be its last sentence, not all of it.
  */
 const announced = async (container: HTMLElement, text: string) => {
   await frames(2);
-  expect(container.querySelector('.hm-announcer [aria-live="polite"]')?.textContent).toBe(text);
+  const said = container.querySelector('.hm-announcer [aria-live="polite"]')?.textContent ?? "";
+  // A whole sentence: the start, or the end of the previous one, comes first.
+  const last =
+    said === text ||
+    ([".", "!", "?", "\u2026"] as const).some((end) => said.endsWith(`${end} ${text}`));
+  expect(last, `"${text}" is the last sentence of "${said}"`).toBe(true);
 };
 
 /** A host's icon, for the icons prop. */
