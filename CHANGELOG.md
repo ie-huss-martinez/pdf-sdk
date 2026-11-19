@@ -1,5 +1,18 @@
 # @hussmartinez/pdf-sdk
 
+## 0.4.3
+
+### Patch Changes
+
+- [#67](https://github.com/ie-huss-martinez/pdf-sdk/pull/67) [`3356fbf`](https://github.com/ie-huss-martinez/pdf-sdk/commit/3356fbf9f6ec99ab8d7ff24576d7decd6ac47241) Thanks [@hussmartinez](https://github.com/hussmartinez)! - pdf-sdk now depends on `@hussmartinez/ui` `^0.15.0`, up from `^0.11.0`, so it shares one ui version with the other SDKs' editors. Its `@hussmartinez/sdk-core` range is unchanged.
+  
+  Nothing changes in pdf-sdk's API or appearance. Two ui changes reach the editor:
+  
+  - Screen readers now hear messages announced in the same frame together, instead of only the last one. All the editor's announcements end with a full stop, so joined messages read as sentences.
+  - In right-to-left text, the undo and redo icons now mirror whatever builds your CSS. They follow the nearest `dir` attribute; before, Vite and Next.js builds could lose the `:dir(rtl)` rule they used.
+  
+  If your app also depends on `@hussmartinez/ui` directly, move it to 0.15 too, so your app keeps one copy (sdk-core ADR 0047).
+
 ## 0.4.2
 
 ### Patch Changes
