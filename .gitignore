@@ -10,6 +10,8 @@ test-results/
 .DS_Store
 temp/
 .vitest/
+# An agent's notes on the task in hand (AGENTS.md). Never committed.
+.local/
 # Release files. The release workflow writes them to $RUNNER_TEMP, but a
 # local run must not leave them where pnpm verify would lint them.
 publish-plan.json

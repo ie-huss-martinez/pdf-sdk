@@ -109,8 +109,8 @@ You need Node 24 (see [`.node-version`](.node-version)) and pnpm. The exact pnpm
 
 ```sh
 pnpm install       # also installs the git hooks
-pnpm verify        # everything CI runs
 pnpm verify:fast   # the subset the pre-push hook runs
+pnpm verify        # everything CI runs; it needs Docker for the browser tests
 ```
 
 The examples use the built package as an application would: [`examples/next`](examples/next) renders the editor in a Next.js App Router Server Component, and [`examples/vite`](examples/vite) has one page per asset mode, each under the Content Security Policy this README gives for it. The plain HTML example joins them with the standalone script.
