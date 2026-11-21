@@ -406,6 +406,16 @@ describe("a source's file name (docs/adr/0009)", () => {
     expect(s.getSnapshot().sources[0]).not.toHaveProperty("name");
   });
 
+  it("drops an unpaired surrogate from a given name, so it's well-formed Unicode", async () => {
+    // A File's name can't hold one: the browser replaces it. A given name can.
+    const { session: s } = session();
+    await s.open(pdf(1), { name: "scan\uD83D.pdf" });
+    const name = s.getSnapshot().sources[0]?.name as string;
+    expect(name).toBe("scan.pdf");
+    // encodeURIComponent throws on a string that isn't well-formed.
+    expect(() => encodeURIComponent(name)).not.toThrow();
+  });
+
   it("names inserted sources too, keeping the opened one first", async () => {
     const { session: s } = session();
     await s.open(file(1, "base.pdf"));

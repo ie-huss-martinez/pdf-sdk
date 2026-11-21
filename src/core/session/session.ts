@@ -1,6 +1,7 @@
 import {
   applyCommands,
   checkFile,
+  cleanFileName,
   createHistory,
   createStore,
   type HistoryStep,
@@ -24,7 +25,6 @@ import { createPdfReducer, type PdfCommand } from "../operations/commands.js";
 import type { PdfCallOptions } from "../ports/options.js";
 import type { PdfDocumentHandle, PdfEngine, PdfRenderOptions } from "../ports/pdf-engine.js";
 import type { PdfBuildOptions, PdfProcessor } from "../ports/pdf-processor.js";
-import { cleanFileName } from "./source-name.js";
 
 /**
  * A source document the session holds: opened or inserted, never changed.

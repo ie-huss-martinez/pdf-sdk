@@ -1,4 +1,4 @@
-import { cleanFileName, MAX_NAME_LENGTH } from "../../core/session/source-name.js";
+import { cleanFileName, MAX_FILE_NAME_LENGTH } from "@hussmartinez/sdk-core";
 
 /** The download's name when there's no usable one (docs/adr/0009). */
 export const DEFAULT_DOWNLOAD_NAME = "document.pdf";
@@ -16,7 +16,7 @@ export function downloadFileName(name: unknown): string {
   if (clean === undefined) return DEFAULT_DOWNLOAD_NAME;
   if (clean.toLowerCase().endsWith(EXTENSION)) return clean;
   const base = Array.from(clean)
-    .slice(0, MAX_NAME_LENGTH - EXTENSION.length)
+    .slice(0, MAX_FILE_NAME_LENGTH - EXTENSION.length)
     .join("")
     .trimEnd();
   return base === "" ? DEFAULT_DOWNLOAD_NAME : `${base}${EXTENSION}`;
