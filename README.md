@@ -121,7 +121,7 @@ The browser and end-to-end tests also need Docker. They run in the pinned browse
 
 | Step | Script | Tool |
 |---|---|---|
-| Format and lint | `lint` | Biome, then `tools/check-hidden-unicode.ts`, which fails on bidirectional formatting and zero-width characters in tracked files outside `test/fixtures`; write them as escapes |
+| Format and lint | `lint` | Biome, with sdk-config's `noUncheckedAbortListener` plugin, then `hm-check-hidden-unicode`, which fails on characters an editor or a diff doesn't show, or that reorder text, in any tracked text file. Write them as escapes (sdk-core ADR 0052) |
 | CSS rules | `lint:css` | stylelint, with the `hm-` namespace and token rules |
 | Types | `typecheck` | TypeScript |
 | Dependency rules | `lint:deps` | dependency-cruiser, through `hm-lint-deps` |

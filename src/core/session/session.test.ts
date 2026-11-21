@@ -266,6 +266,11 @@ describe("a PDF session", () => {
     const slow: PdfEngine = {
       async open(source, options) {
         await new Promise<void>((resolve, reject) => {
+          // A signal that has already aborted never fires "abort".
+          if (options?.signal?.aborted) {
+            reject(options.signal.reason);
+            return;
+          }
           pending.push(resolve);
           options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), {
             once: true,

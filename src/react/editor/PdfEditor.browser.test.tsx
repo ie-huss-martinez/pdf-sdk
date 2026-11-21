@@ -969,6 +969,11 @@ describe("PdfEditor", () => {
           async build(job, options = {}) {
             builds.started += 1;
             await new Promise<void>((resolve, reject) => {
+              // A signal that has already aborted never fires "abort".
+              if (options.signal?.aborted) {
+                reject(options.signal.reason);
+                return;
+              }
               void gate.then(resolve);
               options.signal?.addEventListener("abort", () => reject(options.signal?.reason));
             });
