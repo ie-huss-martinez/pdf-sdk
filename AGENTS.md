@@ -13,8 +13,8 @@ It publishes `@hussmartinez/pdf-sdk`: a headless core for viewing and transformi
 ## Making changes
 
 - **Pull requests:** work on a branch and open one focused pull request per change. Never push to `main`; it is protected.
-- **One pull request at a time:** after opening a pull request, stop and report its link, a short summary and your `pnpm verify` result. Start the next change only once it's merged, from an up-to-date `main`.
-- **Never merge your own pull request:** a separate reviewer reads the full diff, runs `pnpm verify` independently for code changes, and squash-merges it. An agent that wrote a pull request never reviews or merges it. See [How pull requests are reviewed](CONTRIBUTING.md#how-pull-requests-are-reviewed).
+- **One pull request at a time:** after opening a pull request, wait until the branch is up to date with `main`, CI is green on its current head, the automated review of that head has finished, and every review thread is resolved. If `main` moves first, merge it in and wait again. Then stop and report its link, its head commit, the CI run and a short summary. Start the next change only once it's merged, from an up-to-date `main`.
+- **Never merge your own pull request:** a separate reviewer reads the full diff, requires green CI on the current head, and squash-merges it. An agent that wrote a pull request never reviews or merges it. See [How pull requests are reviewed](CONTRIBUTING.md#how-pull-requests-are-reviewed).
 - **Pull request descriptions:** cover what changed, why, and how it was tested. They can be as detailed as useful, because they don't go into git history.
 - **Squash commits:** the merger writes the commit message on `main`. Its title is the pull request title plus `(#N)`, and its body is 2–6 lines of plain prose. See [How pull requests are merged](CONTRIBUTING.md#how-pull-requests-are-merged).
 - **Commits:** follow Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `chore:`). The pull request title becomes the squash commit, so write it as a Conventional Commit too.
@@ -40,7 +40,21 @@ These follow from the standards; they're repeated here because they apply to alm
 
 ## Verifying changes
 
-- **Hooks:** they run automatically: linting and a secret scan on commit, commit message checks, and `pnpm verify:fast` on push. Never use `--no-verify`. If a hook is wrong or too slow, fix it in its own pull request.
-- **Before marking a pull request ready,** run the full `pnpm verify` locally and report its results in the description.
-- **CI:** it runs `pnpm verify` on Chromium, Firefox and WebKit, checks the pull request title, and checks for a changeset when the published package changes. All three must pass before merging. CI is the final gate, not a substitute for local verification.
+- **Hooks are the local bar** ([sdk-core ADR 0053](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0053-ci-is-the-merge-gate.md)). They run automatically: linting and a secret scan of staged files on commit, commit message checks, and `pnpm verify:fast` on push. Never use `--no-verify`. If a hook is wrong or too slow, fix it in its own pull request.
+- **CI is the merge gate.** It runs the full `pnpm verify` on Chromium, Firefox and WebKit, including the hidden-character check in `pnpm lint`, and it checks the pull request title and the changeset. Every check must pass on the pull request's current head before merging. Don't run the full `pnpm verify` or the browser suites locally as a routine step. Run them to diagnose a failure, to reproduce one from CI, or to capture screenshots.
+- **A failure that only shows in CI is real.** Find its cause. Never loosen an assertion, add a retry or rerun until it passes. `hm-in-image` runs any command in CI's image.
+- **Automated review:** CodeRabbit reviews every pull request, and reviews again after each push. Wait for its review of the current head to finish before you look at its threads: no open thread while it's still reviewing means nothing yet. Fix or answer each thread it opens, then resolve it. A pull request isn't ready while a thread is open, and a new push can open more.
+- **In the description,** say what you ran and what you didn't, such as "browser suites not run locally; CI covers them".
 - **Never weaken a check to make it pass.** That includes lint rules, size budgets, the API report, accessibility checks, file limits and the no-network assertion. Fix the cause, or propose the change in its own pull request with an ADR if the rule itself is wrong.
+
+## Keeping state
+
+- **Task state:** keep the state of the task in hand in `.local/HANDOFF.md`, which `.gitignore` excludes, and update it after every step. Record:
+  - the goal and decisions;
+  - what's done, with pull requests and commits;
+  - what's in progress, with the exact next step;
+  - open questions.
+
+  It must let another agent, with no other context, continue the work. In a checkout from before `.local/` was ignored, add it to the file `git rev-parse --git-path info/exclude` prints, which also works in a worktree.
+- **Durable memory:** what outlives the task, such as a lesson or a rule from the maintainer, goes in the maintainer's knowledge base, in the SDK family's agent memory, not in a tool's private memory. Never write it into the repository, and never put a secret in either place.
+- **What the repository already records stays there:** code, ADRs, `STANDARDS.md` and git history aren't copied into either.
