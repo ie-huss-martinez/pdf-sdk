@@ -1,3 +1,4 @@
+import { browserTimeouts, unitTimeouts } from "@hussmartinez/sdk-config/testing/timeouts";
 import { playwright } from "@vitest/browser-playwright";
 import type { Page, Request } from "playwright";
 import { defineConfig } from "vitest/config";
@@ -63,6 +64,9 @@ export default defineConfig(({ mode }) => {
         {
           test: {
             name: "unit",
+            // The family's limits (sdk-core ADR 0057): a test fails only when
+            // it hangs, not because the machine was busy.
+            ...unitTimeouts,
             // build.test.ts checks the built package, so it sits next to the
             // Vite config rather than in src/. test/ holds the repository's
             // own checks, such as the CI image.
@@ -89,6 +93,7 @@ export default defineConfig(({ mode }) => {
           },
           test: {
             name: "browser",
+            ...browserTimeouts,
             include: ["src/**/*.browser.test.{ts,tsx}", "test/**/*.browser.test.ts"],
             // Browser tests run only in the pinned image or CI, where they
             // can be trusted; elsewhere this stops them with what to run

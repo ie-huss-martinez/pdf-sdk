@@ -1,3 +1,5 @@
+import { webServersFor } from "@hussmartinez/sdk-config/testing/require-image";
+import { endToEndTimeouts } from "@hussmartinez/sdk-config/testing/timeouts";
 import { defineConfig, devices } from "@playwright/test";
 
 const ci = Boolean(process.env["CI"]);
@@ -10,6 +12,9 @@ const ci = Boolean(process.env["CI"]);
  * in CI, as for the other browser tests.
  */
 export default defineConfig({
+  // The family's limits (sdk-core ADR 0057): 60 s for a test, 10 s for an
+  // assertion that waits.
+  ...endToEndTimeouts,
   testDir: "tests",
   // Only in the pinned image or CI, where a run can be trusted; elsewhere
   // this stops the suite with what to run instead (sdk-core ADR 0049).
@@ -29,7 +34,9 @@ export default defineConfig({
     .map(([name, device]) => ({ name, use: { ...devices[device] } })),
   // Started with Node directly, so the suite also runs where pnpm isn't
   // installed, such as a pinned browser image.
-  webServer: [
+  // None where the guard will refuse, so its message is the first and only
+  // thing a host run shows, before any example is built.
+  webServer: webServersFor([
     {
       command: "node node_modules/next/dist/bin/next start --port 4321",
       cwd: "../examples/next",
@@ -45,5 +52,5 @@ export default defineConfig({
       reuseExistingServer: !ci,
       timeout: 60_000,
     },
-  ],
+  ]),
 });

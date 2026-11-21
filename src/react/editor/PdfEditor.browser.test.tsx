@@ -94,10 +94,10 @@ const settle = async (container: HTMLElement, status: string, timeout?: number) 
 };
 
 /**
- * How long the file's first open may take, in milliseconds. It's the slowest
- * open in the file, and on a loaded machine WebKit has run past the browser
- * tests' default of fifteen seconds there, so its test and its wait allow
- * thirty. Later opens stay within the defaults.
+ * How long the wait for the file's first open may take, in milliseconds. It's
+ * the slowest open in the file: on a loaded machine WebKit has taken more
+ * than fifteen seconds there. It stays under the test's own limit, sdk-config's
+ * browserTimeouts (sdk-core ADR 0057). Later opens use the default wait.
  */
 const FIRST_OPEN = 30_000;
 
@@ -163,9 +163,7 @@ describe("PdfEditor", () => {
     );
   });
 
-  it("opens a chosen file, announces it and moves focus to the document", {
-    timeout: FIRST_OPEN,
-  }, async () => {
+  it("opens a chosen file, announces it and moves focus to the document", async () => {
     const { mounted, changes } = setUp();
     const container = await mounted;
     (button(container) as HTMLButtonElement).focus();
@@ -421,10 +419,7 @@ describe("PdfEditor", () => {
       return unsteady;
     }
 
-    // A scan of a dozen heights, ten frames each: WebKit under load needs time.
-    it("keeps the viewer's width still when its page only just overflows", {
-      timeout: 60_000,
-    }, async (context) => {
+    it("keeps the viewer's width still when its page only just overflows", async (context) => {
       const { mounted, handle } = setUp(
         {},
         "width: 800px; height: 1400px; display: grid; grid-template-rows: minmax(0, 1fr);",
@@ -449,9 +444,7 @@ describe("PdfEditor", () => {
       }
     });
 
-    it("keeps the thumbnails' width still when they only just overflow", {
-      timeout: 60_000,
-    }, async (context) => {
+    it("keeps the thumbnails' width still when they only just overflow", async (context) => {
       const { mounted, handle } = setUp(
         {},
         "width: 800px; height: 1400px; display: grid; grid-template-rows: minmax(0, 1fr);",

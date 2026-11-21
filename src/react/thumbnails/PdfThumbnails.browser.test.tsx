@@ -119,9 +119,7 @@ describe("PdfThumbnails", () => {
     expect(session.getSnapshot().selection).toEqual(["p4", "p5"]);
   });
 
-  it("brings the chosen page into view in the viewer, and follows the viewer's scrolling", {
-    timeout: 30_000,
-  }, async () => {
+  it("brings the chosen page into view in the viewer, and follows the viewer's scrolling", async () => {
     const session = await opened(30);
     const container = await mount(layout(session, true), SIDE_BY_SIDE);
     const viewer = container.querySelector("section") as HTMLElement;
