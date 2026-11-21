@@ -101,6 +101,30 @@ The SDK runs two workers: pdf.js's, which renders, and one with qpdf and pdf-lib
 
 `assetsUrl` can be absolute or relative to the page, such as `/pdf-sdk/`. A relative one is resolved when a worker first starts, in the browser, so `PdfEditor`, `PdfSessionProvider`, `createPdfJsEngine` and `createPdfProcessor` all accept it on a server. A URL with a query or a fragment is refused, because the files resolved from it would lose them: the components throw `TypeError` as they render, and `createPdfJsEngine` and `createPdfProcessor` throw it when you call them.
 
+### Leaving the inlined workers out
+
+An app that passes `assetsUrl` never loads the inlined workers, decoders and data files, but its bundler still emits them: about 5 MB of chunks that are never used. Set the `hm-self-hosted` resolve condition in the app's bundler to leave them out. The SDK reaches them through its package's `imports`, and the condition maps each one to a small stub instead ([sdk-core ADR 0060](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0060-leaving-inlined-workers-out-of-a-self-hosted-build.md)).
+
+With Vite, which replaces its default conditions with the list you give, so keep them:
+
+```ts
+import { defaultClientConditions, defineConfig } from "vite";
+
+export default defineConfig({
+  resolve: { conditions: [...defaultClientConditions, "hm-self-hosted"] },
+});
+```
+
+With esbuild, which drops its `module` condition once you set any, so keep it:
+
+```js
+await build({ /* ... */ conditions: ["hm-self-hosted", "module"] });
+```
+
+webpack (`resolve.conditionNames: ["hm-self-hosted", "..."]`), Rollup (`nodeResolve({ exportConditions: ["hm-self-hosted"] })`) and Next.js through its webpack configuration should work the same way, but they aren't tested yet.
+
+Set the condition only in a build that passes `assetsUrl` everywhere it creates an engine or a processor. A worker started without it in such a build fails with `WORKER_START_FAILED`, whose `details` are `{ condition: "hm-self-hosted", missing: "assetsUrl" }`.
+
 ## Development
 
 The repository root is the published package, laid out as in the family's [standard layout](https://github.com/ie-huss-martinez/sdk-core/blob/main/STANDARDS.md#repository-layout): the source is in [`src`](src), and the pnpm workspace adds the examples in [`examples`](examples) and the end-to-end tests in [`e2e`](e2e) ([sdk-core ADR 0039](https://github.com/ie-huss-martinez/sdk-core/blob/main/docs/adr/0039-test-applications-in-each-repository.md)).

@@ -1,7 +1,7 @@
 import { type AssetsResolver, createAssetsResolver } from "@hussmartinez/sdk-core";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, PDFWorker } from "pdfjs-dist";
 import { abortError, throwIfAborted } from "../../core/errors/abort.js";
-import { PdfError } from "../../core/errors/pdf-error.js";
+import { isPdfError, PdfError } from "../../core/errors/pdf-error.js";
 import { pdfLimitDefinitions } from "../../core/errors/pdf-limits.js";
 import { assertPageIndex, copyBytes } from "../../core/model/bytes.js";
 import type {
@@ -330,8 +330,11 @@ class PdfJsEngine implements PdfEngine {
       const base = this.#assetsBase();
       worker = base
         ? new Worker(`${base}build/pdf.worker.min.mjs`, { type: "module", name: "hm-pdf-render" })
-        : (await import("./render-worker.js")).createInlineWorker();
+        : (await import("#hm-pdf-render-worker")).createInlineWorker();
     } catch (cause) {
+      // Already the reason, such as a build that left the inlined worker
+      // out with the hm-self-hosted condition (sdk-core ADR 0060).
+      if (isPdfError(cause, "WORKER_START_FAILED")) throw cause;
       throw new PdfError("WORKER_START_FAILED", "The PDF render worker couldn't start.", {
         cause,
       });

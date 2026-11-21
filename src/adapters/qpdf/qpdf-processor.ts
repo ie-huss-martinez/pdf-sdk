@@ -4,7 +4,7 @@ import {
   type WorkerClient,
 } from "@hussmartinez/sdk-core";
 import { asPdfError } from "../../core/errors/abort.js";
-import { PdfError } from "../../core/errors/pdf-error.js";
+import { isPdfError, PdfError } from "../../core/errors/pdf-error.js";
 import type { PdfBuildJob } from "../../core/model/build-job.js";
 import type { PdfBuildOptions, PdfProcessor } from "../../core/ports/pdf-processor.js";
 import type { ProcessingContract } from "./contract.js";
@@ -89,7 +89,7 @@ export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProces
         throw new PdfError("WORKER_TERMINATED", "The PDF processor was destroyed.");
       }
       if (!asset) {
-        inlineWorker ??= (await import("./processing-worker.js")).createInlineWorker;
+        inlineWorker ??= (await import("#hm-pdf-processing-worker")).createInlineWorker;
       }
       let outcome: Awaited<ReturnType<WorkerClient<ProcessingContract>["call"]>>;
       try {
@@ -99,6 +99,11 @@ export function createPdfProcessor(options: PdfProcessorOptions = {}): PdfProces
           ...(options.transfer ? { transfer: true } : {}),
         });
       } catch (error) {
+        // A worker that couldn't start for a reason of its own keeps it, such
+        // as a build that left the inlined worker out with the hm-self-hosted
+        // condition (sdk-core ADR 0060). The client reports it as the cause.
+        const cause = error instanceof Error ? error.cause : undefined;
+        if (isPdfError(cause, "WORKER_START_FAILED")) throw cause;
         // The client's own failures, such as ABORTED or WORKER_CRASHED, are
         // SdkErrors; the port promises PdfError.
         throw asPdfError(error, "The PDF couldn't be built.");

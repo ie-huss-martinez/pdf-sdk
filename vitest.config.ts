@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { browserTimeouts, unitTimeouts } from "@hussmartinez/sdk-config/testing/timeouts";
 import { playwright } from "@vitest/browser-playwright";
 import type { Page, Request } from "playwright";
@@ -7,6 +8,7 @@ import { versionDefine } from "./tools/package-version.js";
 import { pdfJsData } from "./tools/pdfjs-data-plugin.js";
 import { qpdfWasm } from "./tools/qpdf-wasm-plugin.js";
 import { testAssets } from "./tools/test-assets-plugin.js";
+import { selfHostedImports } from "./vite.config.js";
 
 /**
  * Records every request the browser makes, from the page, its frames and its
@@ -56,6 +58,14 @@ export default defineConfig(({ mode }) => {
   return {
     // Serves pdf.js's data files to the SDK, as in the build (docs/adr/0002).
     plugins: [pdfJsData(), qpdfWasm(), testAssets()],
+    // The tests run the source: package.json's imports name the built files
+    // (sdk-core ADR 0060), so each one points at its module here.
+    resolve: {
+      alias: Object.entries(selfHostedImports).map(([find, path]) => ({
+        find,
+        replacement: fileURLToPath(new URL(path, import.meta.url)),
+      })),
+    },
     define: versionDefine(),
     // The processing worker inlines qpdf's WebAssembly, as in the build.
     worker: { format: "es", plugins: () => [qpdfWasm()] },

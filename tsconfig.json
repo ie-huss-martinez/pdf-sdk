@@ -2,7 +2,15 @@
   "extends": "@hussmartinez/sdk-config/tsconfig/browser",
   "compilerOptions": {
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    // The inlined workers and data, which package.json's imports map to the
+    // built files, or to a stub with the hm-self-hosted condition (sdk-core
+    // ADR 0060). The source is typed from the modules themselves.
+    "paths": {
+      "#hm-pdf-render-worker": ["./src/adapters/pdfjs/render-worker.ts"],
+      "#hm-pdf-processing-worker": ["./src/adapters/qpdf/processing-worker.ts"],
+      "#hm-pdf-inline-data": ["./src/adapters/pdfjs/inline-data.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/fixtures", "src/test"]

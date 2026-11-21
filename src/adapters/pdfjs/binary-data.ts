@@ -37,7 +37,8 @@ export function createInlineDataFactory(listener?: PdfJsDataListener) {
       filename: string;
     }): Promise<Uint8Array> {
       listener?.(kind, filename);
-      const { pdfJsData } = await import("virtual:hm-pdfjs-data");
+      const { inlineData } = await import("#hm-pdf-inline-data");
+      const pdfJsData = inlineData();
       const files = Object.hasOwn(pdfJsData, kind) ? pdfJsData[kind] : undefined;
       const load = files && Object.hasOwn(files, filename) ? files[filename] : undefined;
       if (!load) {
