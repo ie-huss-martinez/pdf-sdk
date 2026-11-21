@@ -1,5 +1,11 @@
 # @hussmartinez/pdf-sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- [#80](https://github.com/ie-huss-martinez/pdf-sdk/pull/80) [`f9abec4`](https://github.com/ie-huss-martinez/pdf-sdk/commit/f9abec43e3bcd85ffe3c15c844a4c2cadc8a0df0) Thanks [@hussmartinez](https://github.com/hussmartinez)! - The SDK now depends on `@hussmartinez/ui` `^0.16.0`, up from `^0.15.0`. If your application depends on ui itself, move it to `^0.16.0` too, so `npm ls @hussmartinez/ui` lists one copy: a second copy doesn't share providers with the first, so text falls back to English and announcements are lost. ui 0.16 only adds things, such as `Heading` and `HeadingLevel`; the PDF editor renders no headings, so it takes no `headingLevel`, and nothing else changes.
+
 ## 0.5.0
 
 ### Minor Changes
