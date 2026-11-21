@@ -59,8 +59,9 @@ async function drawn(page: Page, { wide = false } = {}): Promise<void> {
     page.locator(".hm-pdf-page-canvas").first(),
   ];
   for (const canvas of firsts) {
-    // The first drawing starts the render worker and pdf.js, which takes
-    // longer than the default 5 s on a loaded machine.
+    // The first drawing starts the render worker and pdf.js, which can take
+    // longer than the 10 s an assertion waits by default (sdk-core ADR 0057)
+    // on a loaded machine.
     await expect
       .poll(
         () =>

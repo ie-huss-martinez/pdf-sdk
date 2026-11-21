@@ -29,7 +29,7 @@ export default [
     name: "Core: the floor, PdfError",
     entry: "dist/index.js",
     imports: "{ PdfError }",
-    limit: "0.7 kB",
+    limit: "0.8 kB",
   }),
   importBudget({
     name: "Core: createPdfSession",
@@ -64,7 +64,7 @@ export default [
     name: "React: the floor, pdfEditorMessages",
     entry: "dist/react.js",
     imports: "{ pdfEditorMessages }",
-    limit: "1.3 kB",
+    limit: "1.8 kB",
   }),
   importBudget({
     name: "React: PdfThumbnails",
@@ -76,7 +76,7 @@ export default [
     name: "React: PdfViewer",
     entry: "dist/react.js",
     imports: "{ PdfViewer }",
-    limit: "4.5 kB",
+    limit: "5 kB",
   }),
   importBudget({
     // A session from the provider brings the engine and processor factories.

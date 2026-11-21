@@ -441,9 +441,7 @@ function add(key: string, annotation: unknown) {
   return { type: "pdf.addAnnotation", page: key, annotation } as PdfCommand;
 }
 
-// Thousands of generated runs take about a second alone, and several times
-// that while the rest of verify runs in parallel.
-describe("the reducer's properties (sdk-core ADR 0045)", { timeout: 30_000 }, () => {
+describe("the reducer's properties (sdk-core ADR 0045)", () => {
   const onGrid = (value: number) =>
     Math.round(value * PDF_POSITION_GRID) / PDF_POSITION_GRID === value;
 

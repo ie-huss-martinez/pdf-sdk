@@ -23,11 +23,7 @@ const PLANS = new URL("../../conformance/hm-pdf-plan.json", import.meta.url);
 
 const text = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 
-// Generating thousands of cases takes a few seconds, more while the rest of
-// verify runs in parallel.
-const SLOW = { timeout: 60_000 };
-
-it("keeps the checked-in cases up to date with their generator", SLOW, async () => {
+it("keeps the checked-in cases up to date with their generator", async () => {
   // `pnpm conformance:update` rewrites them.
   await expect(text(planCases())).toMatchFileSnapshot("../../conformance/hm-pdf-plan.json");
   await expect(text(commandCases())).toMatchFileSnapshot("../../conformance/hm-pdf-commands.json");
@@ -93,7 +89,7 @@ describe("the format schemas agree with the readers", () => {
     }
   });
 
-  it("never let the reducer apply a command the schema refuses", SLOW, () => {
+  it("never let the reducer apply a command the schema refuses", () => {
     const cases = steps(3).chain(({ plan }) =>
       commandFor(plan).chain((command) => {
         const json = toPdfCommandDocument(command);
@@ -117,7 +113,7 @@ describe("the format schemas agree with the readers", () => {
     );
   });
 
-  it("never let the reader accept a document the schema refuses", SLOW, () => {
+  it("never let the reader accept a document the schema refuses", () => {
     const document = steps(6).map(({ plan }) => toPdfPlanDocument(plan, sources));
     const nested = document.chain((value) =>
       fc.constantFrom("sources", "pages", "formValues" as const).chain((part) =>
