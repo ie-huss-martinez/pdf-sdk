@@ -19,7 +19,7 @@ on main. See CONTRIBUTING.md for how pull requests are merged.
 ## Checklist
 
 - [ ] The git hooks ran (no `--no-verify`), and CI is green on the current head.
-- [ ] Every review thread is fixed or answered, and resolved.
+- [ ] The automated review of the current head has finished, and every review thread is fixed or answered, and resolved.
 - [ ] Tests cover the change, next to the code.
 - [ ] Exported APIs are typed and have TSDoc, and the API report is updated where the package has one.
 - [ ] New dependencies are justified above.
