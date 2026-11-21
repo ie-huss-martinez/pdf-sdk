@@ -11,6 +11,9 @@ const ci = Boolean(process.env["CI"]);
  */
 export default defineConfig({
   testDir: "tests",
+  // Only in the pinned image or CI, where a run can be trusted; elsewhere
+  // this stops the suite with what to run instead (sdk-core ADR 0049).
+  globalSetup: "@hussmartinez/sdk-config/testing/require-image",
   forbidOnly: ci,
   retries: 0,
   reporter: ci ? "line" : "list",
