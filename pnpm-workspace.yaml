@@ -22,7 +22,7 @@ catalog:
   "@commitlint/cli": ^21.2.4
   "@hussmartinez/sdk-config": ^0.11.5
   "@hussmartinez/sdk-core": ^0.4.7
-  "@hussmartinez/ui": ^0.15.0
+  "@hussmartinez/ui": ^0.16.0
   "@microsoft/api-extractor": ^7.60.1
   # The browser test image's version (ci/Dockerfile), so the tests drive the
   # browsers the image installed (sdk-core ADR 0049).
