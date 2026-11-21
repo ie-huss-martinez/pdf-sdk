@@ -39,6 +39,20 @@
     "./formats/*": "./formats/*",
     "./package.json": "./package.json"
   },
+  "imports": {
+    "#hm-pdf-render-worker": {
+      "hm-self-hosted": "./dist/lazy/no-inline-workers.js",
+      "default": "./dist/lazy/render-worker.js"
+    },
+    "#hm-pdf-processing-worker": {
+      "hm-self-hosted": "./dist/lazy/no-inline-workers.js",
+      "default": "./dist/lazy/processing-worker.js"
+    },
+    "#hm-pdf-inline-data": {
+      "hm-self-hosted": "./dist/lazy/no-inline-workers.js",
+      "default": "./dist/lazy/inline-data.js"
+    }
+  },
   "files": [
     "dist",
     "formats",

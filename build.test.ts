@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { keptCode } from "@hussmartinez/sdk-config/size";
+import { build as esbuild } from "esbuild";
 import { build, type Rolldown } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PDFJS_DATA } from "./tools/pdfjs-data-plugin.js";
@@ -125,10 +126,7 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
   it("generate no code from strings, in any chunk, including the inlined worker", () => {
     const javascript = files.filter((file) => file.type === "chunk");
     expect(javascript.map((file) => file.fileName)).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/^lazy\/render-worker-/),
-        expect.stringMatching(/^lazy\/processing-worker-/),
-      ]),
+      expect.arrayContaining(["lazy/render-worker.js", "lazy/processing-worker.js"]),
     );
     for (const file of javascript) {
       expect(file.code, file.fileName).not.toMatch(CODE_GENERATION);
@@ -141,23 +139,40 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
         for (const imported of file.imports) expect(imported, entry).not.toMatch(/^lazy\//);
       }
     }
+    // The inlined workers and data load through package.json's imports, which
+    // the host's bundler resolves (sdk-core ADR 0060).
     expect(loaded("index.js").flatMap((file) => file.dynamicImports)).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^lazy\/runtime-/),
-        expect.stringMatching(/^lazy\/render-worker-/),
-        expect.stringMatching(/^lazy\/processing-worker-/),
+        "#hm-pdf-render-worker",
+        "#hm-pdf-processing-worker",
+        "#hm-pdf-inline-data",
       ]),
     );
   });
 
   it("ship no worker source maps", () => {
     expect(files.filter((file) => /\.worker-[\w-]+\.js\.map$/.test(file.fileName))).toEqual([]);
-    const worker = chunk(
-      files.find((file) => /^lazy\/render-worker-[\w-]+\.js$/.test(file.fileName))?.fileName ?? "",
-    );
+    const worker = chunk("lazy/render-worker.js");
     expect(worker.code).not.toMatch(/sourceMappingURL=pdfjs/);
   });
 });
+
+/**
+ * Writes this build into `dir` as an installed package would hold it: its
+ * JavaScript under dist/, and a package.json with its exports and imports,
+ * so imports such as `#hm-pdf-render-worker` resolve as they do for a host.
+ */
+async function writePackage(dir: string): Promise<void> {
+  for (const file of files) {
+    if (file.type !== "chunk") continue;
+    await mkdir(dirname(join(dir, "dist", file.fileName)), { recursive: true });
+    await writeFile(join(dir, "dist", file.fileName), file.code);
+  }
+  const manifest = JSON.parse(await readFile(new URL("package.json", import.meta.url), "utf8"));
+  const { name, type, exports, imports } = manifest;
+  await writeFile(join(dir, "package.json"), JSON.stringify({ name, type, exports, imports }));
+}
 
 describe("tree shaking (sdk-core ADR 0056)", () => {
   /**
@@ -169,11 +184,8 @@ describe("tree shaking (sdk-core ADR 0056)", () => {
   async function kept(names: string) {
     const dir = await mkdtemp(join(tmpdir(), "hm-pdf-sdk-shake-"));
     try {
-      for (const file of loaded("react.js")) {
-        await mkdir(dirname(join(dir, file.fileName)), { recursive: true });
-        await writeFile(join(dir, file.fileName), file.code);
-      }
-      return await keptCode(join(dir, "react.js"), names);
+      await writePackage(dir);
+      return await keptCode(join(dir, "dist/react.js"), names);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -185,6 +197,62 @@ describe("tree shaking (sdk-core ADR 0056)", () => {
     // whose arguments might have effects.
     const { calls } = await kept("{ pdfEditorMessages }");
     expect(calls.map(({ call }) => call)).not.toContain("defineTool");
+  });
+});
+
+describe("the hm-self-hosted condition (sdk-core ADR 0060)", () => {
+  /**
+   * Bundles an application that passes assetsUrl against this build, laid
+   * out as an installed package, with esbuild and `conditions`. Returns the
+   * code of every output file.
+   */
+  async function bundle(conditions: string[]): Promise<string[]> {
+    const dir = await mkdtemp(join(tmpdir(), "hm-pdf-sdk-condition-"));
+    try {
+      await writePackage(join(dir, "node_modules/@hussmartinez/pdf-sdk"));
+      await writeFile(
+        join(dir, "app.js"),
+        [
+          'import { createPdfJsEngine, createPdfProcessor } from "@hussmartinez/pdf-sdk";',
+          'export const engine = createPdfJsEngine({ assetsUrl: "/pdf-sdk/" });',
+          'export const processor = createPdfProcessor({ assetsUrl: "/pdf-sdk/" });',
+        ].join("\n"),
+      );
+      const result = await esbuild({
+        absWorkingDir: dir,
+        entryPoints: ["app.js"],
+        bundle: true,
+        format: "esm",
+        splitting: true,
+        outdir: "out",
+        write: false,
+        logLevel: "silent",
+        conditions,
+        external: externalPackages,
+      });
+      return result.outputFiles.map((output) => output.text);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  /** An inlined worker: Vite turns it into a blob that revokes its own URL. */
+  const inlinedWorker = (code: string) => code.includes("URL.revokeObjectURL(import.meta.url);");
+  /** A WebAssembly module as base64: "\0asm" encodes as "AGFzbQ". */
+  const inlinedWasm = (code: string) => code.includes("AGFzbQ");
+
+  it("leaves every inlined worker and WebAssembly module out of a build that sets it", async () => {
+    const outputs = await bundle(["hm-self-hosted"]);
+    expect(outputs.filter(inlinedWorker)).toEqual([]);
+    expect(outputs.filter(inlinedWasm)).toEqual([]);
+    expect(outputs.join("\n")).toContain("left the PDF SDK's inlined workers out");
+  });
+
+  it("keeps them in a build that doesn't, as before", async () => {
+    const outputs = await bundle([]);
+    expect(outputs.filter(inlinedWorker)).toHaveLength(2);
+    expect(outputs.some(inlinedWasm)).toBe(true);
+    expect(outputs.join("\n")).not.toContain("left the PDF SDK's inlined workers out");
   });
 });
 
@@ -277,7 +345,7 @@ function base64Runs(code: string, minimum: number): string[] {
 describe("the processing worker (docs/adr/0001, docs/adr/0002)", () => {
   const workers = files.filter(
     (file): file is Rolldown.OutputChunk =>
-      file.type === "chunk" && /^lazy\/(?:render|processing)-worker-/.test(file.fileName),
+      file.type === "chunk" && /^lazy\/(?:render|processing)-worker\.js$/.test(file.fileName),
   );
   const processing = workers.find((file) => file.code.includes("hm-pdf-no-network:/qpdf.wasm"));
 

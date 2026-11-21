@@ -19,7 +19,21 @@ export const externalPackages = [
   ...Object.keys(manifest.dependencies ?? {}),
   ...Object.keys(manifest.peerDependencies ?? {}),
 ];
+/**
+ * The package's own imports of its inlined workers and data, by the names in
+ * package.json's imports. They stay imports in the build, so the host's
+ * bundler resolves each one: to the built file by default, or to a stub with
+ * the hm-self-hosted condition, which leaves the inlined copies out of a
+ * build that self-hosts the assets (sdk-core ADR 0060).
+ */
+export const selfHostedImports = {
+  "#hm-pdf-render-worker": "src/adapters/pdfjs/render-worker.ts",
+  "#hm-pdf-processing-worker": "src/adapters/qpdf/processing-worker.ts",
+  "#hm-pdf-inline-data": "src/adapters/pdfjs/inline-data.ts",
+} as const;
+
 const isExternal = (id: string): boolean =>
+  Object.hasOwn(selfHostedImports, id) ||
   externalPackages.some((name) => id === name || id.startsWith(`${name}/`));
 
 /** One built file per public entry point (ADR 0004). */
@@ -28,6 +42,18 @@ export const entries = {
   react: "src/react.ts",
   element: "src/element.ts",
   styles: "src/styles.css",
+} as const;
+
+/**
+ * The targets of package.json's imports, built under stable names in lazy/,
+ * where its imports map points (sdk-core ADR 0060): each inlined worker and
+ * the data, and the stub that stands in for all of them.
+ */
+const lazyEntries = {
+  "lazy/render-worker": selfHostedImports["#hm-pdf-render-worker"],
+  "lazy/processing-worker": selfHostedImports["#hm-pdf-processing-worker"],
+  "lazy/inline-data": selfHostedImports["#hm-pdf-inline-data"],
+  "lazy/no-inline-workers": "src/adapters/no-inline-workers.ts",
 } as const;
 
 const entryFiles = new Set(
@@ -89,7 +115,7 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: entries,
+      entry: { ...entries, ...lazyEntries },
       formats: ["es"],
     },
     // Required for a CSS file as an entry; it's then emitted as its own file.
