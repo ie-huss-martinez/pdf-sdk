@@ -1,5 +1,11 @@
 # @hussmartinez/pdf-sdk
 
+## 0.4.5
+
+### Patch Changes
+
+- [#74](https://github.com/ie-huss-martinez/pdf-sdk/pull/74) [`9753014`](https://github.com/ie-huss-martinez/pdf-sdk/commit/975301488b7787b668b5039129a9490bebce01a7) Thanks [@hussmartinez](https://github.com/hussmartinez)! - Applications that import only part of `@hussmartinez/pdf-sdk/react` ship about 0.9 kB less (brotli), for example only `pdfEditorMessages`, `PdfViewer` or `PdfThumbnails`. Before, a call in the move tools' definitions stopped bundlers that can't prove it has no effects, such as esbuild, from dropping the editor's tools: every tool went into every such bundle. Nothing changes in the API or in what the editor does.
+
 ## 0.4.4
 
 ### Patch Changes
