@@ -90,6 +90,10 @@ export default defineConfig(({ mode }) => {
           test: {
             name: "browser",
             include: ["src/**/*.browser.test.{ts,tsx}", "test/**/*.browser.test.ts"],
+            // Browser tests run only in the pinned image or CI, where they
+            // can be trusted; elsewhere this stops them with what to run
+            // instead (sdk-core ADR 0049).
+            globalSetup: ["@hussmartinez/sdk-config/testing/require-image"],
             browser: {
               enabled: true,
               headless: true,
