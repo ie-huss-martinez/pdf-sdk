@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { keptCode } from "@hussmartinez/sdk-config/size";
 import { build, type Rolldown } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PDFJS_DATA } from "./tools/pdfjs-data-plugin.js";
@@ -154,6 +156,35 @@ describe("the bundled PDF engines (docs/adr/0001)", () => {
       files.find((file) => /^lazy\/render-worker-[\w-]+\.js$/.test(file.fileName))?.fileName ?? "",
     );
     expect(worker.code).not.toMatch(/sourceMappingURL=pdfjs/);
+  });
+});
+
+describe("tree shaking (sdk-core ADR 0056)", () => {
+  /**
+   * What an application that imports `names` from the React entry keeps of
+   * it, bundled by esbuild as sdk-config's import budgets are. Vite's own
+   * bundler drops more, but a host's toolchain may not, so the check uses
+   * esbuild.
+   */
+  async function kept(names: string) {
+    const dir = await mkdtemp(join(tmpdir(), "hm-pdf-sdk-shake-"));
+    try {
+      for (const file of loaded("react.js")) {
+        await mkdir(dirname(join(dir, file.fileName)), { recursive: true });
+        await writeFile(join(dir, file.fileName), file.code);
+      }
+      return await keptCode(join(dir, "react.js"), names);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("leaves every tool out of an application that imports only the catalogue", async () => {
+    // A call in a tool's definition, such as isEnabled: canMove("earlier"),
+    // kept every tool in such a bundle: a bundler can't drop a pure call
+    // whose arguments might have effects.
+    const { calls } = await kept("{ pdfEditorMessages }");
+    expect(calls.map(({ call }) => call)).not.toContain("defineTool");
   });
 });
 

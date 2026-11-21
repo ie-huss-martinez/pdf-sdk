@@ -34,6 +34,9 @@ catalog:
   "@vitest/browser-playwright": 5.1.0
   ajv: ^8.20.0
   dependency-cruiser: ^18.7.2
+  # Bundles imports as an application would, for sdk-config's keptCode in
+  # build.test.ts and its size helpers (sdk-core ADR 0056).
+  esbuild: ^0.28.2
   fast-check: ^4.10.2
   husky: ^9.1.7
   lint-staged: ^17.6.0
@@ -53,8 +56,12 @@ catalog:
   vitest: ^5.1.0
 
 # Supply-chain hardening (ADR 0012).
-# Dependency install scripts are blocked unless allowlisted here.
+# Dependency install scripts are blocked unless allowlisted here. A package
+# set to false is refused on purpose, so strictDepBuilds doesn't fail on it:
+# esbuild finds its binary through its optional platform package without its
+# postinstall.
 allowBuilds:
+  esbuild: false
   # Next.js's optional image optimiser; the examples don't use next/image.
   sharp: false
 # Fail the install when an unapproved package wants to run a build script.
