@@ -132,7 +132,7 @@ The browser and end-to-end tests also need Docker. They run in the pinned browse
 | Examples | `build:examples` | Production builds of the Next.js and Vite examples, against the built package |
 | End-to-end tests | `test:e2e` | Playwright in the browser test image, against the examples: server rendering and hydration, axe, no foreign requests, and both asset modes under the Content Security Policies above |
 | Visual regression | `test:visual` | `hm-test-visual`: screenshots of the editor's states in [`e2e/visual`](e2e/visual), on Chromium in the browser test image, in light and dark, compact and comfortable (sdk-core ADR 0048). `pnpm test:visual:update` rewrites the baselines |
-| Size budgets | `check:size` | size-limit, brotli size of each entry point |
+| Size budgets | `check:size` | size-limit, in brotli: each entry's ceiling as built, what an application ships when it imports part of the core or React entry, and each lazy chunk ([`.size-limit.js`](.size-limit.js), sdk-core ADR 0055 and ADR 0056). `pnpm exec hm-size --exports dist/react.js` shows what each export costs |
 | API reports | `check:api` | api-extractor, one report per entry point in [`api`](api), and `hm-check-api-reports` across them |
 | Package checks | `check:package` | publint and Are the Types Wrong? |
 
