@@ -54,10 +54,14 @@ function move({ session }: PdfToolContext, direction: MoveDirection): void {
   );
 }
 
-const canMove =
-  (direction: MoveDirection) =>
-  ({ snapshot }: PdfToolState): boolean =>
-    hasDocument({ snapshot }) && moveOf(snapshot, direction) !== undefined;
+/**
+ * Whether the tool can move pages in `direction`. Tools call it from an arrow
+ * of their own rather than being given a function it returns: a call in a
+ * tool's definition would keep every tool in a bundle that imports none of
+ * them (sdk-core ADR 0056).
+ */
+const canMove = (direction: MoveDirection, { snapshot }: PdfToolState): boolean =>
+  hasDocument({ snapshot }) && moveOf(snapshot, direction) !== undefined;
 
 /**
  * Moves the selected pages, or the current one, one position earlier. Its
@@ -69,7 +73,7 @@ export const moveEarlierTool: PdfTool = /* @__PURE__ */ defineTool({
   label: "tools.move-earlier",
   icon: "move-up",
   group: "pages",
-  isEnabled: canMove("earlier"),
+  isEnabled: (state) => canMove("earlier", state),
   run: (context) => move(context, "earlier"),
 });
 
@@ -79,6 +83,6 @@ export const moveLaterTool: PdfTool = /* @__PURE__ */ defineTool({
   label: "tools.move-later",
   icon: "move-down",
   group: "pages",
-  isEnabled: canMove("later"),
+  isEnabled: (state) => canMove("later", state),
   run: (context) => move(context, "later"),
 });
